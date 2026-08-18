@@ -94,14 +94,36 @@ Now the app arrives already pointed at the server and a colleague only signs in.
 
 ```bash
 cd cfpi
-npx eas-cli@latest login             # free Expo account
-npx eas-cli@latest update:configure  # one-off: writes projectId and updates.url
-npx eas-cli@latest update --branch demo --message "Demo build"
+npx eas-cli@latest login    # free Expo account
+npm run publish:demo
 ```
 
 The package is **`eas-cli`**, not `eas` — `eas` is only the binary name it
 installs, and `npx eas` fails with the unhelpful "could not determine executable
 to run".
+
+**`publish:demo` pins eas-cli to 16.12.0, and that pin is the only reason this
+works.** Expo Go matches an update by runtime version `exposdk:54.0.0`; eas-cli
+22 overwrites `app.json` on every publish with `runtimeVersion: { policy:
+"appVersion" }`, resolving to `1.0.0`, which Expo Go never matches. Neither
+deleting the field nor setting it explicitly survives — 22 rewrites it either
+way. 16.12.0 honours what is in the file.
+
+Nothing in the terminal reveals this. The publish succeeds and prints a valid
+dashboard link; the update server simply answers Expo Go with `204 No Content`
+and the app never appears. Check what was actually served:
+
+```bash
+npx eas-cli@16.12.0 update:list --branch demo   # expect exposdk:54.0.0, not 1.0.0
+```
+
+Do not run `eas update:configure` again. It is not idempotent: besides the
+runtime version it re-applies the config plugins over an already-expanded
+config, tripling the Android permission list each time.
+
+A **channel** named `demo` must exist and point at the **branch** named `demo`,
+or the server returns 404 to the phone while the dashboard looks healthy.
+Already created; recreate with `npx eas-cli@16.12.0 channel:create demo`.
 
 **On Windows** use `npx.cmd`. PowerShell here refuses npm's unsigned `.ps1`
 wrappers under an `AllSigned` machine policy; the `.cmd` shims are not scripts

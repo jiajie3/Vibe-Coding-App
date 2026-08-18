@@ -30,6 +30,7 @@
     "typescript": "~5.9.2"
   },
   "scripts": {
+    "publish:demo": "npx --yes eas-cli@16.12.0 update --branch demo -m \"Demo build\"",
     "start": "expo start --go",
     "start:devclient": "expo start --dev-client",
     "android": "expo start --go --android",

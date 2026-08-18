@@ -8,6 +8,7 @@
     "userInterfaceStyle": "light",
     "scheme": "cfpi",
     "newArchEnabled": true,
+    "owner": "jiajie3s-team",
     "extra": {
       "//": "Where CFPI looks for FRCDE, baked into the published bundle so a colleague opening the shared link only has to sign in. No trailing slash. Settings still overrides it on-device for local development.",
       "frcdeUrl": "https://frcde.onrender.com",
@@ -15,6 +16,31 @@
         "projectId": "d431590f-d51d-478d-abdd-18de7bbdcde2"
       }
     },
+    "updates": {
+      "url": "https://u.expo.dev/d431590f-d51d-478d-abdd-18de7bbdcde2"
+    },
+
+    "//runtimeVersion": [
+      "The string Expo Go matches on. Publish with `npm run publish:demo`, which",
+      "pins eas-cli to 16.12.0 — do not publish with a newer one.",
+      "",
+      "Expo Go decides whether it can run an update by comparing its own SDK against",
+      "the update's runtime version, in the form `exposdk:<sdk>`. eas-cli 22 ignores",
+      "the value below and rewrites this file on every publish to",
+      "`{ policy: 'appVersion' }`, which resolves to `1.0.0` — a runtime version no",
+      "Expo Go will ever match. 16.12.0 honours it and leaves the file alone.",
+      "",
+      "The failure that causes is invisible from the terminal: the publish reports",
+      "success and prints a working dashboard link, while the update server answers",
+      "Expo Go with 204 No Content and the app never loads. Verify a publish by what",
+      "it served, not by what it printed:",
+      "",
+      "  npx eas-cli@16.12.0 update:list --branch demo    # expect exposdk:54.0.0",
+      "",
+      "Change this when the SDK moves — and only alongside `eas build`, which is the",
+      "point at which Expo Go stops being how this app is distributed."
+    ],
+    "runtimeVersion": "exposdk:54.0.0",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "sg.frcde.cfpi",
@@ -77,21 +103,6 @@
       ],
       "expo-secure-store"
     ],
-    "owner": "jiajie3s-team",
-    "updates": {
-      "//": [
-        "No `runtimeVersion` here, and that omission is load-bearing.",
-        "",
-        "`eas update:configure` writes `runtimeVersion: { policy: 'appVersion' }`,",
-        "which is right for a standalone build and fatal for this one: an update",
-        "carrying a runtime version cannot be loaded by Expo Go, which matches on",
-        "`exposdk:54.0.0` instead. Left in place, `eas update` succeeds, prints a",
-        "link, and that link fails on every colleague's phone.",
-        "",
-        "Add it back only alongside a real build (`eas build`), which is the point",
-        "at which Expo Go stops being how this app is distributed."
-      ],
-      "url": "https://u.expo.dev/d431590f-d51d-478d-abdd-18de7bbdcde2"
-    }
+    "runtimeVersion": "exposdk:54.0.0"
   }
 }
