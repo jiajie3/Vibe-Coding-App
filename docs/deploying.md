@@ -94,16 +94,32 @@ Now the app arrives already pointed at the server and a colleague only signs in.
 
 ```bash
 cd cfpi
-npx eas login          # free Expo account
-npx eas update --branch demo --message "Demo build"
+npx eas-cli@latest login             # free Expo account
+npx eas-cli@latest update:configure  # one-off: writes projectId and updates.url
+npx eas-cli@latest update --branch demo --message "Demo build"
 ```
+
+The package is **`eas-cli`**, not `eas` — `eas` is only the binary name it
+installs, and `npx eas` fails with the unhelpful "could not determine executable
+to run".
+
+**On Windows** use `npx.cmd`. PowerShell here refuses npm's unsigned `.ps1`
+wrappers under an `AllSigned` machine policy; the `.cmd` shims are not scripts
+and are unaffected.
 
 That prints a link. A colleague installs **Expo Go** from their app store, opens
 the link, and CFPI runs — on iPhone or Android, with no Apple Developer account.
+Most of the `expo-updates` API is inert under Expo Go, which costs this app
+nothing: it does not use it.
 
 **One catch:** since 12 May 2026, Expo Go only loads projects you own or that an
 organisation you belong to owns. Colleagues need free Expo accounts, invited to
 your Expo organisation. A one-time step, not a payment.
+
+If publishing fails with a GraphQL error naming your SDK version, check
+[status.expo.dev](https://status.expo.dev) before changing anything — that exact
+failure was a service incident on 1 May 2026, fixed the same day, and it looks
+identical to a project misconfiguration.
 
 ### Android without any accounts
 
