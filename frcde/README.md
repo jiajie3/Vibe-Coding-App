@@ -15,8 +15,15 @@ the server prints on startup) over the same Wi-Fi.
 
 The console is supervisor-only, enforced by the server rather than the UI: an inspector's
 token is refused with **403, not 401**, so CFPI's outbox dead-letters it instead of
-retrying for ever. Passwords are plain text and tokens are opaque random strings — see
-the root README for what that deliberately does not pretend to be.
+retrying for ever. Passwords are scrypt hashes with a per-user salt; tokens are opaque
+random strings rather than signed JWTs — see the root README for what that deliberately
+does not pretend to be.
+
+**On Windows, if `npm` or `npx` fails with "cannot be loaded … not digitally signed",**
+call the `.cmd` shim instead — `npm.cmd run dev` — or lift the policy for your own
+account once with `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`. PowerShell
+refuses the unsigned `.ps1` wrappers npm installs; the `.cmd` ones are not scripts and
+are unaffected.
 
 ```bash
 npm run e2e         # full contract round-trip against a running server
