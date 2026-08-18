@@ -36,3 +36,17 @@ services:
         value: "24.19.0"
       - key: NODE_ENV
         value: production
+
+      # Override the seeded demo passwords. They are hashed either way, but the
+      # defaults are published in the README — fine on a laptop, not on a public
+      # URL. `generateValue` lets Render mint one and show it in the dashboard;
+      # replace with `value:` if you would rather choose it yourself.
+      #
+      # These are read when the database is first seeded. Changing one later
+      # takes effect on the next reseed, which on the free plan is every deploy.
+      - key: FRCDE_SUPERVISOR_PASSWORD
+        generateValue: true
+      - key: FRCDE_INSPECTOR_PASSWORD
+        generateValue: true
+      - key: FRCDE_SITI_PASSWORD
+        generateValue: true

@@ -9,6 +9,8 @@
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+
+import { hashPasswordSync } from './password.ts';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -131,11 +133,10 @@ export interface User {
   id: string;
   username: string;
   /**
-   * Plain text, deliberately.
+   * scrypt hash, in the self-describing form produced by `password.ts`.
    *
-   * This is a mock-up with no real accounts, and a hand-rolled hash would look
-   * like security without being any. Production needs argon2id or bcrypt and a
-   * proper identity provider — flagged in the README rather than half-built.
+   * Records written before hashing existed hold plain text; they still verify,
+   * and are upgraded on the next successful sign-in.
    */
   password: string;
   name: string;
@@ -258,18 +259,58 @@ function priorityFor(days: number): Job['priority'] {
   return 'low';
 }
 
-const SEED_USERS: User[] = [
-  { id: '018f0000-0000-7000-8000-000000000001', username: 'inspector', password: 'inspector', name: 'Field Inspector', role: 'inspector', depot: 'Jurong' },
-  { id: '018f0000-0000-7000-8000-000000000002', username: 'siti', password: 'siti', name: 'Siti Rahmah', role: 'inspector', depot: 'Bedok' },
-  { id: '018f0000-0000-7000-8000-000000000003', username: 'supervisor', password: 'supervisor', name: 'Ops Supervisor', role: 'supervisor', depot: 'HQ' },
+/**
+ * Demo accounts.
+ *
+ * Passwords are hashed when the database is seeded, never stored as written
+ * here. They are documented in the README because a demo nobody can sign into
+ * is useless — but a public deployment should override them, which is what the
+ * environment variables are for. Renaming or removing these is a one-line
+ * change once real accounts exist.
+ */
+const SEED_ACCOUNTS: (Omit<User, 'password'> & { defaultPassword: string; envVar: string })[] = [
+  {
+    id: '018f0000-0000-7000-8000-000000000001',
+    username: 'inspector',
+    defaultPassword: 'inspector',
+    envVar: 'FRCDE_INSPECTOR_PASSWORD',
+    name: 'Field Inspector',
+    role: 'inspector',
+    depot: 'Jurong',
+  },
+  {
+    id: '018f0000-0000-7000-8000-000000000002',
+    username: 'siti',
+    defaultPassword: 'siti',
+    envVar: 'FRCDE_SITI_PASSWORD',
+    name: 'Siti Rahmah',
+    role: 'inspector',
+    depot: 'Bedok',
+  },
+  {
+    id: '018f0000-0000-7000-8000-000000000003',
+    username: 'supervisor',
+    defaultPassword: 'supervisor',
+    envVar: 'FRCDE_SUPERVISOR_PASSWORD',
+    name: 'Ops Supervisor',
+    role: 'supervisor',
+    depot: 'HQ',
+  },
 ];
+
+function seedUsers(): User[] {
+  return SEED_ACCOUNTS.map(({ defaultPassword, envVar, ...rest }) => ({
+    ...rest,
+    password: hashPasswordSync(process.env[envVar]?.trim() || defaultPassword),
+  }));
+}
 
 function seed(): Db {
   const jobs = JSON.parse(readFileSync(SEED_PATH, 'utf8')) as Job[];
   const now = Date.now();
 
   return {
-    users: SEED_USERS.map((u) => ({ ...u })),
+    users: seedUsers(),
     sessions: [],
     work_orders: [],
     jobs: jobs.map((j, i) => {
@@ -319,7 +360,7 @@ export function load(): void {
         jobs: loaded.jobs ?? [],
         inspections: loaded.inspections ?? [],
         attachments: loaded.attachments ?? [],
-        users: loaded.users?.length ? loaded.users : SEED_USERS.map((u) => ({ ...u })),
+        users: loaded.users?.length ? loaded.users : seedUsers(),
         sessions: loaded.sessions ?? [],
         work_orders: loaded.work_orders ?? [],
       };
@@ -360,10 +401,20 @@ export const store = {
   /* ------------------------------------------------------------- people */
   users: () => db.users,
   user: (id: string) => db.users.find((u) => u.id === id),
-  userByLogin: (username: string, password: string) =>
-    db.users.find(
-      (u) => u.username.toLowerCase() === username.trim().toLowerCase() && u.password === password,
-    ),
+  /**
+   * Look up by username only. Verifying the password is the caller's job,
+   * because doing it properly is asynchronous and must not block the loop.
+   */
+  userByUsername: (username: string) =>
+    db.users.find((u) => u.username.toLowerCase() === username.trim().toLowerCase()),
+
+  /** Replace a stored hash — used to upgrade legacy or weakly-parameterised ones. */
+  setPassword(userId: string, hash: string) {
+    const user = db.users.find((u) => u.id === userId);
+    if (!user) return;
+    user.password = hash;
+    persist();
+  },
 
   session: (accessToken: string) => db.sessions.find((s) => s.access_token === accessToken),
   sessionByRefresh: (refreshToken: string) =>

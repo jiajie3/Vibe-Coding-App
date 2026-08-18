@@ -121,10 +121,12 @@ inspection cycles.
 underground, where GPS cannot verify coverage at all. Also: delta sync, real signature
 capture, reporting and export, an audit trail, and offline basemap tiles.
 
-**Known shortcuts, deliberately visible rather than half-hidden.** Passwords are stored
-in plain text and tokens are opaque random strings, not signed JWTs — production needs
-argon2id and a real identity provider. The console keeps its token in `localStorage`
-rather than an httpOnly cookie.
+**Known shortcuts, deliberately visible rather than half-hidden.** Tokens are opaque
+random strings rather than signed JWTs, and there is no rate limiting or account
+lockout — production needs a real identity provider. The console keeps its token in
+`localStorage` rather than an httpOnly cookie. Passwords *are* hashed (scrypt, per-user
+salt); the demo credentials above are weak on purpose and should be overridden on any
+deployment — see [docs/deploying.md](docs/deploying.md).
 
 This is a mock-up. Before any production use, settle data retention and written
 disclosure for continuous employee location tracking — regulated under PDPA in Singapore

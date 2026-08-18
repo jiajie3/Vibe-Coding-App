@@ -15,6 +15,7 @@
     "build": "tsc --noEmit && vite build",
     "start": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON server/index.ts",
     "e2e": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --disable-warning=ExperimentalWarning scripts/e2e.ts",
+    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --disable-warning=ExperimentalWarning --test server/*.test.ts",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },

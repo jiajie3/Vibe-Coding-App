@@ -20,11 +20,19 @@ import { sliceAlignment } from '../../cfpi/src/core/geo.ts';
 import type { CoverageFlag } from '../../cfpi/src/core/types.ts';
 import { issue, publicUser, requireAuth, rotate } from './auth.ts';
 import type { AuthedRequest } from './auth.ts';
+import { hashPassword, hashPasswordSync, needsRehash, verifyPassword } from './password.ts';
 import { cycleFor, DUE_WINDOW_DAYS, load, reset, store, UPLOAD_DIR } from './store.ts';
 import type { AttachmentRecord, InspectionRecord, WorkOrder } from './store.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT ?? 4000);
+
+/**
+ * Verified against when the username does not exist, so a sign-in attempt costs
+ * the same either way. Without it, response timing distinguishes a real account
+ * from an unknown one and hands an attacker a user list.
+ */
+const DUMMY_HASH = hashPasswordSync('unused-placeholder');
 
 load();
 
@@ -100,14 +108,29 @@ app.get('/v1/healthz', (_req, res) => {
 
 /* ------------------------------------------------------------------- auth */
 
-app.post('/v1/auth/token', (req, res) => {
+app.post('/v1/auth/token', async (req, res) => {
   const { username, password, device_id } = req.body ?? {};
-  const user = store.userByLogin(String(username ?? ''), String(password ?? ''));
-  if (!user) {
-    // One message for both wrong-username and wrong-password, so the response
-    // cannot be used to enumerate accounts.
-    return problem(res, 401, 'Sign in failed', 'Username or password is incorrect.');
+  const user = store.userByUsername(String(username ?? ''));
+
+  // One message for both wrong-username and wrong-password, so the response
+  // cannot be used to enumerate accounts. The hash is still computed when the
+  // username is unknown, so the two cases take the same time.
+  const deny = () =>
+    problem(res, 401, 'Sign in failed', 'Username or password is incorrect.');
+
+  const ok = await verifyPassword(
+    String(password ?? ''),
+    user?.password ?? DUMMY_HASH,
+  );
+  if (!user || !ok) return deny();
+
+  // Upgrade a record written before hashing existed, or under weaker cost
+  // parameters. Doing it here means the migration happens without anyone
+  // running one, and only for accounts actually in use.
+  if (needsRehash(user.password)) {
+    store.setPassword(user.id, await hashPassword(String(password)));
   }
+
   const session = issue(user, device_id);
   res.json({
     access_token: session.access_token,

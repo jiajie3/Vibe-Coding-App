@@ -45,12 +45,29 @@ wiped on every deploy and restart, and the store reseeds to five due drains. A
 tidy reset rather than a broken one — but colleagues' inspections do not
 survive. Attach a disk on a paid plan if they need to.
 
-### Before anyone else uses it
+### Passwords
 
-Change the seeded passwords in [`frcde/server/store.ts`](../frcde/server/store.ts).
-`supervisor/supervisor` is fine on your laptop and not fine on the public
-internet. They are stored in plain text, which is a deliberate mock-up shortcut
-— see the root README.
+Stored as **scrypt** hashes (`scrypt$N$r$p$salt$hash`), never in plain text. A
+database written before hashing existed still signs in, and is upgraded on the
+next successful attempt — no migration to run.
+
+The seeded demo passwords are published in the README, which is fine on a laptop
+and not on a public URL. `render.yaml` therefore sets three environment
+variables with `generateValue: true`, so Render mints random ones and shows them
+in the dashboard:
+
+```
+FRCDE_SUPERVISOR_PASSWORD
+FRCDE_INSPECTOR_PASSWORD
+FRCDE_SITI_PASSWORD
+```
+
+Read them from **Render → your service → Environment** and hand them to
+colleagues. Swap `generateValue: true` for `value: something-you-chose` if you
+would rather pick.
+
+They are applied when the database is seeded — which on the free plan, with no
+persistent disk, is every deploy.
 
 ---
 
