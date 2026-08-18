@@ -152,8 +152,19 @@ Most of the `expo-updates` API is inert under Expo Go, which costs this app
 nothing: it does not use it.
 
 **One catch:** since 12 May 2026, Expo Go only loads projects you own or that an
-organisation you belong to owns. Colleagues need free Expo accounts, invited to
-your Expo organisation. A one-time step, not a payment.
+organisation you belong to owns. Each colleague needs a free Expo account and an
+invitation to the `jiajie3s-team` organisation:
+
+> **expo.dev → switch to `jiajie3s-team` → Organization settings → Members →
+> Invite →** their email, role **Viewer**.
+
+Switching accounts first is the step people miss — a personal account has no
+Members page at all, so the option appears simply not to exist. **Viewer** is the
+right role: Expo defines it as being able to open projects in Expo Go and change
+nothing. Only an Owner or Admin can send invitations.
+
+Members are free and unlimited on Expo's Free plan, so this costs nothing —
+it is a one-time step per person, not a payment.
 
 If publishing fails with a GraphQL error naming your SDK version, check
 [status.expo.dev](https://status.expo.dev) before changing anything — that exact
