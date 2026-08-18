@@ -1,0 +1,44 @@
+# Covers both projects — cfpi/ keeps its own for Expo-specific entries.
+
+# dependencies
+node_modules/
+
+# builds
+dist/
+web-build/
+*.tsbuildinfo
+
+# Expo
+.expo/
+expo-env.d.ts
+.metro-health-check*
+
+# Generated native projects
+/cfpi/ios/
+/cfpi/android/
+
+# FRCDE runtime state. Regenerated from contracts/examples/seed-jobs.json on
+# first start, so committing it would just create merge conflicts over data
+# nobody edits by hand.
+frcde/data/
+
+# Local tool settings
+.claude/settings.local.json
+
+# Secrets and signing material
+.env*.local
+*.pem
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Logs
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# OS
+.DS_Store
+Thumbs.db

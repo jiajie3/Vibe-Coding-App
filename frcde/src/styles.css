@@ -1,0 +1,397 @@
+:root {
+  --bg: #f1f5f9;
+  --panel: #ffffff;
+  --ink: #0f172a;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --accent: #2563eb;
+  --green: #16a34a;
+  --amber: #d97706;
+  --red: #dc2626;
+  --violet: #7c3aed;
+  --radius: 14px;
+  --shadow: 0 1px 3px rgb(15 23 42 / 0.06), 0 8px 24px rgb(15 23 42 / 0.04);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, system-ui, sans-serif;
+  font-size: 18.5px;
+  line-height: 1.5;
+}
+
+a { color: inherit; text-decoration: none; }
+
+/* ------------------------------------------------------------------ shell */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 24px;
+  background: var(--ink);
+  color: #fff;
+}
+.topbar h1 { font-size: 22.5px; margin: 0; letter-spacing: -0.2px; }
+.topbar .sub { color: #94a3b8; font-size: 15.5px; margin-left: 10px; font-weight: 500; }
+.topbar nav { display: flex; gap: 6px; align-items: center; }
+.topbar nav a {
+  padding: 6px 12px; border-radius: 8px; font-size: 17.5px; font-weight: 600; color: #cbd5e1;
+}
+.topbar nav a:hover { background: #1e293b; color: #fff; }
+.topbar nav a.active { background: #334155; color: #fff; }
+
+/* Fluid rather than capped. A wide monitor should buy a wider map and a taller
+   queue, not two columns of whitespace. */
+.page { padding: 20px 24px 40px; }
+
+/* ------------------------------------------------------------------- kpis */
+
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.kpi { background: var(--panel); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); }
+.kpi .v { font-size: 37px; font-weight: 800; letter-spacing: -1px; line-height: 1.1; }
+.kpi .k { font-size: 14.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.7px; font-weight: 700; margin-top: 2px; }
+.kpi.warn .v { color: var(--red); }
+.kpi.soon .v { color: var(--amber); }
+.kpi.review .v { color: var(--violet); }
+.kpi.active .v { color: var(--amber); }
+
+/* ------------------------------------------------------------------ split */
+
+/* An even split. The map is for orientation and the list is the working
+   surface, so neither should crowd the other — and at half width the panel has
+   room for the larger type without every row wrapping. */
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 1200px) { .split { grid-template-columns: minmax(0, 1fr); } }
+
+.panel {
+  background: var(--panel);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.panel > header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.panel > header h2 { margin: 0; font-size: 18.5px; font-weight: 700; }
+.panel .body { padding: 14px 16px; }
+
+/* Taller, to compensate for being narrower — a slim map needs vertical room or
+   a north-south drain like Sungei Ulu Pandan barely fits. */
+.maprow { height: clamp(460px, 72vh, 980px); }
+.maprow .maplibregl-map { border-radius: var(--radius); }
+
+/* ------------------------------------------------------------------ queue */
+
+/* Matched to the map so the two panels stay level. */
+.queue { max-height: clamp(460px, 72vh, 980px); overflow-y: auto; }
+.jobrow { display: block; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.jobrow:hover { background: #f8fafc; }
+.toolbar {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  padding: 10px 16px; border-bottom: 1px solid var(--line); background: #fbfdff;
+}
+.toolbar .select { flex: 1; min-width: 150px; }
+.searchwrap { position: relative; flex: 1 1 100%; }
+.input.search { margin-top: 0; padding-right: 34px; font-size: 17.5px; }
+.searchclear {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  border: 0; background: var(--line); color: var(--muted); cursor: pointer;
+  width: 20px; height: 20px; border-radius: 50%; font-size: 19.5px; line-height: 1;
+  font-family: inherit; display: grid; place-items: center; padding: 0;
+}
+.searchclear:hover { background: #cbd5e1; color: var(--ink); }
+
+.schedbar {
+  padding: 8px 16px; font-size: 15px; color: var(--muted); font-weight: 600;
+  background: #f0fdf4; border-bottom: 1px solid var(--line);
+}
+.schedbar::before { content: '● '; color: var(--green); }
+
+.segbar { display: flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+.segbar button {
+  border: 0; background: #fff; color: var(--muted); cursor: pointer;
+  font-family: inherit; font-size: 15.5px; font-weight: 700; padding: 6px 11px;
+}
+.segbar button.on { background: var(--ink); color: #fff; }
+
+.rowactions { display: flex; gap: 6px; margin-top: 10px; }
+.btn.tiny { padding: 6px 10px; font-size: 15.5px; border-radius: 8px; }
+.btn.primary.tiny { background: var(--green); color: #fff; }
+.jobrow .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.jobrow .ref { font-size: 14.5px; font-weight: 700; color: var(--muted); letter-spacing: 0.4px; }
+.jobrow .name { font-weight: 650; margin-top: 3px; }
+.jobrow .meta { font-size: 15.5px; color: var(--muted); margin-top: 3px; display: flex; gap: 6px; flex-wrap: wrap; }
+.jobrow .bar { height: 4px; border-radius: 2px; background: var(--line); margin-top: 8px; overflow: hidden; }
+.jobrow .bar i { display: block; height: 100%; background: var(--amber); }
+
+.pill {
+  font-size: 13.5px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 999px; color: #fff; white-space: nowrap;
+}
+/* Red means late, and nothing else. Amber warns, grey informs. Overloading red
+   onto "queued" made a drain due in 20 days look more urgent than one due in 3. */
+.due-overdue { color: var(--red); font-weight: 700; }
+.due-soon { color: var(--amber); font-weight: 650; }
+.due-later { color: var(--muted); }
+.overdue { color: var(--red); font-weight: 700; }
+
+/* ----------------------------------------------------------------- detail */
+
+.crumb { font-size: 17.5px; color: var(--accent); font-weight: 600; margin-bottom: 10px; display: inline-block; }
+.detail-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+.detail-head h2 { margin: 4px 0 2px; font-size: 32px; letter-spacing: -0.5px; }
+.detail-head .facts { font-size: 17.5px; color: var(--muted); }
+
+.kv { display: grid; grid-template-columns: 160px 1fr; gap: 6px 14px; font-size: 17.5px; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; font-weight: 600; }
+
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 15.5px; color: var(--muted); padding: 10px 16px; border-top: 1px solid var(--line); }
+.legend i { display: inline-block; width: 14px; height: 4px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+
+.answers { display: grid; }
+.answer {
+  display: flex; justify-content: space-between; gap: 12px;
+  padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 17.5px;
+  background: none; border-left: 0; border-right: 0; border-top: 0;
+  width: 100%; text-align: left; font-family: inherit;
+}
+.answer:last-child { border-bottom: 0; }
+.answer .q { color: var(--muted); }
+.answer .a { font-weight: 650; text-align: right; }
+/* A "poor" or "blockage present: yes" is the reason the reviewer opened this. */
+.answer.concern .a { color: var(--red); }
+.answer.concern .a::before { content: '⚠ '; }
+
+.histrow { cursor: pointer; border-radius: 8px; padding: 9px 10px; }
+.histrow:hover { background: #f8fafc; }
+.histrow.active { background: #eff6ff; }
+
+.sec + .sec { margin-top: 14px; }
+.minilabel {
+  font-size: 13.5px; font-weight: 800; color: var(--muted);
+  letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 6px;
+}
+
+.select {
+  font-family: inherit; font-size: 15.5px; padding: 5px 8px;
+  border-radius: 8px; border: 1px solid var(--line); background: #fff; color: var(--ink);
+}
+
+/* ------------------------------------------------------------- site notes */
+
+.textarea, .input {
+  width: 100%; font-family: inherit; font-size: 17.5px; color: var(--ink);
+  padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line);
+  background: #f8fafc; resize: vertical; line-height: 1.5;
+}
+.textarea:focus, .input:focus {
+  outline: none; border-color: var(--accent); background: #fff;
+}
+.input { margin-top: 8px; }
+
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #fef3c7; color: #92400e; font-size: 15.5px; font-weight: 700;
+  padding: 4px 6px 4px 10px; border-radius: 999px; text-transform: capitalize;
+}
+.tag button {
+  border: 0; background: rgb(146 64 14 / 0.15); color: #92400e; cursor: pointer;
+  width: 16px; height: 16px; border-radius: 50%; line-height: 1; font-size: 17.5px;
+  font-family: inherit; display: grid; place-items: center; padding: 0;
+}
+.tag button:hover { background: rgb(146 64 14 / 0.3); }
+.tagempty { font-size: 15.5px; color: var(--muted); }
+
+.suggest { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.suggest button {
+  border: 1px dashed var(--line); background: #fff; color: var(--muted);
+  font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
+  padding: 4px 9px; border-radius: 999px; text-transform: capitalize;
+}
+.suggest button:hover { border-color: var(--accent); color: var(--accent); }
+
+.headactions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+/* Coverage readout */
+.cov { display: flex; align-items: center; gap: 14px; }
+.covpct { font-size: 40px; font-weight: 800; letter-spacing: -2px; line-height: 1; }
+.covpct small { font-size: 23.5px; }
+.covpct.ok { color: var(--green); }
+.covpct.bad { color: var(--red); }
+.covmeta { flex: 1; display: grid; gap: 6px; }
+.covbar { position: relative; height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.covbar i { display: block; height: 100%; background: var(--red); }
+.covbar i.ok { background: var(--green); }
+.covbar b { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--ink); }
+.covnote { font-size: 14.5px; color: var(--muted); font-weight: 500; }
+
+.photo { border: 0; padding: 0; cursor: pointer; font-family: inherit; }
+.lightbox {
+  position: fixed; inset: 0; background: rgb(15 23 42 / 0.9);
+  display: grid; place-items: center; z-index: 50; cursor: zoom-out; padding: 40px;
+}
+.lightbox img { max-width: 100%; max-height: 100%; border-radius: 12px; }
+
+/* ----------------------------------------------------------------- modal */
+
+.modal {
+  position: fixed; inset: 0; background: rgb(15 23 42 / 0.55);
+  display: grid; place-items: center; z-index: 60; padding: 24px;
+}
+.modal-card {
+  background: #fff; border-radius: 16px; padding: 22px;
+  width: min(460px, 100%); display: grid; gap: 12px;
+  box-shadow: 0 20px 60px rgb(0 0 0 / 0.3); max-height: 90vh; overflow-y: auto;
+}
+.modal-card h2 { margin: 0; font-size: 23.5px; }
+.modal-sub { margin: -6px 0 2px; font-size: 17px; color: var(--muted); }
+.modal-card label {
+  display: grid; gap: 5px; font-size: 15px; font-weight: 800;
+  color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px;
+}
+.modal-card .input, .modal-card .textarea, .modal-card .select {
+  margin-top: 0; font-size: 18.5px; text-transform: none; letter-spacing: 0;
+  font-weight: 400; color: var(--ink); width: 100%;
+}
+.modal-note {
+  background: #f0f9ff; color: #075985; border-radius: 9px;
+  padding: 9px 11px; font-size: 15.5px; font-weight: 600;
+}
+
+/* ---------------------------------------------------------- reject reasons */
+
+.reasonlist { display: grid; gap: 6px; }
+.reasonopt {
+  display: grid; gap: 1px; text-align: left; cursor: pointer;
+  border: 1.5px solid var(--line); background: #fff; border-radius: 10px;
+  padding: 9px 12px; font-family: inherit;
+}
+.reasonopt:hover { border-color: #cbd5e1; }
+.reasonopt.on { border-color: var(--accent); background: #eff6ff; }
+.reasonlabel {
+  font-size: 17px; font-weight: 650; color: var(--ink);
+  text-transform: none; letter-spacing: 0;
+}
+.reasonopt.on .reasonlabel { color: #1e40af; }
+.reasonhint {
+  font-size: 14.5px; color: var(--muted); font-weight: 400;
+  text-transform: none; letter-spacing: 0;
+}
+
+/* Photographs shown inside their checklist section. */
+.secphotos { margin-top: 10px; }
+
+.photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+.photo { border-radius: 10px; overflow: hidden; background: #e2e8f0; position: relative; aspect-ratio: 1; }
+.photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo span {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 3px 6px;
+  background: rgb(0 0 0 / 0.6); color: #fff; font-size: 13.5px; font-weight: 700;
+}
+.photo.missing { display: grid; place-items: center; color: var(--muted); font-size: 14.5px; text-align: center; padding: 8px; }
+.fromalbum {
+  position: absolute; top: 5px; left: 5px; font-style: normal;
+  background: rgb(124 58 237 / 0.92); color: #fff;
+  font-size: 13.5px; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase;
+  padding: 2px 6px; border-radius: 5px;
+}
+
+.gaps { display: flex; gap: 6px; flex-wrap: wrap; }
+.gap { background: #fee2e2; color: #991b1b; font-size: 15.5px; font-weight: 700; padding: 4px 9px; border-radius: 999px; }
+
+.flags { display: flex; gap: 6px; flex-wrap: wrap; }
+.flag { background: #fef3c7; color: #92400e; font-size: 13.5px; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; }
+
+/* ---------------------------------------------------------------- buttons */
+
+.btn {
+  border: 0; border-radius: 10px; padding: 10px 16px; font-size: 17.5px; font-weight: 700;
+  cursor: pointer; font-family: inherit; background: #f1f5f9; color: var(--ink);
+}
+.btn:hover { filter: brightness(0.96); }
+.btn.primary { background: var(--green); color: #fff; }
+.btn.danger { background: var(--red); color: #fff; }
+.btn.dark { background: var(--ink); color: #fff; }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btnrow { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.empty { padding: 40px 20px; text-align: center; color: var(--muted); font-size: 17.5px; }
+
+.map-pin {
+  border-radius: 50%;
+  border: 3px solid #fff; box-shadow: 0 2px 8px rgb(0 0 0 / 0.45);
+  transition: transform 0.12s ease;
+}
+.map-pin:hover { transform: scale(1.3); z-index: 5; }
+
+/* Overdue work should catch the eye without being obnoxious about it. */
+.map-pin.pulse::after {
+  content: ''; position: absolute; inset: -6px;
+  border-radius: 50%; border: 2.5px solid currentColor;
+  animation: ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+.map-pin.pulse { position: relative; color: var(--red); }
+@keyframes ping {
+  0% { transform: scale(0.85); opacity: 0.9; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .map-pin.pulse::after { animation: none; opacity: 0.6; }
+}
+
+/* Hover card on the dashboard map. */
+.maplibregl-popup-content {
+  border-radius: 12px; padding: 12px 14px;
+  box-shadow: 0 6px 24px rgb(15 23 42 / 0.18); font-size: 17.5px;
+}
+.pop-ref { font-size: 13.5px; font-weight: 800; color: var(--muted); letter-spacing: 0.5px; }
+.pop-name { font-weight: 700; margin: 2px 0 6px; font-size: 18.5px; }
+.pop-row { display: flex; justify-content: space-between; gap: 16px; padding: 2px 0; }
+.pop-row span:first-child { color: var(--muted); }
+.pop-row span:last-child { font-weight: 650; }
+.pop-hint { margin-top: 8px; font-size: 14.5px; color: var(--accent); font-weight: 700; }
+
+.mismatch { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; border-radius: 10px; padding: 10px 12px; font-size: 17px; font-weight: 600; }
+
+/* An override is an exception on the record, so it is stated plainly rather
+   than buried among the flags. */
+.override { background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 10px 12px; }
+.overridetitle { font-size: 17px; font-weight: 800; color: #92400e; text-transform: capitalize; }
+/* ---------------------------------------------------------------- signin */
+
+.signin { min-height: 100vh; display: grid; place-items: center; background: var(--ink); padding: 24px; }
+.signin-card {
+  background: #fff; border-radius: 16px; padding: 26px; width: min(380px, 100%);
+  display: grid; gap: 12px; box-shadow: 0 20px 60px rgb(0 0 0 / 0.35);
+}
+.signin-brand { text-align: center; margin-bottom: 6px; }
+.signin-brand h1 { margin: 0; font-size: 40px; letter-spacing: 2px; }
+.signin-brand span { font-size: 17px; color: var(--muted); font-weight: 600; }
+.signin-card label { display: grid; gap: 5px; font-size: 15px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; }
+.signin-card .input { font-size: 19.5px; margin-top: 0; }
+.signin-error { background: #fef2f2; color: #991b1b; border-radius: 9px; padding: 9px 11px; font-size: 17px; font-weight: 600; }
+.signin-hint { font-size: 15px; color: var(--muted); text-align: center; margin: 2px 0 0; line-height: 1.6; }
+.signin-hint code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; }
+
+.whoami { font-size: 15.5px; color: #94a3b8; margin-left: 10px; font-weight: 600; }
+.signout {
+  background: #1e293b; border: 0; color: #cbd5e1; font-family: inherit;
+  font-size: 15.5px; font-weight: 700; padding: 6px 12px; border-radius: 8px; cursor: pointer;
+}
+.signout:hover { background: #334155; color: #fff; }
+.note { background: #eff6ff; border-radius: 10px; padding: 10px 12px; font-size: 17px; color: #1d4ed8; font-weight: 600; }

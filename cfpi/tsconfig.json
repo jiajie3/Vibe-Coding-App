@@ -1,0 +1,15 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    // Relative imports inside src/core carry explicit .ts extensions so the same
+    // files run unmodified under both Metro and `node --test` (Node's ESM resolver
+    // does not guess extensions). Metro resolves explicit extensions fine.
+    "allowImportingTsExtensions": true,
+    "noEmit": true
+  },
+  // Tests run under Node and need Node globals; app code must not. They are
+  // checked separately via tsconfig.test.json so nobody can reach for `Buffer`
+  // or `process` inside a React Native screen and have it typecheck.
+  "exclude": ["**/*.test.ts", "node_modules"]
+}

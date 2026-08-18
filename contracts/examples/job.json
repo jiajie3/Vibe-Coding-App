@@ -1,0 +1,57 @@
+{
+  "id": "018f3a2b-7c41-7e90-b3d2-4a1f6c8e9d00",
+  "reference": "INS-2026-004182",
+  "status": "available",
+  "version": 3,
+  "priority": "high",
+  "due_at": "2026-08-14T16:00:00.000Z",
+  "assigned_inspector_id": null,
+
+  "asset": {
+    "id": "DRN-88213",
+    "name": "Sungei Ulu Pandan — Segment 14B",
+    "type": "open_concrete_drain",
+    "length_m": 612.4,
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [103.76120, 1.32040],
+        [103.76181, 1.32112],
+        [103.76240, 1.32188],
+        [103.76305, 1.32251],
+        [103.76377, 1.32309],
+        [103.76448, 1.32360],
+        [103.76521, 1.32402]
+      ]
+    },
+    "segment_boundaries_m": [
+      0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100,
+      110, 120, 130, 140, 150, 160, 170, 180, 190, 200,
+      210, 220, 230, 240, 250, 260, 270, 280, 290, 300,
+      310, 320, 330, 340, 350, 360, 370, 380, 390, 400,
+      410, 420, 430, 440, 450, 460, 470, 480, 490, 500,
+      510, 520, 530, 540, 550, 560, 570, 580, 590, 600,
+      610, 612.4
+    ],
+    "access_notes": "Access gate at Clementi Road end. Key held at Jurong depot — collect before 08:00.",
+    "hazards": ["deep_water", "steep_batter", "vehicular_traffic"]
+  },
+
+  "inspection_rules": {
+    "segment_length_m": 10,
+    "corridor_tolerance_m": 20,
+    "max_accuracy_m": 25,
+    "min_coverage_pct": 90,
+    "max_speed_mps": 3.0,
+    "allow_override": true,
+    "require_photo_on_override": true
+  },
+
+  "checklist_template": {
+    "id": "tpl_open_drain",
+    "version": 7
+  },
+
+  "rejection_reason": null,
+  "updated_at": "2026-08-05T02:11:47.900Z"
+}

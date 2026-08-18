@@ -1,0 +1,42 @@
+{
+  "name": "cfpi",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "dependencies": {
+    "@react-navigation/native": "^7.3.15",
+    "@react-navigation/native-stack": "^7.18.7",
+    "expo": "^54.0.36",
+    "expo-camera": "~17.0.10",
+    "expo-constants": "~18.0.13",
+    "expo-crypto": "~15.0.9",
+    "expo-dev-client": "~6.0.21",
+    "expo-file-system": "~19.0.23",
+    "expo-image-manipulator": "~14.0.8",
+    "expo-image-picker": "~17.0.11",
+    "expo-location": "~19.0.8",
+    "expo-secure-store": "~15.0.8",
+    "expo-status-bar": "~3.0.9",
+    "expo-task-manager": "~14.0.9",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-maps": "1.20.1",
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-screens": "~4.16.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.2",
+    "@types/react": "~19.1.0",
+    "typescript": "~5.9.2"
+  },
+  "scripts": {
+    "start": "expo start --go",
+    "start:devclient": "expo start --dev-client",
+    "android": "expo start --go --android",
+    "ios": "expo start --go --ios",
+    "web": "expo start --web",
+    "test:core": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/core/*.test.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json",
+    "seed": "python ../tools/seed_from_osm.py --count 40 && node -e \"require('fs').copyFileSync('../contracts/examples/seed-jobs.json','assets/seed-jobs.json')\""
+  },
+  "private": true
+}

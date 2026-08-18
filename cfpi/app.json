@@ -1,0 +1,74 @@
+{
+  "expo": {
+    "name": "CFPI — Coastal & Flood Protection Inspection",
+    "slug": "cfpi",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "scheme": "cfpi",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "sg.frcde.cfpi",
+      "config": {
+        "googleMapsApiKey": "REPLACE_WITH_IOS_KEY"
+      },
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "CFPI records your route along the drain to confirm the full stretch was inspected.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "CFPI keeps recording your route while the screen is off or you are using another app, so an inspection is never lost mid-walk.",
+        "NSCameraUsageDescription": "CFPI attaches photographs of defects to the inspection record.",
+        "NSPhotoLibraryAddUsageDescription": "CFPI saves inspection photographs to your device.",
+        "UIBackgroundModes": [
+          "location"
+        ]
+      }
+    },
+    "android": {
+      "package": "sg.frcde.cfpi",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "config": {
+        "googleMaps": {
+          "apiKey": "REPLACE_WITH_ANDROID_KEY"
+        }
+      },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
+        "CAMERA",
+        "WAKE_LOCK"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-dev-client",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "CFPI records your route along the drain to confirm the full stretch was inspected.",
+          "locationWhenInUsePermission": "CFPI records your route along the drain to confirm the full stretch was inspected.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "CFPI attaches photographs of defects to the inspection record."
+        }
+      ],
+      "expo-secure-store"
+    ]
+  }
+}

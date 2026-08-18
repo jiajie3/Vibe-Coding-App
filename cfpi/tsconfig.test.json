@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],
+    // Node runs these files as ESM (they use import.meta.url). "nodenext" would
+    // resolve to CommonJS here, since package.json has no "type": "module" —
+    // and that is deliberate, because setting it would break Metro.
+    "module": "esnext",
+    "moduleResolution": "bundler"
+  },
+  "include": ["src/core/**/*.ts"],
+  "exclude": ["node_modules"]
+}

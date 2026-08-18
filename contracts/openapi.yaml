@@ -1,0 +1,985 @@
+openapi: 3.1.0
+info:
+  title: FRCDE Inspection API
+  version: "1.0.0"
+  description: |
+    API served by FRCDE (scheduling/management backend) and consumed by CFPI
+    (field inspector mobile app). See docs/api-contract.md for the narrative spec,
+    offline-sync rules and job state machine.
+
+servers:
+  - url: https://api.frcde.example.com/v1
+    description: Production
+  - url: https://api.staging.frcde.example.com/v1
+    description: Staging
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Auth
+  - name: Jobs
+  - name: Inspections
+  - name: Attachments
+  - name: Checklists
+  - name: Sync
+  - name: Console
+    description: |
+      Supervisor-only. Approving an inspection, scheduling work and closing a
+      drain are decisions, not field actions — an inspector's token is refused
+      with 403 rather than 401, so the CFPI outbox dead-letters instead of
+      retrying for ever.
+
+paths:
+  # ---------------------------------------------------------------- Auth
+  /auth/token:
+    post:
+      tags: [Auth]
+      summary: Exchange credentials for a token pair
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password, device_id]
+              properties:
+                username: { type: string }
+                password: { type: string, format: password }
+                device_id:
+                  type: string
+                  format: uuid
+                  description: Stable install-scoped identifier for this handset.
+      responses:
+        "200":
+          description: Token pair issued
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TokenPair" }
+        "401": { $ref: "#/components/responses/Problem" }
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Rotate the refresh token and issue a new access token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token: { type: string }
+      responses:
+        "200":
+          description: New token pair; the old refresh token is revoked.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TokenPair" }
+        "401": { $ref: "#/components/responses/Problem" }
+
+  # ---------------------------------------------------------------- Jobs
+  /jobs:
+    get:
+      tags: [Jobs]
+      summary: List inspection jobs
+      parameters:
+        - name: status
+          in: query
+          description: |
+            Defaults to the dispatchable set — available, accepted, in_progress.
+            FRCDE decides what needs inspecting and sends only that; a drain that is
+            approved, awaiting review, cancelled or expired never reaches a handset.
+            Filtering server-side means the app cannot get it wrong.
+          schema:
+            type: array
+            items: { $ref: "#/components/schemas/JobStatus" }
+          style: form
+          explode: false
+        - name: bbox
+          in: query
+          description: "Filter by bounding box: minLon,minLat,maxLon,maxLat"
+          schema: { type: string, example: "103.60,1.20,104.10,1.48" }
+        - name: updated_since
+          in: query
+          description: Opaque delta-sync cursor from a previous response.
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        "200":
+          description: A page of jobs
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Job" }
+                  next_cursor: { type: string, nullable: true }
+        "401": { $ref: "#/components/responses/Problem" }
+
+  /jobs/{job_id}:
+    parameters:
+      - $ref: "#/components/parameters/JobId"
+    get:
+      tags: [Jobs]
+      summary: Fetch a single job
+      responses:
+        "200":
+          description: The job. ETag carries the version for optimistic concurrency.
+          headers:
+            ETag:
+              schema: { type: string }
+              description: Job version, to be echoed in If-Match on accept.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Job" }
+        "404": { $ref: "#/components/responses/Problem" }
+
+  /jobs/{job_id}/accept:
+    parameters:
+      - $ref: "#/components/parameters/JobId"
+    post:
+      tags: [Jobs]
+      summary: Claim an available job
+      description: |
+        The only mutation that cannot be performed offline — claiming a shared resource
+        requires the server to arbitrate. Requires If-Match with the last-seen job version.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - name: If-Match
+          in: header
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Job claimed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Job" }
+        "409":
+          description: Already claimed by another inspector, or stale version supplied.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+        "410": { $ref: "#/components/responses/Problem" }
+
+  /jobs/{job_id}/decline:
+    parameters:
+      - $ref: "#/components/parameters/JobId"
+    post:
+      tags: [Jobs]
+      summary: Decline an offered job
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason_code]
+              properties:
+                reason_code:
+                  type: string
+                  enum: [too_far, no_access, no_equipment, workload, other]
+                notes: { type: string }
+      responses:
+        "200": { description: Declined }
+
+  /console/jobs/{job_id}/dispatch:
+    parameters:
+      - $ref: "#/components/parameters/JobId"
+    post:
+      tags: [Console]
+      summary: Put a drain into the inspection queue
+      description: |
+        Supervisor only. The due date is clamped to the dispatch window — being in
+        the queue *is* being due for inspection, so a drain scheduled three weeks
+        out would contradict the label the console gives it.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                due_in_days: { type: integer, minimum: 0, maximum: 7, default: 7 }
+      responses:
+        "200": { description: Queued }
+        "409":
+          description: Already accepted, in progress or awaiting review.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+
+  /console/jobs/{job_id}/close:
+    parameters:
+      - $ref: "#/components/parameters/JobId"
+    post:
+      tags: [Console]
+      summary: Take a drain out of the queue
+      description: |
+        Sets the next routine inspection from the asset's own cycle rather than
+        leaving a stale deadline behind, and abandons any inspection still open.
+      responses:
+        "200": { description: Closed }
+
+  /console/jobs/{job_id}/asset:
+    parameters:
+      - $ref: "#/components/parameters/JobId"
+    patch:
+      tags: [Console]
+      summary: Edit the site knowledge shown to inspectors
+      description: |
+        Access notes and hazards belong to the asset, not to any one inspection.
+        Editing bumps the job version, so CFPI picks the change up like any other
+        and it reaches the handset at the next sync. Hazards are normalised to
+        lower snake_case and deduplicated.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                access_notes: { type: string }
+                hazards:
+                  type: array
+                  items: { type: string }
+      responses:
+        "200": { description: Updated }
+
+  /console/work-orders:
+    get:
+      tags: [Console]
+      summary: List remediation work
+      responses:
+        "200":
+          description: All work orders
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/WorkOrder" }
+    post:
+      tags: [Console]
+      summary: Raise remediation from an inspection
+      description: |
+        An inspection that finds a blockage and produces nothing but a record is
+        how inspectors learn their findings do not matter.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [job_id, title]
+              properties:
+                job_id: { type: string, format: uuid }
+                inspection_id: { type: string, format: uuid, nullable: true }
+                title: { type: string }
+                detail: { type: string }
+                severity: { type: integer, minimum: 1, maximum: 5 }
+                chainage_m: { type: number, nullable: true }
+                attachment_ids:
+                  type: array
+                  items: { type: string, format: uuid }
+      responses:
+        "201":
+          description: Raised
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkOrder" }
+
+  /console/schedule/run:
+    post:
+      tags: [Console]
+      summary: Sweep for drains that have come due
+      description: |
+        Runs automatically every hour and on startup; this endpoint exists for
+        tests and for the rare "policy just changed, sweep now" case. The console
+        deliberately does not surface it — a supervisor should not have to
+        remember to run the scheduler. Idempotent.
+      responses:
+        "200":
+          description: What the sweep did
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  last_run_at: { type: string, format: date-time }
+                  checked: { type: integer }
+                  queued:
+                    type: array
+                    items: { type: string }
+
+  /jobs/{job_id}/heartbeat:
+    parameters:
+      - $ref: "#/components/parameters/JobId"
+    post:
+      tags: [Jobs]
+      summary: Report progress on an inspection still under way
+      description: |
+        CFPI owns the authoritative state of an unfinished inspection — every covered
+        segment, the walked path, draft answers — because it must be resumable with no
+        connectivity at all. This endpoint exists only so a supervisor can see
+        "47%, paused 3 days ago" and chase it.
+
+        Best-effort by design. It is never queued: a heartbeat delivered an hour late
+        would overwrite a fresher figure with a stale one, and a failed heartbeat must
+        never block an inspector in the field.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [inspection_id, status, coverage_pct]
+              properties:
+                inspection_id: { type: string, format: uuid }
+                status: { type: string, enum: [in_progress, paused] }
+                coverage_pct: { type: number, format: float }
+      responses:
+        "204": { description: Recorded }
+        "404": { $ref: "#/components/responses/Problem" }
+
+  /jobs/{job_id}/release:
+    parameters:
+      - $ref: "#/components/parameters/JobId"
+    post:
+      tags: [Jobs]
+      summary: Return an accepted job to the available pool
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason_code]
+              properties:
+                reason_code: { type: string }
+                notes: { type: string }
+      responses:
+        "200": { description: Released }
+
+  # --------------------------------------------------------- Inspections
+  /jobs/{job_id}/inspections:
+    parameters:
+      - $ref: "#/components/parameters/JobId"
+    post:
+      tags: [Inspections]
+      summary: Start an inspection session
+      description: |
+        The session id is generated by CFPI (UUIDv7) so that photos and checklist
+        answers can reference it while the device is offline. Moves the job to in_progress.
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/InspectionStart" }
+      responses:
+        "201":
+          description: Session created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Inspection" }
+        "409": { $ref: "#/components/responses/Problem" }
+
+  /inspections/{inspection_id}/track:
+    parameters:
+      - $ref: "#/components/parameters/InspectionId"
+    post:
+      tags: [Inspections]
+      summary: Append a batch of GPS track points
+      description: |
+        Append-only. Points are deduplicated on (inspection_id, seq), so replaying a
+        batch is a safe no-op. CFPI flushes every 30s or 50 points, and always on stop.
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TrackBatch" }
+      responses:
+        "202":
+          description: Batch accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accepted_points: { type: integer }
+                  duplicate_points: { type: integer }
+                  server_coverage_pct: { type: number, format: float }
+        "422": { $ref: "#/components/responses/Problem" }
+
+  /inspections/{inspection_id}/complete:
+    parameters:
+      - $ref: "#/components/parameters/InspectionId"
+    post:
+      tags: [Inspections]
+      summary: Submit the completed inspection
+      description: |
+        All referenced attachments must already be confirmed. FRCDE recomputes coverage
+        from the raw track; the client figure is advisory only. Moves the job to submitted.
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/InspectionComplete" }
+      responses:
+        "200":
+          description: Submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  inspection_id: { type: string, format: uuid }
+                  job_status: { $ref: "#/components/schemas/JobStatus" }
+                  server_coverage_pct: { type: number, format: float }
+                  flags:
+                    type: array
+                    items:
+                      type: string
+                      enum: [coverage_mismatch, mock_location, implausible_speed, clock_skew]
+        "422":
+          description: Coverage below threshold with no override, or checklist invalid.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+
+  # --------------------------------------------------------- Attachments
+  # A plain path segment, not the `attachments:presign` custom-verb convention.
+  # A colon inside a path segment needs escaping in most routers and clients
+  # disagree on whether to percent-encode it, which produces 404s that reproduce
+  # on one HTTP stack and not another.
+  /inspections/{inspection_id}/attachments/presign:
+    parameters:
+      - $ref: "#/components/parameters/InspectionId"
+    post:
+      tags: [Attachments]
+      summary: Request a presigned upload URL
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id, content_type, byte_size, sha256]
+              properties:
+                id: { type: string, format: uuid, description: Client-generated UUIDv7 }
+                content_type: { type: string, enum: [image/jpeg, image/png, video/mp4, image/svg+xml] }
+                byte_size: { type: integer }
+                sha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+      responses:
+        "200":
+          description: Upload URL issued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  upload_url: { type: string, format: uri }
+                  expires_at: { type: string, format: date-time }
+        "413": { $ref: "#/components/responses/Problem" }
+
+  /inspections/{inspection_id}/attachments:
+    parameters:
+      - $ref: "#/components/parameters/InspectionId"
+    post:
+      tags: [Attachments]
+      summary: Confirm a completed upload
+      description: Server verifies byte_size and sha256 against the stored object.
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Attachment" }
+      responses:
+        "201":
+          description: Attachment confirmed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Attachment" }
+        "422":
+          description: Checksum or size mismatch — CFPI must re-upload.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+
+  # ---------------------------------------------------------- Checklists
+  /checklist-templates/{template_id}:
+    parameters:
+      - name: template_id
+        in: path
+        required: true
+        schema: { type: string }
+      - name: version
+        in: query
+        description: Omit for the latest published version.
+        schema: { type: integer }
+    get:
+      tags: [Checklists]
+      summary: Fetch a versioned checklist form schema
+      responses:
+        "200":
+          description: The template
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ChecklistTemplate" }
+        "404": { $ref: "#/components/responses/Problem" }
+
+  # --------------------------------------------------------------- Sync
+  /sync/changes:
+    get:
+      tags: [Sync]
+      summary: Pull all changes since a cursor
+      description: |
+        Includes cancellations and rejections so CFPI can react to jobs pulled out
+        from under it. Persist the cursor only after committing the batch locally.
+      parameters:
+        - name: since
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Changed entities
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jobs:
+                    type: array
+                    items: { $ref: "#/components/schemas/Job" }
+                  deleted_job_ids:
+                    type: array
+                    items: { type: string, format: uuid }
+                  next_cursor: { type: string }
+                  server_time: { type: string, format: date-time }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    JobId:
+      name: job_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    InspectionId:
+      name: inspection_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: |
+        UUID, stable across retries of the same logical operation. The server replays
+        the stored response for 7 days. Required because the CFPI outbox retries.
+      schema: { type: string, format: uuid }
+
+  responses:
+    Problem:
+      description: RFC 9457 problem detail
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+
+  schemas:
+    Problem:
+      type: object
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              code: { type: string }
+
+    TokenPair:
+      type: object
+      required: [access_token, refresh_token, expires_in]
+      properties:
+        access_token: { type: string }
+        refresh_token: { type: string }
+        token_type: { type: string, default: Bearer }
+        expires_in: { type: integer, description: Access token lifetime in seconds (1800) }
+        inspector:
+          type: object
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: string }
+            depot: { type: string }
+
+    JobStatus:
+      type: string
+      enum: [available, accepted, in_progress, submitted, approved, rejected, cancelled, expired]
+
+    LineString:
+      type: object
+      description: GeoJSON LineString, WGS84. Coordinates are [longitude, latitude].
+      required: [type, coordinates]
+      properties:
+        type: { type: string, enum: [LineString] }
+        coordinates:
+          type: array
+          items:
+            type: array
+            minItems: 2
+            maxItems: 3
+            items: { type: number }
+
+    InspectionRules:
+      type: object
+      description: Server-tunable per job, so thresholds change without an app release.
+      properties:
+        segment_length_m: { type: number, default: 10 }
+        corridor_tolerance_m: { type: number, default: 20 }
+        max_accuracy_m: { type: number, default: 25 }
+        min_coverage_pct: { type: number, default: 90 }
+        max_speed_mps: { type: number, default: 3.0 }
+        allow_override: { type: boolean, default: true }
+        require_photo_on_override: { type: boolean, default: true }
+
+    Asset:
+      type: object
+      required: [id, name, geometry, length_m]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        type:
+          type: string
+          enum: [open_concrete_drain, closed_box_culvert, roadside_scupper, canal, earth_drain]
+        length_m: { type: number }
+        geometry: { $ref: "#/components/schemas/LineString" }
+        segment_boundaries_m:
+          type: array
+          description: |
+            Precomputed by FRCDE so both sides measure coverage against an identical
+            partition. Without this, floating-point drift causes coverage disputes.
+          items: { type: number }
+        access_notes: { type: string }
+        hazards:
+          type: array
+          items: { type: string }
+
+    Job:
+      type: object
+      required: [id, reference, status, version, asset, inspection_rules]
+      properties:
+        id: { type: string, format: uuid }
+        reference: { type: string, example: "INS-2026-004182" }
+        status: { $ref: "#/components/schemas/JobStatus" }
+        version: { type: integer, description: Optimistic-concurrency token, mirrored in ETag }
+        priority: { type: string, enum: [low, normal, high, urgent] }
+        due_at: { type: string, format: date-time }
+        assigned_inspector_id: { type: string, format: uuid, nullable: true }
+        asset: { $ref: "#/components/schemas/Asset" }
+        inspection_rules: { $ref: "#/components/schemas/InspectionRules" }
+        checklist_template:
+          type: object
+          properties:
+            id: { type: string }
+            version: { type: integer }
+        rejection_reason:
+          type: string
+          nullable: true
+          description: Set when a reviewer sends an inspection back. Shown to the inspector.
+        superseded_inspection_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: |
+            The rejected inspection this job's next attempt replaces. CFPI copies it
+            into the new inspection's `supersedes_inspection_id`, so both attempts stay
+            auditable rather than the original being overwritten.
+        heartbeat:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/Heartbeat"
+        updated_at: { type: string, format: date-time }
+
+    WorkOrder:
+      type: object
+      description: |
+        Remediation raised off the back of an inspection. Called a "follow-up" in
+        the console — the wire format kept the original name so the contract did
+        not churn over vocabulary.
+      properties:
+        id: { type: string, format: uuid }
+        job_id: { type: string, format: uuid }
+        inspection_id: { type: string, format: uuid, nullable: true }
+        title:
+          type: string
+          description: |
+            One-line summary for list views. Derived from the first line of
+            `detail` when not supplied — the console asks for a description, not
+            for the same thing twice.
+        assigned_to:
+          type: string
+          description: |
+            Who it is routed to. Free text rather than a user id: the officer who
+            fixes a drain is often a contractor, a town council or another
+            department, none of whom hold accounts here.
+        detail: { type: string }
+        severity: { type: integer, minimum: 1, maximum: 5 }
+        due_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Drives the ordering of the follow-up list.
+        chainage_m:
+          type: number
+          nullable: true
+          description: Where on the drain, so the crew can find it.
+        status: { type: string, enum: [open, in_progress, done, cancelled] }
+        raised_by: { type: string, format: uuid }
+        raised_at: { type: string, format: date-time }
+        closed_at: { type: string, format: date-time, nullable: true }
+        closing_note: { type: string }
+        attachment_ids:
+          type: array
+          items: { type: string, format: uuid }
+
+    Heartbeat:
+      type: object
+      description: |
+        The only in-progress state FRCDE stores. Roughly 100 bytes, sent best-effort —
+        see POST /jobs/{job_id}/heartbeat.
+      properties:
+        inspection_id: { type: string, format: uuid }
+        status: { type: string, enum: [in_progress, paused] }
+        coverage_pct: { type: number, format: float }
+        updated_at: { type: string, format: date-time }
+
+    DeviceInfo:
+      type: object
+      properties:
+        device_id: { type: string, format: uuid }
+        app_version: { type: string }
+        os: { type: string }
+        clock_skew_ms:
+          type: integer
+          description: Device clock minus server clock at last sync. Device clocks drift.
+
+    Location:
+      type: object
+      required: [lat, lon]
+      properties:
+        lat: { type: number }
+        lon: { type: number }
+        accuracy_m: { type: number }
+
+    InspectionStart:
+      type: object
+      required: [id, started_at]
+      properties:
+        id: { type: string, format: uuid, description: Client-generated UUIDv7 }
+        started_at: { type: string, format: date-time }
+        start_location: { $ref: "#/components/schemas/Location" }
+        device: { $ref: "#/components/schemas/DeviceInfo" }
+
+    TrackPoint:
+      type: object
+      required: [seq, t, lat, lon]
+      properties:
+        seq: { type: integer, description: Monotonic per inspection; the dedup key }
+        t: { type: string, format: date-time, description: Device clock at fix }
+        lat: { type: number }
+        lon: { type: number }
+        acc: { type: number, description: Horizontal accuracy, metres }
+        alt: { type: number }
+        spd: { type: number, description: Speed, m/s }
+        hdg: { type: number, description: Heading, degrees }
+        mock: { type: boolean, description: isFromMockProvider / isSimulatedBySoftware }
+        src: { type: string, enum: [gps, fused, network] }
+
+    TrackBatch:
+      type: object
+      required: [batch_seq, points]
+      properties:
+        batch_seq: { type: integer }
+        points:
+          type: array
+          maxItems: 500
+          items: { $ref: "#/components/schemas/TrackPoint" }
+
+    Coverage:
+      type: object
+      properties:
+        client_computed_pct:
+          type: number
+          description: Advisory only. FRCDE recomputes from raw points and its figure governs.
+        covered_segments: { type: integer }
+        total_segments: { type: integer }
+        uncovered_ranges_m:
+          type: array
+          description: "Chainage ranges not covered, e.g. [[210, 240], [580, 612]]"
+          items:
+            type: array
+            minItems: 2
+            maxItems: 2
+            items: { type: number }
+
+    Override:
+      type: object
+      required: [reason_code]
+      properties:
+        reason_code:
+          type: string
+          enum: [access_blocked, flooded, unsafe_conditions, private_property, equipment_failure, other]
+        notes: { type: string }
+        photo_ids:
+          type: array
+          items: { type: string, format: uuid }
+
+    InspectionComplete:
+      type: object
+      required: [ended_at, coverage, checklist]
+      properties:
+        ended_at: { type: string, format: date-time }
+        coverage: { $ref: "#/components/schemas/Coverage" }
+        override:
+          oneOf:
+            - $ref: "#/components/schemas/Override"
+            - type: "null"
+        checklist:
+          type: object
+          required: [template_id, template_version, answers]
+          properties:
+            template_id: { type: string }
+            template_version:
+              type: integer
+              description: Pinned, so results stay interpretable after the template changes.
+            answers:
+              type: object
+              additionalProperties: true
+        attachment_ids:
+          type: array
+          items: { type: string, format: uuid }
+        signature_id: { type: string, format: uuid, nullable: true }
+
+    Inspection:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        job_id: { type: string, format: uuid }
+        status: { type: string, enum: [in_progress, submitted, approved, rejected] }
+        started_at: { type: string, format: date-time }
+        ended_at: { type: string, format: date-time, nullable: true }
+        received_at: { type: string, format: date-time, description: Server clock }
+        supersedes_inspection_id: { type: string, format: uuid, nullable: true }
+
+    Attachment:
+      type: object
+      required: [id, captured_at]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [defect, context, override_evidence, signature] }
+        source:
+          type: string
+          enum: [camera, library]
+          default: camera
+          description: |
+            `camera` was taken during the inspection and is placed at the
+            inspector's position on the drain. `library` was chosen from the
+            phone's album and is placed from its own EXIF, or left unplaced if it
+            has none — borrowing the current position would file it somewhere it
+            was never taken. Both are valid evidence; only one is self-proving,
+            so reviewers are told which.
+        captured_at: { type: string, format: date-time }
+        location: { $ref: "#/components/schemas/Location" }
+        chainage_m:
+          type: number
+          description: |
+            Distance along the drain centreline, from the same projection used for
+            coverage. Lets FRCDE place the photo at the right point on the drain.
+        checklist_field_id: { type: string, nullable: true }
+        caption: { type: string }
+        sha256: { type: string }
+        byte_size: { type: integer }
+
+    ChecklistTemplate:
+      type: object
+      required: [id, version, fields]
+      properties:
+        id: { type: string }
+        version: { type: integer }
+        title: { type: string }
+        published_at: { type: string, format: date-time }
+        sections:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              title: { type: string }
+        fields:
+          type: array
+          items: { $ref: "#/components/schemas/ChecklistField" }
+
+    ChecklistField:
+      type: object
+      required: [id, type, label]
+      properties:
+        id: { type: string }
+        section_id: { type: string }
+        type:
+          type: string
+          enum: [boolean, single_select, multi_select, number, text, photo, signature, severity]
+        label: { type: string }
+        help_text: { type: string }
+        required: { type: boolean, default: false }
+        options:
+          type: array
+          items:
+            type: object
+            properties:
+              value: { type: string }
+              label: { type: string }
+        min: { type: number }
+        max: { type: number }
+        unit: { type: string }
+        visible_if:
+          type: object
+          description: "Conditional display, e.g. { field: blockage_present, equals: true }"
+          properties:
+            field: { type: string }
+            equals: {}
+        requires_photo_when:
+          type: object
+          description: Forces photo capture before submit when the condition holds.
+          properties:
+            equals: {}
+            in:
+              type: array
+              items: {}
