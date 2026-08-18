@@ -121,10 +121,26 @@ If publishing fails with a GraphQL error naming your SDK version, check
 failure was a service incident on 1 May 2026, fixed the same day, and it looks
 identical to a project misconfiguration.
 
+**Nothing runs on your laptop once this is published.** The bundle is hosted by
+Expo and FRCDE by Render, so the link keeps working with your machine shut. That
+is the difference between this and `npx expo start --tunnel`, which serves from
+your laptop and dies with it.
+
+### Build profiles
+
+`eas.json` is validated against a strict schema that rejects unknown keys, so it
+carries no `"//"` comments — the profiles are described here instead.
+
+| Profile | What it is for |
+| --- | --- |
+| `preview` | A sideloadable Android `.apk`. Free, no Google Play account, installs from a link. |
+| `development` | A dev build, for when Expo Go's limits get in the way — background location in particular. |
+| `production` | Store builds. iOS needs a paid Apple Developer account; Android does not. |
+
 ### Android without any accounts
 
 ```bash
-npx eas build -p android --profile preview
+npx eas-cli@latest build -p android --profile preview
 ```
 
 Produces a downloadable `.apk`. Send the link; they install it. No Expo account,
