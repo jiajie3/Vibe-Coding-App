@@ -129,8 +129,25 @@ Already created; recreate with `npx eas-cli@16.12.0 channel:create demo`.
 wrappers under an `AllSigned` machine policy; the `.cmd` shims are not scripts
 and are unaffected.
 
-That prints a link. A colleague installs **Expo Go** from their app store, opens
-the link, and CFPI runs — on iPhone or Android, with no Apple Developer account.
+Unlike `expo start`, **`eas update` prints no QR code**, and the one on the EAS
+dashboard is buried — Expo has been steering people off Expo Go. Generate it
+locally instead:
+
+```bash
+npm run qr
+```
+
+Or hand over the link itself, which is all the QR encodes:
+
+```
+exp://u.expo.dev/d431590f-d51d-478d-abdd-18de7bbdcde2?channel-name=demo
+```
+
+A colleague installs **Expo Go** from their app store, scans or opens that, and
+CFPI runs — on iPhone or Android, with no Apple Developer account. They must be
+**signed in to Expo Go** under an account in the `jiajie3s-team` organisation;
+signed out, it refuses the project without explaining why.
+
 Most of the `expo-updates` API is inert under Expo Go, which costs this app
 nothing: it does not use it.
 
