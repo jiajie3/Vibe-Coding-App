@@ -130,18 +130,22 @@ wrappers under an `AllSigned` machine policy; the `.cmd` shims are not scripts
 and are unaffected.
 
 Unlike `expo start`, **`eas update` prints no QR code**, and the one on the EAS
-dashboard is buried — Expo has been steering people off Expo Go. Generate it
-locally instead:
+dashboard is buried — Expo has been steering people off Expo Go. The code is
+checked in instead, so there is nothing to run:
 
-```bash
-npm run qr
-```
+![Scan with Expo Go](expo-go-qr.png)
 
-Or hand over the link itself, which is all the QR encodes:
+[`expo-go-qr.png`](expo-go-qr.png) to paste into a message or slide,
+[`expo-go-qr.svg`](expo-go-qr.svg) to print or scale. Both encode only the link
+below, so handing that over directly works just as well:
 
 ```
 exp://u.expo.dev/d431590f-d51d-478d-abdd-18de7bbdcde2?channel-name=demo
 ```
+
+`npm run qr` prints the same code in the terminal. Regenerate the files with
+`npm run qr:png` if the project id or channel ever changes — the QR does not
+update itself, and a stale one fails silently on the phone.
 
 A colleague installs **Expo Go** from their app store, scans or opens that, and
 CFPI runs — on iPhone or Android, with no Apple Developer account. They must be

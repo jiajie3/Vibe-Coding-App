@@ -32,6 +32,7 @@
   "scripts": {
     "publish:demo": "npx --yes eas-cli@16.12.0 update --branch demo -m \"Demo build\"",
     "qr": "npx --yes qrcode-terminal \"exp://u.expo.dev/d431590f-d51d-478d-abdd-18de7bbdcde2?channel-name=demo\"",
+    "qr:png": "npx --yes qrcode -o ../docs/expo-go-qr.png -t png -w 900 \"exp://u.expo.dev/d431590f-d51d-478d-abdd-18de7bbdcde2?channel-name=demo\" && npx --yes qrcode -o ../docs/expo-go-qr.svg -t svg \"exp://u.expo.dev/d431590f-d51d-478d-abdd-18de7bbdcde2?channel-name=demo\"",
     "start": "expo start --go",
     "start:devclient": "expo start --dev-client",
     "android": "expo start --go --android",
