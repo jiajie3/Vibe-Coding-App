@@ -8,12 +8,13 @@
     "userInterfaceStyle": "light",
     "scheme": "cfpi",
     "newArchEnabled": true,
-
     "extra": {
       "//": "Where CFPI looks for FRCDE, baked into the published bundle so a colleague opening the shared link only has to sign in. No trailing slash. Settings still overrides it on-device for local development.",
-      "frcdeUrl": "https://frcde.onrender.com"
+      "frcdeUrl": "https://frcde.onrender.com",
+      "eas": {
+        "projectId": "d431590f-d51d-478d-abdd-18de7bbdcde2"
+      }
     },
-
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "sg.frcde.cfpi",
@@ -75,6 +76,22 @@
         }
       ],
       "expo-secure-store"
-    ]
+    ],
+    "owner": "jiajie3s-team",
+    "updates": {
+      "//": [
+        "No `runtimeVersion` here, and that omission is load-bearing.",
+        "",
+        "`eas update:configure` writes `runtimeVersion: { policy: 'appVersion' }`,",
+        "which is right for a standalone build and fatal for this one: an update",
+        "carrying a runtime version cannot be loaded by Expo Go, which matches on",
+        "`exposdk:54.0.0` instead. Left in place, `eas update` succeeds, prints a",
+        "link, and that link fails on every colleague's phone.",
+        "",
+        "Add it back only alongside a real build (`eas build`), which is the point",
+        "at which Expo Go stops being how this app is distributed."
+      ],
+      "url": "https://u.expo.dev/d431590f-d51d-478d-abdd-18de7bbdcde2"
+    }
   }
 }
