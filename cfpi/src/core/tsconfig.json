@@ -1,0 +1,27 @@
+{
+  "//": [
+    "Exists so bundlers stop here rather than walking up to cfpi/tsconfig.json.",
+    "",
+    "This directory is shared: FRCDE's server imports the coverage engine from it,",
+    "and FRCDE's console imports the deadline rules. When Vite compiles one of",
+    "these files, esbuild looks for the nearest tsconfig — and CFPI's extends",
+    "'expo/tsconfig.base', which only resolves where Expo is installed. On a",
+    "deployment that installs FRCDE's dependencies alone, that lookup fails and",
+    "takes the whole build with it.",
+    "",
+    "Nothing here extends anything, and the settings are the ones esbuild actually",
+    "reads. CFPI still typechecks these files through its own tsconfig, which",
+    "includes src/** and is unaffected by this file."
+  ],
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "strict": true,
+    "verbatimModuleSyntax": false,
+    "useDefineForClassFields": true,
+    "noEmit": true
+  },
+  "include": ["**/*.ts"]
+}
