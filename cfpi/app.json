@@ -10,8 +10,8 @@
     "newArchEnabled": true,
 
     "extra": {
-      "//": "Where CFPI looks for FRCDE. Replace with your deployed URL before publishing an update; Settings still overrides it on-device for local development.",
-      "frcdeUrl": ""
+      "//": "Where CFPI looks for FRCDE, baked into the published bundle so a colleague opening the shared link only has to sign in. No trailing slash. Settings still overrides it on-device for local development.",
+      "frcdeUrl": "https://frcde.onrender.com"
     },
 
     "ios": {

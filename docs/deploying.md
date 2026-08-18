@@ -22,11 +22,13 @@ mostly clicking.
    It reads `render.yaml` and configures the service itself.
 3. Deploy. First build takes a few minutes.
 
-You get `https://frcde-<something>.onrender.com`, serving the console at `/` and
-the API under `/v1`.
+Render assigns the service its own address, shown at the top of the service page
+in the dashboard. It serves the console at `/` and the API under `/v1`.
 
-**Check it worked:** `https://your-url/v1/healthz` should return
-`{"ok":true,"jobs":40,...}`.
+**Check it worked:** open `/v1/healthz` on that address — for this deployment,
+<https://frcde.onrender.com/v1/healthz> — and it should return
+`{"ok":true,"jobs":40,...}`. Give it a minute if the service has been idle; see
+sleeping, below.
 
 ### Two things about the free plan
 
@@ -75,11 +77,15 @@ persistent disk, is every deploy.
 
 ### Point the app at the deployed server
 
-In [`cfpi/app.json`](../cfpi/app.json), set `expo.extra.frcdeUrl`:
+Already done — [`cfpi/app.json`](../cfpi/app.json) carries the deployed address:
 
 ```json
-"extra": { "frcdeUrl": "https://frcde-xxxx.onrender.com" }
+"extra": { "frcdeUrl": "https://frcde.onrender.com" }
 ```
+
+No trailing slash: it would turn every request path into a double slash, which
+proxies do not all treat alike. Change this if the service is ever redeployed
+under a different name.
 
 Now the app arrives already pointed at the server and a colleague only signs in.
 **Settings still overrides it**, which is what keeps local development working.
