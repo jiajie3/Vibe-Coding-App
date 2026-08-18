@@ -1,15 +1,17 @@
 /**
  * Device settings.
  *
- * The FRCDE server address has to be editable in the app: it is a laptop on a
- * home Wi-Fi, so the IP changes between sessions. Baking it into a build would
- * mean rebuilding the app every time the router hands out a different lease.
+ * The FRCDE address ships with the build so a colleague opening a shared link
+ * is already pointed at the server and only has to sign in — but it stays
+ * editable, because during development it is a laptop on a changing network and
+ * rebuilding the app for every new DHCP lease would be absurd.
  */
 
+import Constants from 'expo-constants';
 import { Directory, File, Paths } from 'expo-file-system';
 
 export interface Config {
-  /** e.g. http://192.168.0.3:4000 — no trailing slash. */
+  /** e.g. https://frcde.onrender.com — no trailing slash. */
   server_url: string;
   /**
    * Stable per-install identifier, so FRCDE can revoke one lost handset without
@@ -18,7 +20,12 @@ export interface Config {
   device_id: string;
 }
 
-const DEFAULTS: Config = { server_url: '', device_id: '' };
+/** Set in app.json under `expo.extra.frcdeUrl`, baked into the published bundle. */
+const BUNDLED_SERVER_URL = String(
+  (Constants.expoConfig?.extra as { frcdeUrl?: string } | undefined)?.frcdeUrl ?? '',
+).replace(/\/+$/, '');
+
+const DEFAULTS: Config = { server_url: BUNDLED_SERVER_URL, device_id: '' };
 
 let cache: Config | null = null;
 

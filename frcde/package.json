@@ -3,12 +3,17 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Drain inspection scheduling, tracking and review console. Runs entirely locally.",
+  "description": "Flood Resilience Common Data Environment — drain inspection scheduling, tracking and review.",
+  "engines": {
+    "//": "The server runs TypeScript directly via Node's native type stripping.",
+    "node": ">=22.6"
+  },
   "scripts": {
     "dev": "concurrently -n server,web -c cyan,magenta \"npm:dev:server\" \"npm:dev:web\"",
     "dev:server": "node --watch --disable-warning=ExperimentalWarning server/index.ts",
     "dev:web": "vite",
     "build": "tsc --noEmit && vite build",
+    "start": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON server/index.ts",
     "e2e": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --disable-warning=ExperimentalWarning scripts/e2e.ts",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"

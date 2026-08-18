@@ -1,0 +1,27 @@
+{
+  "cli": {
+    "version": ">= 5.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "preview": {
+      "//": "A sideloadable APK. Free, needs no Google Play account, and installs on any Android phone from a link.",
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "development": {
+      "//": "A dev build, for when Expo Go's limits get in the way — background location in particular.",
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "production": {
+      "//": "Store builds. iOS needs a paid Apple Developer account; Android does not.",
+      "autoIncrement": true
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

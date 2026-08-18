@@ -38,6 +38,34 @@ let refreshToken: string | null = null;
 let inspector: Inspector | null = null;
 let loaded = false;
 
+/**
+ * Demo mode: the app running on its own, with no server behind it.
+ *
+ * Needed for three real situations. A colleague opening a shared link before
+ * they have an account. The free-tier server asleep and taking a minute to
+ * wake. And an App Review reviewer, who under guideline 2.1(a) must be able to
+ * reach the app's functionality without credentials we cannot hand out.
+ *
+ * It reads the bundled Singapore drains and never syncs — the outbox is held
+ * shut, because queuing work against a server that was never signed into would
+ * strand it in a dead-letter queue nobody is watching.
+ */
+let demoMode = false;
+
+export const isDemoMode = () => demoMode;
+
+export function startDemo() {
+  demoMode = true;
+  inspector = {
+    id: 'demo',
+    name: 'Demo Inspector',
+    username: 'demo',
+    role: 'inspector',
+    depot: 'Demo',
+  };
+  notify();
+}
+
 const listeners = new Set<() => void>();
 export function onAuthChange(l: () => void): () => void {
   listeners.add(l);
@@ -69,7 +97,12 @@ export async function loadSession(): Promise<boolean> {
 
 export const getAccessToken = () => accessToken;
 export const getInspector = () => inspector;
-export const isSignedIn = () => accessToken !== null;
+
+/** True when the app has a usable session — real or demo. */
+export const isSignedIn = () => accessToken !== null || demoMode;
+
+/** True only for a real session, so the outbox knows there is somewhere to sync to. */
+export const canSync = () => accessToken !== null;
 
 async function store(t: TokenResponse) {
   accessToken = t.access_token;
@@ -143,6 +176,7 @@ export async function signOut() {
   accessToken = null;
   refreshToken = null;
   inspector = null;
+  demoMode = false;
   await put(ACCESS_KEY, null);
   await put(REFRESH_KEY, null);
   notify();

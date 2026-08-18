@@ -8,6 +8,12 @@
     "userInterfaceStyle": "light",
     "scheme": "cfpi",
     "newArchEnabled": true,
+
+    "extra": {
+      "//": "Where CFPI looks for FRCDE. Replace with your deployed URL before publishing an update; Settings still overrides it on-device for local development.",
+      "frcdeUrl": ""
+    },
+
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "sg.frcde.cfpi",

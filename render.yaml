@@ -1,0 +1,38 @@
+# Render Blueprint — deploys FRCDE as one service serving both the console and
+# the API.
+#
+# Point Render at this repository and it reads this file; no dashboard clicking.
+#
+# Two things here are load-bearing:
+#
+#   rootDir     The service builds and runs inside frcde/, but Render clones the
+#               whole repository — which matters because the server imports the
+#               coverage engine and deadline rules from cfpi/src/core, and reads
+#               the seed data from contracts/. Deploying frcde/ alone would fail
+#               at startup on a missing module.
+#
+#   NODE_VERSION  The server runs TypeScript directly, relying on Node's native
+#               type stripping. That needs Node 22.6+, and Render's default is
+#               older than we can assume.
+#
+# Free plan note: no persistent disk, so data/db.json and uploaded photographs
+# are wiped on every deploy and restart. The store reseeds itself to five due
+# drains, so a reset is tidy rather than broken — but colleagues' inspections do
+# not survive. Attach a disk on a paid plan if they need to.
+
+services:
+  - type: web
+    name: frcde
+    runtime: node
+    rootDir: frcde
+    plan: free
+    # --include=dev because the build needs TypeScript and Vite, which are
+    # devDependencies; Render may otherwise install production deps only.
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /v1/healthz
+    envVars:
+      - key: NODE_VERSION
+        value: "24.19.0"
+      - key: NODE_ENV
+        value: production

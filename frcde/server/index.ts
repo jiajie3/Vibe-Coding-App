@@ -87,6 +87,17 @@ function recomputeCoverage(jobId: string, track: InspectionRecord['track']) {
   return { pct: tracker.coveragePct(), flags: tracker.activeFlags() };
 }
 
+/**
+ * Liveness probe.
+ *
+ * Public and unauthenticated on purpose — a health check that needs a token
+ * cannot tell a platform whether the process is up. It reports nothing an
+ * anonymous caller could not already infer from the server answering.
+ */
+app.get('/v1/healthz', (_req, res) => {
+  res.json({ ok: true, jobs: store.jobs().length, at: new Date().toISOString() });
+});
+
 /* ------------------------------------------------------------------- auth */
 
 app.post('/v1/auth/token', (req, res) => {
@@ -851,20 +862,43 @@ app.post('/v1/console/reset', (_req, res) => {
 /* ----------------------------------------------------------------- serve */
 
 /**
- * Explicit 404 fallback.
+ * In production, serve the built console from this same process.
  *
- * Express's default sends an HTML error page, which a JSON client reports as a
- * bare "404" — indistinguishable from a real "job not found" and pointing at a
- * completely different fix. This names the path that missed.
+ * One service, one URL, one deployment — and no CORS between the console and
+ * its API. In development Vite serves the console on its own port and proxies
+ * `/v1` here instead, so this block simply does not apply.
+ */
+const WEB_DIR = resolve(here, '../dist');
+const hasBuiltWeb = existsSync(resolve(WEB_DIR, 'index.html'));
+
+if (hasBuiltWeb) {
+  app.use(express.static(WEB_DIR, { index: false, maxAge: '1h' }));
+}
+
+/**
+ * Anything that is not an API route.
+ *
+ * A JSON 404 for `/v1/...` — Express's default HTML error page is reported by a
+ * JSON client as a bare "404", indistinguishable from a real "job not found"
+ * and pointing at a completely different fix. This names the path that missed.
+ *
+ * Everything else falls through to the console's index.html, because the
+ * console owns client-side routes like `/jobs/:id` that the server has never
+ * heard of. Without this, opening a job detail page directly — or refreshing
+ * one — would 404.
  */
 app.use((req, res) => {
-  console.warn(`[404] no route for ${req.method} ${req.originalUrl}`);
-  problem(
-    res,
-    404,
-    'No such endpoint',
-    `${req.method} ${req.originalUrl} does not match any route on this server.`,
-  );
+  if (req.path.startsWith('/v1') || req.path.startsWith('/uploads')) {
+    console.warn(`[404] no route for ${req.method} ${req.originalUrl}`);
+    return problem(
+      res,
+      404,
+      'No such endpoint',
+      `${req.method} ${req.originalUrl} does not match any route on this server.`,
+    );
+  }
+  if (hasBuiltWeb) return res.sendFile(resolve(WEB_DIR, 'index.html'));
+  problem(res, 404, 'Not found', 'The console has not been built into this server.');
 });
 
 app.listen(PORT, '0.0.0.0', () => {
@@ -876,6 +910,10 @@ app.listen(PORT, '0.0.0.0', () => {
   // waiting for the first hourly tick.
   runScheduler();
 
-  console.log(`FRCDE API  →  http://localhost:${PORT}`);
+  if (hasBuiltWeb) {
+    console.log(`FRCDE  →  http://localhost:${PORT}  (console + API)`);
+  } else {
+    console.log(`FRCDE API  →  http://localhost:${PORT}`);
+  }
   if (lan) console.log(`On your network (for CFPI)  →  http://${lan}:${PORT}`);
 });

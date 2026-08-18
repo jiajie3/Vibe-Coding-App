@@ -23,8 +23,9 @@ import { Directory, File, Paths } from 'expo-file-system';
 
 import { uuidv7 } from '../core/uuid.ts';
 import { ApiError, api, uploadBytes } from './api.ts';
-import { isSignedIn } from './auth.ts';
+import { canSync } from './auth.ts';
 import { isConfigured } from './config.ts';
+
 
 export type OutboxKind = 'start' | 'track' | 'attachment' | 'complete';
 
@@ -204,7 +205,9 @@ async function send(item: OutboxItem): Promise<void> {
 
 export async function drain(): Promise<{ sent: number; failed: number }> {
   load();
-  if (draining || !isConfigured() || !isSignedIn()) return { sent: 0, failed: 0 };
+  // `canSync`, not `isSignedIn`: demo mode counts as signed in for the UI but
+  // has no server to send to, and queuing against one would dead-letter the lot.
+  if (draining || !isConfigured() || !canSync()) return { sent: 0, failed: 0 };
   draining = true;
 
   let sent = 0;

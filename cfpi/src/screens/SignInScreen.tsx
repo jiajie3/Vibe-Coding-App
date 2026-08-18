@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { uuidv7 } from '../core/uuid.ts';
-import { signIn } from '../services/auth.ts';
+import { signIn, startDemo } from '../services/auth.ts';
 import { getConfig, setConfig } from '../services/config.ts';
 import { syncJobs } from '../data/jobs.ts';
 
@@ -123,6 +123,14 @@ export default function SignInScreen({ onSignedIn }: { onSignedIn: () => void })
             </Pressable>
           </View>
 
+          {/* A way in when there is no server to sign into — a colleague who
+              has not been given an account yet, a free-tier server still
+              waking up, or an App Review reviewer who cannot be handed
+              credentials. Runs on the bundled Singapore drains; nothing syncs. */}
+          <Pressable style={styles.demo} onPress={() => { startDemo(); onSignedIn(); }}>
+            <Text style={styles.demoText}>Try the demo — no account needed</Text>
+          </Pressable>
+
           <Text style={styles.hint}>
             Demo accounts — inspector / inspector, siti / siti
           </Text>
@@ -167,5 +175,7 @@ const styles = StyleSheet.create({
   },
   btnBusy: { opacity: 0.7 },
   btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  demo: { alignItems: 'center', paddingVertical: 14 },
+  demoText: { color: '#93C5FD', fontSize: 15, fontWeight: '700' },
   hint: { fontSize: 12, color: '#64748B', textAlign: 'center' },
 });
