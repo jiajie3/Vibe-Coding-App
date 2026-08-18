@@ -7,7 +7,9 @@ Two connected applications for scheduling, carrying out and reviewing drain insp
 | **[CFPI](cfpi/)** | React Native + Expo SDK 54 | Field app. Inspectors walk the drain while GPS verifies coverage, fill a checklist, take photos. |
 | **[FRCDE](frcde/)** | React + Vite + Express | Console. Decides what needs inspecting, dispatches jobs, reviews results. |
 
-Everything runs locally — no cloud, no accounts, no API keys.
+Runs locally with no cloud, no accounts and no API keys. There is also a shared
+deployment — FRCDE on Render, CFPI over Expo Go — described in
+[docs/deploying.md](docs/deploying.md).
 
 ## Run it
 
@@ -17,7 +19,9 @@ cd cfpi  && npm install && npm start       # Metro, Expo Go mode
 ```
 
 Open <http://localhost:5173> for the console. Scan the CFPI QR code with your iPhone
-**Camera app** (Expo Go on iOS has no scanner). Both machines must be on the same Wi-Fi.
+**Camera app** — Expo Go on iOS has no scanner of its own, so scanning from inside the
+app is not an option there. Android's Expo Go does have one. Both machines must be on
+the same Wi-Fi.
 
 ### Accounts
 
@@ -26,6 +30,9 @@ Open <http://localhost:5173> for the console. Scan the CFPI QR code with your iP
 | Console | `supervisor` | `supervisor` | approves work, schedules drains |
 | App | `inspector` | `inspector` | walks drains |
 | App | `siti` | `siti` | second inspector |
+
+Local defaults only. The deployed instance overrides all three from environment
+variables, precisely so these do not reach a public URL.
 
 The console is supervisor-only and the server enforces it, not just the UI. On the phone,
 the server address and sign-in are on one screen — on a fresh handset both are unset, and

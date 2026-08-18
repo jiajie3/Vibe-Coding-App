@@ -147,10 +147,18 @@ exp://u.expo.dev/d431590f-d51d-478d-abdd-18de7bbdcde2?channel-name=demo
 `npm run qr:png` if the project id or channel ever changes — the QR does not
 update itself, and a stale one fails silently on the phone.
 
-A colleague installs **Expo Go** from their app store, scans or opens that, and
-CFPI runs — on iPhone or Android, with no Apple Developer account. They must be
-**signed in to Expo Go** under an account in the `jiajie3s-team` organisation;
-signed out, it refuses the project without explaining why.
+A colleague installs **Expo Go** from their app store and CFPI runs — on iPhone
+or Android, with no Apple Developer account. How they get to it differs by
+platform, and getting this wrong wastes a support round trip:
+
+- **iPhone:** scan with the **Camera app**, which hands off to Expo Go. Expo Go
+  on iOS has no scanner of its own, so telling someone to scan from inside the
+  app sends them looking for a button that is not there.
+- **Android:** scan with **Expo Go's own scanner**, or paste the link into it.
+
+Either way they must be **signed in to Expo Go** under an account in the
+`jiajie3s-team` organisation; signed out, it refuses the project without
+explaining why.
 
 Most of the `expo-updates` API is inert under Expo Go, which costs this app
 nothing: it does not use it.

@@ -1,7 +1,9 @@
 # FRCDE — drain inspection console
 
 Scheduling, tracking and review for drain inspections. React + Vite console, Express API,
-JSON store. **Runs entirely on your machine** — no cloud, no accounts, no API keys.
+JSON store. Runs entirely on your machine — no cloud, no accounts, no API keys — and
+deploys to Render as a single service serving both halves, per
+[docs/deploying.md](../docs/deploying.md).
 
 ## Run it
 
