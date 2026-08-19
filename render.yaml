@@ -50,3 +50,15 @@ services:
         generateValue: true
       - key: FRCDE_SITI_PASSWORD
         generateValue: true
+
+      # Slack follow-ups. Absent, the integration simulates every send and logs
+      # what it would have posted, so the console works unchanged and a demo
+      # needs no workspace at all. See docs/slack.md.
+      #
+      # `sync: false` means Render prompts for these rather than storing them in
+      # this file — a bot token in a public repository is a token someone else
+      # can post to your channels with.
+      - key: SLACK_BOT_TOKEN
+        sync: false
+      - key: SLACK_SIGNING_SECRET
+        sync: false

@@ -625,6 +625,7 @@ export default function JobDetail() {
 
       {routing && (
         <RouteFollowUp
+          jobId={job.id}
           suggestion={suggestion}
           busy={busy}
           onCancel={() => setRouting(false)}

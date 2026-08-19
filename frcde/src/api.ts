@@ -58,7 +58,7 @@ export interface InspectionDetail {
   review: { decision: string; reason?: string; at: string } | null;
 }
 
-export type WorkOrderStatus = 'open' | 'in_progress' | 'done' | 'cancelled';
+export type WorkOrderStatus = 'open' | 'in_progress' | 'done' | 'blocked' | 'cancelled';
 
 export interface WorkOrder {
   id: string;
@@ -76,6 +76,32 @@ export interface WorkOrder {
   closed_at: string | null;
   closing_note?: string;
   attachment_ids: string[];
+
+  /** When the party it went to said they had seen it. Null means nobody has. */
+  acknowledged_at: string | null;
+  /** Set with status `blocked` — they cannot do it, and said why. */
+  blocked_reason?: string;
+  /** Where the case was opened, once it has been. */
+  slack?: { channel: string; ts: string };
+  /** Evidence posted back in the Slack case thread. */
+  completion_attachment_ids?: string[];
+}
+
+export interface ChannelOption {
+  channel: string;
+  reason: string;
+}
+
+export interface ChannelSuggestion extends ChannelOption {
+  confidence: 'high' | 'medium' | 'low';
+  alternatives: ChannelOption[];
+}
+
+export interface SuggestResponse {
+  suggestion: ChannelSuggestion;
+  channels: string[];
+  /** False when no workspace is configured — the post will be simulated. */
+  slack_configured: boolean;
 }
 
 export interface Overview {
@@ -216,6 +242,11 @@ export const api = {
   },
 
   overview: () => req<Overview>('/v1/console/overview'),
+  suggestChannel: (body: { job_id: string; assigned_to: string; severity: number }) =>
+    req<SuggestResponse>('/v1/console/slack/suggest', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
   createWorkOrder: (body: Record<string, unknown>) =>
     req<WorkOrder>('/v1/console/work-orders', { method: 'POST', body: JSON.stringify(body) }),
   updateWorkOrder: (id: string, body: Record<string, unknown>) =>

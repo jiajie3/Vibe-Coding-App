@@ -156,7 +156,7 @@ export interface Session {
 
 /* ---------------------------------------------------------- work orders */
 
-export type WorkOrderStatus = 'open' | 'in_progress' | 'done' | 'cancelled';
+export type WorkOrderStatus = 'open' | 'in_progress' | 'done' | 'blocked' | 'cancelled';
 
 /**
  * Remediation raised off the back of an inspection.
@@ -190,6 +190,31 @@ export interface WorkOrder {
   closing_note?: string;
   /** Photos from the inspection that evidence the defect. */
   attachment_ids: string[];
+
+  /**
+   * When the party it was routed to said they had seen it.
+   *
+   * Separate from `status` because "nobody has looked at this" and "someone is
+   * working on it" are the two states a chaser needs to tell apart, and the
+   * gap between raising and acknowledgement is the number that shows whether
+   * routing works at all.
+   */
+  acknowledged_at: string | null;
+
+  /** Why it cannot be done. Set with status `blocked`, which needs a human. */
+  blocked_reason?: string;
+
+  /**
+   * Where the case was opened in Slack.
+   *
+   * Kept so the message can be repainted when the status changes — a channel
+   * still showing buttons on a case closed a week ago invites someone to close
+   * it twice.
+   */
+  slack?: { channel: string; ts: string };
+
+  /** Evidence the contractor posted in the case thread, as attachment ids. */
+  completion_attachment_ids?: string[];
 }
 
 interface Db {

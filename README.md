@@ -39,7 +39,9 @@ the server address and sign-in are on one screen — on a fresh handset both are
 signing in against no server achieves nothing. Jobs download on success.
 
 Per-project detail is in [cfpi/README.md](cfpi/README.md) and
-[frcde/README.md](frcde/README.md).
+[frcde/README.md](frcde/README.md). Deployment is
+[docs/deploying.md](docs/deploying.md); the Slack integration is
+[docs/slack.md](docs/slack.md).
 
 ## How they fit together
 
@@ -102,8 +104,10 @@ the production register.
 ## Tests
 
 ```bash
-cd cfpi  && npm run test:core   # 39 tests — coverage, checklist and uuid engines
+cd cfpi  && npm run test:core   # coverage, checklist, deadline and uuid engines
+cd frcde && npm test            # passwords, Slack routing and signature verification
 cd frcde && npm run e2e         # full contract round-trip against a running server
+cd frcde && npm run slack:e2e   # the Slack case round-trip, signatures included
 ```
 
 `cfpi/src/core/` is free of React and Expo imports on purpose. The parts that decide
@@ -117,7 +121,9 @@ a 93.5% track is flagged.
 
 ## Status
 
-**Built.** Authentication with roles; job dispatch and lifecycle; GPS coverage
+**Built.** Slack follow-ups — a case is opened in a routed channel, the contractor
+acknowledges and closes it there, and the outcome comes back
+([docs/slack.md](docs/slack.md)); authentication with roles; job dispatch and lifecycle; GPS coverage
 verification with server-side recomputation; pause and resume across days; server-driven
 checklists; photo capture, album import and upload; an offline outbox with retry and
 dead-lettering; coverage override with a recorded reason and evidence; review, approval

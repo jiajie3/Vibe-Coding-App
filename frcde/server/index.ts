@@ -2,8 +2,8 @@
  * FRCDE API server.
  *
  * Implements the CFPI ↔ FRCDE contract (docs/api-contract.md) against a local
- * JSON store. Binds to 0.0.0.0 so a phone on the same Wi-Fi can reach it —
- * there is no cloud anywhere in this system.
+ * JSON store. Binds to 0.0.0.0 so a phone on the same Wi-Fi can reach it, and
+ * deploys as a single service serving both the API and the console.
  */
 
 import { randomUUID } from 'node:crypto';
@@ -21,6 +21,8 @@ import type { CoverageFlag } from '../../cfpi/src/core/types.ts';
 import { issue, publicUser, requireAuth, rotate } from './auth.ts';
 import type { AuthedRequest } from './auth.ts';
 import { hashPassword, hashPasswordSync, needsRehash, verifyPassword } from './password.ts';
+import { knownChannels, suggestChannel } from './routing.ts';
+import * as slack from './slack.ts';
 import { cycleFor, DUE_WINDOW_DAYS, load, reset, store, UPLOAD_DIR } from './store.ts';
 import type { AttachmentRecord, InspectionRecord, WorkOrder } from './store.ts';
 
@@ -38,6 +40,14 @@ load();
 
 const app = express();
 app.use(cors());
+
+/**
+ * Slack signs the raw bytes of its requests, so this must be mounted before the
+ * JSON parser. Parsing and re-serialising changes the bytes — whitespace, key
+ * order, unicode escaping — and the signature then never matches, which reads
+ * as "Slack is broken" rather than "we destroyed the evidence".
+ */
+app.use('/v1/slack', express.raw({ type: '*/*', limit: '2mb' }));
 app.use(express.json({ limit: '5mb' }));
 
 /**
@@ -822,7 +832,7 @@ app.post('/v1/console/schedule/run', (_req, res) => {
  * An inspection that finds a blockage and produces nothing but a record is how
  * inspectors learn their findings do not matter.
  */
-app.post('/v1/console/work-orders', (req: AuthedRequest, res) => {
+app.post('/v1/console/work-orders', async (req: AuthedRequest, res) => {
   const job = store.job(String(req.body?.job_id ?? ''));
   if (!job) return problem(res, 404, 'Job not found');
 
@@ -851,8 +861,26 @@ app.post('/v1/console/work-orders', (req: AuthedRequest, res) => {
     raised_by: req.user!.id,
     raised_at: new Date().toISOString(),
     closed_at: null,
+    acknowledged_at: null,
     attachment_ids: Array.isArray(req.body.attachment_ids) ? req.body.attachment_ids : [],
   };
+
+  // Open the case in Slack before replying, so the console can show the channel
+  // it actually landed in. A failure here must not lose the work order — the
+  // record is the point, and Slack is a notification.
+  const channel = String(req.body?.slack_channel ?? '').trim();
+  if (channel) {
+    try {
+      const view = caseView(order);
+      if (view) {
+        const posted = await slack.postCase(channel, view);
+        order.slack = { channel: posted.channel, ts: posted.ts };
+      }
+    } catch (e) {
+      console.warn('[slack] could not open the case:', (e as Error).message);
+    }
+  }
+
   store.saveWorkOrder(order);
   res.status(201).json(order);
 });
@@ -870,6 +898,9 @@ app.patch('/v1/console/work-orders/:id', (req, res) => {
   if (typeof req.body?.closing_note === 'string') order.closing_note = req.body.closing_note;
   if (typeof req.body?.assigned_to === 'string') order.assigned_to = req.body.assigned_to.trim();
   store.saveWorkOrder(order);
+  // A channel still showing buttons on a case closed from the console invites
+  // someone to close it a second time.
+  void syncCase(order);
   res.json(order);
 });
 
@@ -882,7 +913,243 @@ app.post('/v1/console/reset', (_req, res) => {
   res.json({ ok: true });
 });
 
+
+/* --------------------------------------------------------------- slack */
+
+/**
+ * A work order as Slack needs to see it.
+ *
+ * Slack is given the asset and the inspection reference, not just an id: the
+ * person reading the channel does not have FRCDE open, and should not need to
+ * click anything to know whether the case is theirs.
+ */
+function caseView(order: WorkOrder): slack.CaseView | null {
+  const job = store.job(order.job_id);
+  if (!job) return null;
+  return {
+    id: order.id,
+    title: order.title,
+    detail: order.detail,
+    assigned_to: order.assigned_to,
+    severity: order.severity,
+    due_at: order.due_at,
+    chainage_m: order.chainage_m,
+    asset_name: job.asset.name,
+    reference: job.reference,
+    status: order.status,
+    acknowledged_at: order.acknowledged_at,
+    closing_note: order.closing_note,
+    blocked_reason: order.blocked_reason,
+  };
+}
+
+/** Repaint the posted card. Never throws — Slack being down is not our outage. */
+async function syncCase(order: WorkOrder): Promise<void> {
+  if (!order.slack) return;
+  const view = caseView(order);
+  if (!view) return;
+  try {
+    await slack.updateCase(order.slack.channel, order.slack.ts, view);
+  } catch (e) {
+    console.warn('[slack] could not repaint the case:', (e as Error).message);
+  }
+}
+
+/**
+ * Which channel should this go to?
+ *
+ * Asked while the supervisor is still filling in the form, so the answer can be
+ * shown before they commit to it. Returns the reasoning and the alternatives
+ * rather than a bare channel — see routing.ts for why.
+ */
+app.post('/v1/console/slack/suggest', (req, res) => {
+  const job = store.job(String(req.body?.job_id ?? ''));
+  res.json({
+    suggestion: suggestChannel({
+      assigned_to: String(req.body?.assigned_to ?? ''),
+      severity: Number(req.body?.severity ?? 3),
+      geometry: job?.asset.geometry ?? null,
+      asset_name: job?.asset.name,
+    }),
+    channels: knownChannels(),
+    slack_configured: slack.isConfigured(),
+  });
+});
+
+/**
+ * Everything Slack sends back.
+ *
+ * Public by necessity — Slack holds no session — so the signature is the entire
+ * access control, and it is checked before the body is even looked at.
+ *
+ * Slack gives an app three seconds before showing the user a timeout, so this
+ * answers immediately and does the work afterwards. The alternative is a
+ * contractor being told an action failed when it in fact succeeded, and
+ * pressing the button again.
+ */
+app.post('/v1/slack/interactions', (req, res) => {
+  const raw: Buffer = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+  if (
+    !slack.verifyRequest(
+      raw,
+      req.header('x-slack-request-timestamp'),
+      req.header('x-slack-signature'),
+    )
+  ) {
+    return problem(res, 401, 'Bad signature', 'This request did not come from Slack.');
+  }
+
+  const i = slack.parseInteraction(raw.toString('utf8'));
+  if (!i) return problem(res, 400, 'Unreadable payload');
+
+  const order = i.caseId ? store.workOrder(i.caseId) : null;
+  if (!order) {
+    // 200 regardless: a case removed from FRCDE leaves its buttons behind in the
+    // channel, and an error renders in Slack as an alarming failure for
+    // something the contractor can do nothing about.
+    res.status(200).json({ text: 'That case no longer exists in FRCDE.' });
+    return;
+  }
+
+  const who = i.userName ?? 'someone';
+  const now = new Date().toISOString();
+
+  if (i.type === 'block_actions') {
+    if (i.actionId === 'case_ack') {
+      res.status(200).end();
+      if (order.acknowledged_at) return; // already acknowledged, nothing to record
+      order.acknowledged_at = now;
+      if (order.status === 'open') order.status = 'in_progress';
+      store.saveWorkOrder(order);
+      void syncCase(order);
+      if (order.slack) {
+        void slack
+          .replyInThread(order.slack.channel, order.slack.ts, `Acknowledged by ${who}.`)
+          .catch(() => {});
+      }
+      return;
+    }
+
+    if (i.actionId === 'case_done' || i.actionId === 'case_blocked') {
+      res.status(200).end();
+      const kind = i.actionId === 'case_done' ? 'done' : 'blocked';
+      void slack
+        .openModal(i.triggerId ?? '', slack.closeModal(kind, order.id))
+        .catch((e) => console.warn('[slack] modal failed:', (e as Error).message));
+      return;
+    }
+
+    res.status(200).end();
+    return;
+  }
+
+  if (i.type === 'view_submission') {
+    // An empty 200 is what closes the modal; anything else leaves it hanging.
+    res.status(200).json({});
+
+    const note = (i.value ?? '').trim();
+    if (i.callbackId === 'case_done_submit') {
+      order.status = 'done';
+      order.closed_at = now;
+      order.closing_note = note || `Closed in Slack by ${who}.`;
+      order.acknowledged_at = order.acknowledged_at ?? now;
+    } else if (i.callbackId === 'case_blocked_submit') {
+      // Not a closed case. Someone still has to act, so it stays in the console
+      // follow-up list rather than quietly disappearing from it.
+      order.status = 'blocked';
+      order.closed_at = null;
+      order.blocked_reason = note || `Reported blocked in Slack by ${who}.`;
+      order.acknowledged_at = order.acknowledged_at ?? now;
+    } else {
+      return;
+    }
+    store.saveWorkOrder(order);
+    void syncCase(order);
+    return;
+  }
+
+  res.status(200).end();
+});
+
+/**
+ * Events — subscribed to for one thing: photographs posted in a case thread.
+ *
+ * Completion evidence has to end up in FRCDE. Left in Slack it lives under the
+ * workspace retention policy, which on the free plan discards history after 90
+ * days, and evidence of works on public infrastructure should outlive a chat
+ * subscription.
+ */
+app.post('/v1/slack/events', (req, res) => {
+  const raw: Buffer = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+  if (
+    !slack.verifyRequest(
+      raw,
+      req.header('x-slack-request-timestamp'),
+      req.header('x-slack-signature'),
+    )
+  ) {
+    return problem(res, 401, 'Bad signature', 'This request did not come from Slack.');
+  }
+
+  let body: { type?: string; challenge?: string; event?: Record<string, any> };
+  try {
+    body = JSON.parse(raw.toString('utf8'));
+  } catch {
+    return problem(res, 400, 'Unreadable payload');
+  }
+
+  // Slack proves the endpoint is ours by asking it to echo a challenge.
+  if (body.type === 'url_verification') {
+    return res.json({ challenge: body.challenge });
+  }
+
+  res.status(200).end();
+
+  const event = body.event;
+  if (!event || event.type !== 'message' || event.bot_id) return;
+  const files: Record<string, any>[] = Array.isArray(event.files) ? event.files : [];
+  if (files.length === 0 || !event.thread_ts) return;
+
+  const order = store.workOrders().find((w) => w.slack?.ts === event.thread_ts);
+  if (!order) return;
+
+  void (async () => {
+    for (const f of files) {
+      try {
+        const bytes = await slack.downloadFile(f.url_private_download ?? f.url_private);
+        if (!bytes) continue;
+        const id = randomUUID();
+        createWriteStream(resolve(UPLOAD_DIR, `${id}.jpg`)).end(bytes);
+        const rec: AttachmentRecord = {
+          id,
+          inspection_id: order.inspection_id ?? '',
+          kind: 'completion',
+          source: 'library',
+          captured_at: new Date(
+            (Number(event.ts) || Date.now() / 1000) * 1000,
+          ).toISOString(),
+          lat: null,
+          lon: null,
+          chainage_m: order.chainage_m,
+          caption: String(f.title ?? 'Posted in the Slack case thread'),
+          byte_size: bytes.length,
+          stored: true,
+        };
+        store.addAttachment(rec);
+        order.completion_attachment_ids = [
+          ...(order.completion_attachment_ids ?? []),
+          id,
+        ];
+      } catch (e) {
+        console.warn('[slack] could not file an attachment:', (e as Error).message);
+      }
+    }
+    store.saveWorkOrder(order);
+  })();
+});
+
 /* ----------------------------------------------------------------- serve */
+
 
 /**
  * In production, serve the built console from this same process.

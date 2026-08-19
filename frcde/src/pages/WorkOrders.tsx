@@ -9,13 +9,23 @@ const STATUS_LABEL: Record<WorkOrderStatus, string> = {
   open: 'Open',
   in_progress: 'In progress',
   done: 'Done',
+  blocked: 'Cannot complete',
   cancelled: 'Cancelled',
 };
 
+/**
+ * Violet for blocked, rather than another shade of red or amber.
+ *
+ * Open is red and in-progress amber, so both ends of that ramp are spoken for.
+ * Blocked is not "more urgent" — it is a different kind of thing: the party it
+ * went to has replied that they cannot act, and it needs a decision here rather
+ * than more waiting. A colour outside the ramp is what says that at a glance.
+ */
 const STATUS_COLOUR: Record<WorkOrderStatus, string> = {
   open: '#dc2626',
   in_progress: '#d97706',
   done: '#16a34a',
+  blocked: '#7c3aed',
   cancelled: '#94a3b8',
 };
 
@@ -41,7 +51,14 @@ export default function WorkOrders() {
 
   const orders = useMemo(() => {
     const all = data?.work_orders ?? [];
-    const live = showClosed ? all : all.filter((w) => w.status === 'open' || w.status === 'in_progress');
+    // Blocked stays in the live list. It is the one status that came back from
+    // outside and is waiting on somebody here — hiding it with the closed ones
+    // is how a case nobody can do turns into a case nobody looks at.
+    const live = showClosed
+      ? all
+      : all.filter(
+          (w) => w.status === 'open' || w.status === 'in_progress' || w.status === 'blocked',
+        );
     // Soonest due first — the same rule the drain queue uses, so urgency means
     // one thing across the whole console. Undated ones sink to the bottom.
     return [...live].sort((a, b) => {
@@ -128,11 +145,40 @@ export default function WorkOrders() {
                 <span>raised {new Date(w.raised_at).toLocaleDateString()}</span>
               </div>
 
+              {(w.slack || w.acknowledged_at) && (
+                <div className="meta" style={{ marginTop: 6 }}>
+                  {w.slack && <span>opened in {w.slack.channel}</span>}
+                  {w.slack && w.acknowledged_at && <span>·</span>}
+                  {w.acknowledged_at ? (
+                    <span>
+                      acknowledged {new Date(w.acknowledged_at).toLocaleDateString()}
+                    </span>
+                  ) : (
+                    w.slack && <span>not yet acknowledged</span>
+                  )}
+                  {(w.completion_attachment_ids?.length ?? 0) > 0 && (
+                    <>
+                      <span>·</span>
+                      <span>
+                        {w.completion_attachment_ids!.length} photo
+                        {w.completion_attachment_ids!.length === 1 ? '' : 's'} returned
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {w.blocked_reason && (
+                <div className="note" style={{ marginTop: 8 }}>
+                  <strong>Cannot complete:</strong> {w.blocked_reason}
+                </div>
+              )}
+
               {w.closing_note && (
                 <div className="note" style={{ marginTop: 8 }}>{w.closing_note}</div>
               )}
 
-              {(w.status === 'open' || w.status === 'in_progress') && (
+              {(w.status === 'open' || w.status === 'in_progress' || w.status === 'blocked') && (
                 <div className="rowactions">
                   {w.status === 'open' && (
                     <button
