@@ -17,7 +17,11 @@ import { toLatLng } from '../core/geo.ts';
 import { getJob } from '../data/jobs.ts';
 import { getTemplate } from '../data/templates.ts';
 import { useInspection } from '../hooks/useInspection.ts';
-import { getCurrentLocation, supportsBackgroundTracking } from '../services/locationTask.ts';
+import {
+  getCurrentLocation,
+  IS_EXPO_GO,
+  supportsBackgroundTracking,
+} from '../services/locationTask.ts';
 import { useSession } from '../state/session.ts';
 
 const UNCOVERED = '#94A3B8';
@@ -429,7 +433,23 @@ export default function InspectionScreen({
             </Pressable>
           )}
 
-          {__DEV__ && !running && (
+          {/*
+            * Simulate a walk instead of doing one.
+            *
+            * Not gated on __DEV__ alone. An EAS Update ships a production bundle,
+            * where __DEV__ is false, so gating on it meant the button existed on
+            * the laptop and vanished for every colleague opening the shared link —
+            * with no way to reach the coverage engine at all, since Expo Go cannot
+            * track location in the background either.
+            *
+            * Expo Go is the honest condition. There, tracking only runs while the
+            * app is on screen, so an inspection cannot realistically be walked and
+            * this is the only way the app functions. A real build is not Expo Go,
+            * and the button disappears on its own — which is the important half:
+            * a "pretend you walked the drain" control must never reach an
+            * inspector holding a phone in the field.
+            */}
+          {(__DEV__ || IS_EXPO_GO) && !running && (
             <Pressable style={[styles.btn, styles.btnSim]} onPress={() => insp.simulate()}>
               <Text style={styles.btnSimText}>Simulate</Text>
             </Pressable>
