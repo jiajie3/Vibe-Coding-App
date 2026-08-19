@@ -84,9 +84,14 @@ sleeps after fifteen minutes of quiet.
 | Scope | For |
 |---|---|
 | `chat:write` | posting and updating the case card |
-| `files:read` | pulling completion photos out of the thread |
+| `files:read` | reading completion photos out of the thread |
+| `channels:history` | receiving the `message.channels` event at all |
 
 Install to the workspace and copy the bot token (`xoxb-…`).
+
+Only `chat:write` is needed for the button loop. The other two are for pulling
+photographs out of the case thread, which is worth leaving until the rest works —
+see step 6.
 
 **3. Basic Information** → copy the **Signing Secret**.
 
@@ -113,8 +118,18 @@ https://frcde.onrender.com/v1/slack/events
 
 Slack tests this one immediately by asking it to echo a challenge — and that
 challenge is signed like every other request, which is why the secret had to be
-set at step 4. Then subscribe to bot event `message.channels` (add
-`message.groups` for private channels).
+set at step 4.
+
+Then **Subscribe to bot events** → `message.channels` (add `message.groups` for
+private channels). Until at least one event is subscribed there is nothing to
+save, and **Save Changes** stays greyed out with no explanation. Subscribing also
+pulls in the `channels:history` scope, which forces a reinstall — re-copy the bot
+token afterwards, since a reinstall can issue a new one.
+
+**This whole step is optional.** Events carry one thing: photographs posted in a
+case thread. Acknowledge, Completed, Cannot complete and the write-back all
+travel over Interactivity. Leaving Enable Events off costs only the photo
+ingestion, and is the smaller thing to get working second.
 
 **7. Invite the bot to every channel** in the routing table: `/invite @FRCDE`. A
 bot that is not in a channel cannot post to it, and the error is
