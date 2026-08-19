@@ -65,10 +65,21 @@ say how sure it is invites people to accept all of them without reading.
 
 ## Setting it up
 
+The order below is not arbitrary. Slack validates the events URL the moment you
+paste it, so the secret has to be in place first, and the URL fields do not even
+appear until Socket Mode is off.
+
 At [api.slack.com/apps](https://api.slack.com/apps) → **Create New App** → *From
 scratch*.
 
-**OAuth & Permissions → Bot Token Scopes**
+**1. Socket Mode → off.** It is on by default for new apps. While it is on, Slack
+hides the Request URL fields entirely behind a note saying you will not need
+them — which reads as "this step is unnecessary" rather than "you are in the
+wrong mode". Socket Mode has the app hold a WebSocket open to Slack instead of
+receiving HTTP callbacks: fine for a laptop, wrong for a free-tier service that
+sleeps after fifteen minutes of quiet.
+
+**2. OAuth & Permissions → Bot Token Scopes**
 
 | Scope | For |
 |---|---|
@@ -77,51 +88,52 @@ scratch*.
 
 Install to the workspace and copy the bot token (`xoxb-…`).
 
-**Interactivity & Shortcuts** → on → Request URL:
+**3. Basic Information** → copy the **Signing Secret**.
 
-```
-https://frcde.onrender.com/v1/slack/interactions
-```
-
-**Event Subscriptions** → on → Request URL:
-
-```
-https://frcde.onrender.com/v1/slack/events
-```
-
-Slack verifies that URL immediately by asking it to echo a challenge — and that
-challenge is signed like everything else, so **`SLACK_SIGNING_SECRET` must already
-be set on the service** or verification fails. Slack reports any non-200 as "your
-URL responded with an HTTP error", so check the response body rather than
-guessing:
-
-```bash
-curl -sS -X POST https://frcde.onrender.com/v1/slack/events   -H 'content-type: application/json' -d '{}'
-```
-
-The `detail` says whether the server has no signing secret at all or has one that
-does not match. Subscribe to bot event
-`message.channels` (add `message.groups` for private channels).
-
-**Socket Mode** → **off**. It is on by default for new apps, and while it is on
-Slack hides the Request URL fields entirely with a note saying you will not need
-them — which reads as "this step is unnecessary" rather than "you are in the
-wrong mode". Socket Mode has the app hold a WebSocket open to Slack instead of
-receiving HTTP callbacks, which suits a laptop and not a free-tier service that
-sleeps after fifteen minutes.
-
-**Basic Information** → copy the Signing Secret.
-
-Then set both on the service — Render → Environment:
+**4. Render → your service → Environment**, add both, and save:
 
 ```
 SLACK_BOT_TOKEN       xoxb-…
 SLACK_SIGNING_SECRET  …
 ```
 
-Finally, **invite the bot to each channel** in the routing table. A bot that is
-not in a channel cannot post to it, and the error says `not_in_channel`, which
-reads like a permissions problem rather than a missing invitation.
+Wait for the redeploy to finish before going further.
+
+**5. Interactivity & Shortcuts** → on → Request URL:
+
+```
+https://frcde.onrender.com/v1/slack/interactions
+```
+
+**6. Event Subscriptions** → on → Request URL:
+
+```
+https://frcde.onrender.com/v1/slack/events
+```
+
+Slack tests this one immediately by asking it to echo a challenge — and that
+challenge is signed like every other request, which is why the secret had to be
+set at step 4. Then subscribe to bot event `message.channels` (add
+`message.groups` for private channels).
+
+**7. Invite the bot to every channel** in the routing table: `/invite @FRCDE`. A
+bot that is not in a channel cannot post to it, and the error is
+`not_in_channel`, which reads like a permissions problem rather than a missing
+invitation.
+
+### When the events URL will not verify
+
+Slack reports any non-200 as "your URL responded with an HTTP error", which says
+nothing about the cause. Ask the endpoint directly:
+
+```bash
+curl -sS -X POST https://frcde.onrender.com/v1/slack/events -H 'content-type: application/json' -d '{}'
+```
+
+The `detail` distinguishes the two cases that matter: a server with no signing
+secret configured, which no amount of retrying in Slack will fix, and a secret
+that does not match the app. A `404` instead means the deploy predates this
+integration.
 
 ## Without a workspace
 
