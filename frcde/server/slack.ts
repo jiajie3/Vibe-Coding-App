@@ -28,6 +28,26 @@ export const signingSecret = () => process.env.SLACK_SIGNING_SECRET ?? '';
 export const isConfigured = () => botToken().length > 0 && signingSecret().length > 0;
 
 /**
+ * Why an inbound request was refused, in words worth showing.
+ *
+ * Slack reports any non-200 as "your URL responded with an HTTP error", so the
+ * detail we return is the only clue anyone gets while setting the app up. The
+ * two causes need telling apart: a server with no secret configured can never
+ * verify anything, and no amount of retrying in Slack will change that.
+ *
+ * This is said to an unauthenticated caller deliberately. It reveals only
+ * whether an integration is configured, which is not a secret and not
+ * exploitable — and withholding it costs an hour of guessing every time.
+ */
+export function rejectionReason(): string {
+  return signingSecret().length === 0
+    ? 'This server has no SLACK_SIGNING_SECRET configured, so it cannot verify ' +
+        'that a request came from Slack. Set it on the service and try again.'
+    : 'The signature did not match. Check that SLACK_SIGNING_SECRET is the ' +
+        'signing secret of this same Slack app.';
+}
+
+/**
  * Slack rejects a request older than five minutes, and so do we.
  *
  * Without it a captured request stays valid for ever: its signature is correct,

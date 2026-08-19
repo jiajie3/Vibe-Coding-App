@@ -996,7 +996,7 @@ app.post('/v1/slack/interactions', (req, res) => {
       req.header('x-slack-signature'),
     )
   ) {
-    return problem(res, 401, 'Bad signature', 'This request did not come from Slack.');
+    return problem(res, 401, 'Bad signature', slack.rejectionReason());
   }
 
   const i = slack.parseInteraction(raw.toString('utf8'));
@@ -1088,7 +1088,7 @@ app.post('/v1/slack/events', (req, res) => {
       req.header('x-slack-signature'),
     )
   ) {
-    return problem(res, 401, 'Bad signature', 'This request did not come from Slack.');
+    return problem(res, 401, 'Bad signature', slack.rejectionReason());
   }
 
   let body: { type?: string; challenge?: string; event?: Record<string, any> };

@@ -89,9 +89,26 @@ https://frcde.onrender.com/v1/slack/interactions
 https://frcde.onrender.com/v1/slack/events
 ```
 
-Slack verifies that URL immediately by asking it to echo a challenge, so the
-server must already be running and configured. Subscribe to bot event
+Slack verifies that URL immediately by asking it to echo a challenge — and that
+challenge is signed like everything else, so **`SLACK_SIGNING_SECRET` must already
+be set on the service** or verification fails. Slack reports any non-200 as "your
+URL responded with an HTTP error", so check the response body rather than
+guessing:
+
+```bash
+curl -sS -X POST https://frcde.onrender.com/v1/slack/events   -H 'content-type: application/json' -d '{}'
+```
+
+The `detail` says whether the server has no signing secret at all or has one that
+does not match. Subscribe to bot event
 `message.channels` (add `message.groups` for private channels).
+
+**Socket Mode** → **off**. It is on by default for new apps, and while it is on
+Slack hides the Request URL fields entirely with a note saying you will not need
+them — which reads as "this step is unnecessary" rather than "you are in the
+wrong mode". Socket Mode has the app hold a WebSocket open to Slack instead of
+receiving HTTP callbacks, which suits a laptop and not a free-tier service that
+sleeps after fifteen minutes.
 
 **Basic Information** → copy the Signing Secret.
 
