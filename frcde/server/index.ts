@@ -909,7 +909,32 @@ app.patch('/v1/console/work-orders/:id', (req, res) => {
   const order = store.workOrder(req.params.id);
   if (!order) return problem(res, 404, 'Work order not found');
 
+  const was = order.status;
   const status = req.body?.status as WorkOrder['status'] | undefined;
+
+  /**
+   * Rejecting a reported-complete case, as opposed to merely starting work.
+   *
+   * The same status change means two different things depending on where it
+   * came from, and only one of them is news the contractor needs.
+   */
+  const sendingBack = was === 'awaiting_verification' && status === 'in_progress';
+  const note = typeof req.body?.note === 'string' ? req.body.note.trim() : '';
+  if (sendingBack) {
+    if (!note) {
+      return problem(
+        res,
+        422,
+        'Say why',
+        'Sending work back without a reason leaves them guessing, and the usual '
+          + 'result is the same work reported complete again.',
+      );
+    }
+    order.sent_back_note = note;
+    // It is no longer complete. Leaving the timestamp would have the follow-up
+    // list claim it was finished on a date it was not.
+    order.completed_at = null;
+  }
   if (status) {
     order.status = status;
     order.closed_at =
@@ -926,16 +951,26 @@ app.patch('/v1/console/work-orders/:id', (req, res) => {
   // A channel still showing buttons on a case closed from the console invites
   // someone to close it a second time.
   void syncCase(order);
-  // Tell the contractor too. Being checked and signed off is the half of the
-  // loop they otherwise never see.
-  if (order.slack && status === 'done') {
-    void slack
-      .replyInThread(
-        order.slack.channel,
-        order.slack.ts,
-        `Checked and closed by ${order.verified_by}. Thanks.`,
-      )
-      .catch(() => {});
+  // Tell the contractor too. Being checked and signed off — or told what was
+  // wrong — is the half of the loop they otherwise never see.
+  if (order.slack) {
+    if (status === 'done') {
+      void slack
+        .replyInThread(
+          order.slack.channel,
+          order.slack.ts,
+          `Checked and closed by ${order.verified_by}. Thanks.`,
+        )
+        .catch(() => {});
+    } else if (sendingBack) {
+      void slack
+        .replyInThread(
+          order.slack.channel,
+          order.slack.ts,
+          `:leftwards_arrow_with_hook: *Sent back* — ${order.sent_back_note}`,
+        )
+        .catch(() => {});
+    }
   }
   res.json(order);
 });
@@ -1166,8 +1201,27 @@ app.post('/v1/slack/interactions', (req, res) => {
   }
 
   if (i.type === 'view_submission') {
-    // The same rule again at submission: the modal could have been opened
-    // before the case changed underneath it.
+    /**
+     * Both rules again at submission, not only on the button.
+     *
+     * The modal is opened by one request and submitted by another, and anything
+     * can happen in between — the case can be sent back, or the modal can have
+     * been sitting open since before the photograph requirement applied.
+     * Checking only where the modal is opened guards the door and leaves the
+     * window open.
+     */
+    if (
+      i.callbackId === 'case_done_submit' &&
+      (order.completion_attachment_ids?.length ?? 0) === 0
+    ) {
+      res.status(200).json({
+        response_action: 'errors',
+        errors: { note: 'Post a photograph of the completed work in this thread first.' },
+      });
+      void syncCase(order);
+      return;
+    }
+
     if (!order.acknowledged_at) {
       // `response_action: errors` keeps the modal open and shows this against
       // the field, which is the only way to say anything to someone mid-modal.
@@ -1286,7 +1340,9 @@ app.post('/v1/slack/events', (req, res) => {
           lat: null,
           lon: null,
           chainage_m: order.chainage_m,
-          caption: String(f.title ?? 'Posted in the Slack case thread'),
+          caption: slack.isConfigured()
+            ? String(f.title ?? 'Posted in the Slack case thread')
+            : 'Simulated — no Slack workspace is connected',
           byte_size: bytes.length,
           stored: true,
         };

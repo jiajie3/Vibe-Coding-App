@@ -95,6 +95,8 @@ export interface WorkOrder {
   completed_at?: string | null;
   /** Who signed it off here. */
   verified_by?: string;
+  /** Why it was last sent back. The full history is in the Slack thread. */
+  sent_back_note?: string;
 }
 
 export interface ChannelOption {

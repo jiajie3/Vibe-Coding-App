@@ -28,7 +28,14 @@ const PASS = process.env.FRCDE_SUPERVISOR_PASSWORD ?? 'supervisor';
 
 let step = 0;
 const ok = (msg: string) => console.log(`  ${++step}. ✓ ${msg}`);
-const die = (msg: string): never => {
+/**
+ * Annotated on the binding, not only on the arrow.
+ *
+ * TypeScript narrows control flow through a `never`-returning function only when
+ * the *variable* carries the type. Without it every `if (!x) die(...)` fails to
+ * prove `x` afterwards, and the file fills with phantom "possibly undefined".
+ */
+const die: (msg: string) => never = (msg) => {
   console.error(`\n  ✗ ${msg}\n`);
   process.exit(1);
 };
@@ -200,6 +207,34 @@ async function main() {
   }
   ok('completing with no photograph is refused, and the case stays in progress');
 
+  /* ------------------------------------- a photograph arrives in the thread */
+
+  const event = JSON.stringify({
+    type: 'event_callback',
+    event: {
+      type: 'message',
+      ts: String(Date.now() / 1000),
+      thread_ts: order.slack.ts,
+      user: 'U123',
+      files: [{ id: 'F1', title: 'Cleared', url_private_download: 'https://files.slack.test/F1' }],
+    },
+  });
+  const filed = await fetch(`${BASE}/v1/slack/events`, {
+    method: 'POST',
+    headers: { ...slackHeaders(event), 'content-type': 'application/json' },
+    body: event,
+  });
+  if (!filed.ok) die(`the events endpoint refused a signed event (${filed.status})`);
+
+  // Filing happens after the 200 — Slack allows three seconds and we do not
+  // spend them on a download.
+  await new Promise((r) => setTimeout(r, 300));
+  const withPhoto = await readOrder(order.id);
+  if ((withPhoto.completion_attachment_ids?.length ?? 0) === 0) {
+    die('a photograph posted in the case thread was not filed against the case');
+  }
+  ok('a photograph in the thread is filed against the work order');
+
   /* ------------------------------------------------- cannot complete */
 
   const blockedBody = form({
@@ -253,6 +288,53 @@ async function main() {
   if (!afterDone.closing_note?.includes('0.4 m3')) die('the closing note was not kept');
   ok('completion parks the case for verification rather than closing it');
 
+  /* ------------------------------------------------- sending it back again */
+
+  const auth1 = await fetch(`${BASE}/v1/auth/token`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ username: USER, password: PASS, device_id: 'slack-e2e' }),
+  });
+  const { access_token: tok } = (await auth1.json()) as { access_token: string };
+  const asSupervisor = { authorization: `Bearer ${tok}`, 'content-type': 'application/json' };
+
+  // A send-back with nothing said leaves them guessing, and the usual result is
+  // the same work reported complete a second time.
+  const silent = await fetch(`${BASE}/v1/console/work-orders/${order.id}`, {
+    method: 'PATCH',
+    headers: asSupervisor,
+    body: JSON.stringify({ status: 'in_progress' }),
+  });
+  if (silent.status !== 422) die(`a wordless send-back was allowed (${silent.status})`);
+
+  const back = await fetch(`${BASE}/v1/console/work-orders/${order.id}`, {
+    method: 'PATCH',
+    headers: asSupervisor,
+    body: JSON.stringify({
+      status: 'in_progress',
+      note: 'Photograph shows the upstream end — we need chainage 260 m.',
+    }),
+  });
+  if (!back.ok) die(`send-back refused (${back.status})`);
+  const afterBack = await readOrder(order.id);
+  if (afterBack.status !== 'in_progress') die(`status is ${afterBack.status}, expected in_progress`);
+  if (!afterBack.sent_back_note?.includes('chainage 260')) die('the message was not kept');
+  if (afterBack.completed_at !== null) die('a sent-back case still claims a completion date');
+  ok('send-back needs a message, keeps it, and clears the completion');
+
+  // Report it complete again, so the sign-off below has something to sign off.
+  const redo = await fetch(`${BASE}/v1/slack/interactions`, {
+    method: 'POST',
+    headers: slackHeaders(doneBody),
+    body: doneBody,
+  });
+  if (!redo.ok) die(`re-completion refused (${redo.status})`);
+  const afterRedo = await readOrder(order.id);
+  if (afterRedo.status !== 'awaiting_verification') {
+    die(`status is ${afterRedo.status}, expected awaiting_verification`);
+  }
+  ok('the contractor can report it complete again after a send-back');
+
   /* ------------------------------------------- the supervisor signs it off */
 
   const auth2 = await fetch(`${BASE}/v1/auth/token`, {
@@ -272,6 +354,18 @@ async function main() {
   if (!verified.closed_at) die('closed_at was not stamped on verification');
   if (!verified.verified_by) die('nobody was recorded as having checked it');
   ok(`supervisor verified and closed it (${verified.verified_by})`);
+
+  /* ------------------------------------------------ the events handshake */
+
+  const challenge = JSON.stringify({ type: 'url_verification', challenge: 'abc123' });
+  const handshake = await fetch(`${BASE}/v1/slack/events`, {
+    method: 'POST',
+    headers: { ...slackHeaders(challenge), 'content-type': 'application/json' },
+    body: challenge,
+  });
+  const echoed = (await handshake.json()) as { challenge?: string };
+  if (echoed.challenge !== 'abc123') die('the events URL did not echo the challenge');
+  ok('the events endpoint echoes the verification challenge Slack sends');
 
   /* --------------------------------------------- a case that no longer exists */
 

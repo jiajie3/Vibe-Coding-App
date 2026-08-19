@@ -34,6 +34,10 @@ FRCDE                                     Slack
   │     status → done, verified_by
   │  ──────────────────────────────────▶  thread reply: checked and closed
   │
+  │  …or sends it back with a message
+  │     status → in_progress, completed_at cleared
+  │  ──────────────────────────────────▶  thread reply: sent back, and why
+  │
   │  ◀─────────────────────────────────── Cannot complete + reason
   │     status → blocked, stays in the follow-up list
 ```
@@ -59,6 +63,13 @@ Slack modals cannot take a file upload, so the photograph arrives as a thread
 message and is filed by the events handler — which means **this feature depends
 on Event Subscriptions being configured.** Without it no photograph is ever
 recorded, and Completed can never be pressed successfully.
+
+**Sending work back needs a reason, and the reason goes to Slack.** A rejection
+with nothing said leaves the contractor guessing, and the usual result is the
+same work reported complete a second time — so the console asks for a message and
+the server refuses the change without one. It lands in the case thread, under the
+photographs being rejected, and the case returns to them with Completed available
+again.
 
 **Every transition speaks in the thread.** The card repaints in place, which is
 easy to miss in a busy channel; a threaded reply is what actually notifies
@@ -226,6 +237,11 @@ also means "it posted nothing" is never indistinguishable from "it failed".
 Inbound verification needs only `SLACK_SIGNING_SECRET`, so setting that alone
 gives you a server that accepts signed requests while still simulating its
 replies — which is exactly what `npm run slack:e2e` exercises.
+
+Photograph downloads are simulated too, returning a 1×1 placeholder captioned
+"Simulated — no Slack workspace is connected". Returning nothing instead would
+make completion impossible without a live workspace, since a photograph is
+required to close a case — the whole flow would be undemonstrable.
 
 ## Photographs
 

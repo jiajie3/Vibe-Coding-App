@@ -466,9 +466,26 @@ export async function respondEphemeral(url: string | undefined, text: string): P
   });
 }
 
+/**
+ * A stand-in image, used only when no workspace is configured.
+ *
+ * The rest of this module simulates rather than skips, and the completion path
+ * has to as well: without a photograph the case can never be completed, so
+ * returning nothing here would make the whole flow undemonstrable and
+ * untestable without a live Slack app. A 1×1 JPEG is a real image file, and the
+ * caption filed alongside says plainly that it is not a real photograph.
+ */
+const PLACEHOLDER_JPEG = Buffer.from(
+  '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/9oACAEBAAA/APn+iiigD//Z',
+  'base64',
+);
+
 /** Download a file a contractor posted in a case thread. */
 export async function downloadFile(url: string): Promise<Buffer | null> {
-  if (!isConfigured()) return null;
+  if (!isConfigured()) {
+    console.log('[slack] (simulated) would download', url);
+    return PLACEHOLDER_JPEG;
+  }
   const res = await fetch(url, { headers: { authorization: `Bearer ${botToken()}` } });
   if (!res.ok) return null;
   return Buffer.from(await res.arrayBuffer());

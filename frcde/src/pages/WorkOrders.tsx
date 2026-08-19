@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import CompleteFollowUp from '../components/CompleteFollowUp.tsx';
+import SendBackFollowUp from '../components/SendBackFollowUp.tsx';
 import { api, dueLabel } from '../api.ts';
 import type { JobRecord, Overview, WorkOrder, WorkOrderStatus } from '../api.ts';
 
@@ -39,6 +40,7 @@ export default function WorkOrders() {
   const [showClosed, setShowClosed] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [closing, setClosing] = useState<WorkOrder | null>(null);
+  const [sendingBack, setSendingBack] = useState<WorkOrder | null>(null);
 
   const pull = useCallback(
     () => api.overview().then(setData).catch(() => {}),
@@ -82,6 +84,20 @@ export default function WorkOrders() {
       await api.updateWorkOrder(w.id, { status, closing_note: note });
       setClosing(null);
       await pull();
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  /** Reject a reported-complete case, with a message that reaches Slack. */
+  const sendBack = async (w: WorkOrder, note: string) => {
+    setBusy(w.id);
+    try {
+      await api.updateWorkOrder(w.id, { status: 'in_progress', note });
+      setSendingBack(null);
+      await pull();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Could not send it back');
     } finally {
       setBusy(null);
     }
@@ -192,6 +208,12 @@ export default function WorkOrders() {
                 </div>
               )}
 
+              {w.sent_back_note && w.status !== 'done' && (
+                <div className="note" style={{ marginTop: 8 }}>
+                  <strong>Sent back:</strong> {w.sent_back_note}
+                </div>
+              )}
+
               {w.blocked_reason && (
                 <div className="note" style={{ marginTop: 8 }}>
                   <strong>Cannot complete:</strong> {w.blocked_reason}
@@ -214,7 +236,7 @@ export default function WorkOrders() {
                   <button
                     className="btn tiny"
                     disabled={busy === w.id}
-                    onClick={() => advance(w, 'in_progress')}
+                    onClick={() => setSendingBack(w)}
                   >
                     Send back
                   </button>
@@ -252,6 +274,16 @@ export default function WorkOrders() {
           );
         })}
       </div>
+
+      {sendingBack && (
+        <SendBackFollowUp
+          order={sendingBack}
+          jobName={jobsById.get(sendingBack.job_id)?.asset.name}
+          busy={busy === sendingBack.id}
+          onCancel={() => setSendingBack(null)}
+          onSubmit={(note) => sendBack(sendingBack, note)}
+        />
+      )}
 
       {closing && (
         <CompleteFollowUp

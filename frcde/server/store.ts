@@ -232,6 +232,15 @@ export interface WorkOrder {
   completed_at?: string | null;
   /** Who signed it off in FRCDE, and when. */
   verified_by?: string;
+
+  /**
+   * Why it was last sent back for more work.
+   *
+   * Only the most recent one is kept here. The full back-and-forth lives in the
+   * Slack thread, which is where the contractor is reading it — this exists so
+   * the console can show why a case is round again without opening Slack.
+   */
+  sent_back_note?: string;
 }
 
 interface Db {
