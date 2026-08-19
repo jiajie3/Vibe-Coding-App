@@ -7,9 +7,12 @@ Two connected applications for scheduling, carrying out and reviewing drain insp
 | **[CFPI](cfpi/)** | React Native + Expo SDK 54 | Field app. Inspectors walk the drain while GPS verifies coverage, fill a checklist, take photos. |
 | **[FRCDE](frcde/)** | React + Vite + Express | Console. Decides what needs inspecting, dispatches jobs, reviews results. |
 
-Runs locally with no cloud, no accounts and no API keys. There is also a shared
-deployment — FRCDE on Render, CFPI over Expo Go — described in
+Runs locally with no build step and no database. There is also a shared deployment —
+FRCDE on Render, CFPI over Expo Go — described in
 [docs/deploying.md](docs/deploying.md).
+
+Slack follow-ups and the automatic first pass are optional: without their keys both
+degrade to logging and rule checks, and nothing else changes.
 
 ## Run it
 

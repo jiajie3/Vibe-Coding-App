@@ -85,7 +85,15 @@ src/
   hooks/useInspection.ts Binds the engine to GPS, React and disk
   screens/               Jobs · Inspection · Checklist · Camera · Submitted · Settings
   data/                  Job repository and checklist templates
+assets/
+  seed-jobs.json         40 drains, bundled so the app works before its first sync
+  checklist-template.json  The open-drain form, likewise
 ```
+
+Both files under `assets/` are copies of `contracts/examples/`, bundled so a handset
+that has never reached a server still has drains to walk and a form to fill. Refresh
+them with `npm run sync:assets` after the contract examples change — the checklist copy
+drifted silently for a while because only the seed data was being copied.
 
 `src/core` is deliberately free of React and Expo imports. That is what lets the parts
 which decide whether an inspection counts be tested exhaustively against real geometry

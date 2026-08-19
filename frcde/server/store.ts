@@ -282,14 +282,14 @@ export const DUE_WINDOW_DAYS = 7;
  * Real intervals would come from PUB's maintenance policy; these are plausible
  * stand-ins — bigger, more consequential assets are seen more often.
  */
-export const INSPECTION_CYCLE_DAYS: Record<string, number> = {
+const INSPECTION_CYCLE_DAYS: Record<string, number> = {
   canal: 60,
   open_concrete_drain: 90,
   closed_box_culvert: 120,
   earth_drain: 120,
   roadside_scupper: 180,
 };
-export const DEFAULT_CYCLE_DAYS = 90;
+const DEFAULT_CYCLE_DAYS = 90;
 
 export function cycleFor(assetType: string): number {
   return INSPECTION_CYCLE_DAYS[assetType] ?? DEFAULT_CYCLE_DAYS;

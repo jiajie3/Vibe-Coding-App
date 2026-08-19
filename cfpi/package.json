@@ -40,7 +40,8 @@
     "web": "expo start --web",
     "test:core": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/core/*.test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json",
-    "seed": "python ../tools/seed_from_osm.py --count 40 && node -e \"require('fs').copyFileSync('../contracts/examples/seed-jobs.json','assets/seed-jobs.json')\""
+    "seed": "python ../tools/seed_from_osm.py --count 40 && npm run sync:assets",
+    "sync:assets": "node -e \"const f=require('fs');for(const n of ['seed-jobs.json','checklist-template.json'])f.copyFileSync('../contracts/examples/'+n,'assets/'+n);console.log('assets synced from contracts/examples')\""
   },
   "private": true
 }

@@ -1,30 +1,16 @@
 {
   "//": [
-    "Which Slack channel a follow-up case should be opened in.",
+    "Test fixture, not deployment config.",
     "",
-    "Every channel named here must exist in the workspace AND have the bot",
-    "invited to it. A channel the bot is not in fails at post time with",
-    "`channel_not_found`, which reads as though the channel is missing rather",
-    "than as though the bot is not a member.",
+    "It exists to exercise one shape: a table with parties but no catch-all and no",
+    "zones, where an unmatched follow-up must decline to route rather than invent a",
+    "channel. That is the shape the live table has while only a couple of channels",
+    "exist in the workspace.",
     "",
-    "Rules are tried in this order and the first match wins:",
-    "",
-    "  1. parties  — matched against the work order's `assigned_to` text. This is",
-    "                the strongest signal because a supervisor has already named",
-    "                who does the work. Aliases match whole words only.",
-    "  2. zones    — matched geographically, by which zone centroid the drain",
-    "                sits nearest. Empty here: no zone channels exist yet.",
-    "  3. default  — everything else.",
-    "",
-    "`default_channel` is empty on purpose. With only two channels most",
-    "follow-ups match neither, and the honest answer is that this one is not",
-    "going to Slack at all — the console says so, and the work order is still",
-    "recorded. The alternative is proposing a channel that does not exist and",
-    "discovering it only when the post fails.",
-    "",
-    "Add a catch-all by creating the channel, inviting the bot, and naming it",
-    "here. Same for `escalation_channel`, which is offered alongside the primary",
-    "route for anything at or above `escalate_above_severity`."
+    "The channel names are deliberately fictional. This file began as a copy of",
+    "config/slack-routing.json and was byte-identical to it, which made the two easy",
+    "to confuse and invited someone to edit the wrong one. Nothing here should ever",
+    "match a real channel."
   ],
 
   "default_channel": "",
@@ -33,28 +19,14 @@
 
   "parties": [
     {
-      "label": "NEA",
-      "channel": "#nea",
-      "aliases": [
-        "nea",
-        "environment agency",
-        "national environment agency",
-        "vector control",
-        "mosquito",
-        "breeding"
-      ]
+      "label": "Fixture Party A",
+      "channel": "#fixture-party-a",
+      "aliases": ["party a", "alpha"]
     },
     {
-      "label": "LTA",
-      "channel": "#lta",
-      "aliases": [
-        "lta",
-        "transport authority",
-        "land transport authority",
-        "road",
-        "kerb",
-        "carriageway"
-      ]
+      "label": "Fixture Party B",
+      "channel": "#fixture-party-b",
+      "aliases": ["party b", "bravo"]
     }
   ],
 

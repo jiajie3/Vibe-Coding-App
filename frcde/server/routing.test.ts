@@ -169,8 +169,8 @@ test('with no catch-all, an unmatched follow-up is not routed anywhere', () => {
   process.env.SLACK_ROUTING_CONFIG = resolve(here, 'routing.minimal.fixture.json');
   reloadRouting();
   try {
-    const matched = suggestChannel({ assigned_to: 'NEA vector control', severity: 3 });
-    assert.equal(matched.channel, '#nea');
+    const matched = suggestChannel({ assigned_to: 'Party A crew', severity: 3 });
+    assert.equal(matched.channel, '#fixture-party-a');
     assert.equal(matched.confidence, 'high');
 
     const unmatched = suggestChannel({ assigned_to: 'Rajesh Kumar', severity: 3 });
@@ -180,7 +180,7 @@ test('with no catch-all, an unmatched follow-up is not routed anywhere', () => {
 
     // And nothing empty leaks into the console override list or alternatives.
     assert.ok(!knownChannels().includes(''), 'empty channel in the picker');
-    const high = suggestChannel({ assigned_to: 'LTA', severity: 5 });
+    const high = suggestChannel({ assigned_to: 'Party B', severity: 5 });
     assert.ok(
       !high.alternatives.some((a) => a.channel === ''),
       'an unconfigured escalation channel was offered',
@@ -195,7 +195,7 @@ test('an unreadable table declines to route rather than guessing', () => {
   process.env.SLACK_ROUTING_CONFIG = resolve(here, 'does-not-exist.json');
   reloadRouting();
   try {
-    const s = suggestChannel({ assigned_to: 'NEA', severity: 5 });
+    const s = suggestChannel({ assigned_to: 'Party A', severity: 5 });
     assert.equal(s.channel, '', 'a broken table must not post to a guessed channel');
     assert.deepEqual(knownChannels(), []);
   } finally {

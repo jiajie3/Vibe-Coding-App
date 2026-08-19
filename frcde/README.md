@@ -1,9 +1,14 @@
 # FRCDE — drain inspection console
 
 Scheduling, tracking and review for drain inspections. React + Vite console, Express API,
-JSON store. Runs entirely on your machine — no cloud, no accounts, no API keys — and
-deploys to Render as a single service serving both halves, per
+JSON store. Runs on your machine with no build step and no database, and deploys to
+Render as a single service serving both halves, per
 [docs/deploying.md](../docs/deploying.md).
+
+Two integrations are optional and off by default. Without their keys the console behaves
+identically — Slack posts are logged rather than sent, and inspections get the rule
+checks without the model. See [docs/slack.md](../docs/slack.md) and
+[docs/ai-review.md](../docs/ai-review.md).
 
 ## Run it
 
@@ -43,13 +48,23 @@ Firewall blocks inbound there. Fix with `Set-ExecutionPolicy`-style elevation:
 server/
   index.ts     Contract endpoints + console endpoints
   store.ts     JSON persistence, seeded from contracts/examples/seed-jobs.json
+  auth.ts      Tokens, sessions, role guards
+  password.ts  scrypt hashing
+  slack.ts     Follow-up cases: posting, signature verification, thread replies
+  routing.ts   Which channel a follow-up opens in, and why
+  ai.ts        The automatic first pass — rule checks, then the model
+config/
+  slack-routing.json   Channel table. Deployment data, edited without a release.
 scripts/
   e2e.ts       Accept → start → walk → complete → review, over HTTP
+  slack-e2e.ts The Slack case round trip, signatures included
 src/
   api.ts               Typed client, shares CFPI's contract types
   components/DrainMap  MapLibre wrapper (no API key needed)
+  components/AutoReview  The first-pass panel
   pages/Dashboard      Network map, KPIs, job queue
   pages/JobDetail      Review: coverage overlay, GPS track, checklist, photos
+  pages/WorkOrders     Follow-ups, including ones awaiting a photo check
 data/
   db.json      The store. Delete it, or POST /v1/console/reset, to reseed.
   uploads/     Photo bytes
@@ -128,15 +143,31 @@ rare "policy just changed, sweep now" case.
 
 ## Work orders
 
-Raised from a submitted inspection, pre-filled from what it actually found — a blockage
-with 260 mm of silt proposes *"Clear blockage, severity 4"* at the chainage of the first
-photograph. Tracked open → in progress → done with a closing note.
+Raised from a submitted inspection and pre-filled from what it found — a blockage with
+260 mm of silt proposes clearing it, at the chainage of the first photograph.
 
 An inspection that finds a defect and produces nothing but a record is how inspectors
-learn their findings do not matter.
+learn their findings do not matter. So a follow-up is a case with a party on the other
+end of it:
+
+```
+open → in progress → awaiting verification → done
+                  ↘ cannot complete (stays in the live list)
+```
+
+Opened in a Slack channel chosen by the routing table, with the inspection's own
+photographs in the thread. The contractor acknowledges before anything else is offered,
+and cannot close it without posting a photograph — which comes back and is filed against
+the work order. A supervisor then checks that photograph and closes it, or sends it back
+with a message that lands in the same thread.
+
+Without a workspace configured all of that is logged rather than posted, and the console
+is unchanged. [docs/slack.md](../docs/slack.md).
 
 ## Not built yet
 
+- Contractor identity: anyone who can press the button in the channel can close a
+  case, and what is recorded is a Slack username
 - Assigning specific inspectors; everyone sees the same queue
 - Delta sync (`/v1/sync/changes`) — CFPI re-fetches the full job list each time
 - Reporting and export, an audit trail, bulk scheduling
