@@ -21,6 +21,12 @@ const base = (over: Partial<ReviewInput> = {}): ReviewInput => ({
   coverage: { server_pct: 97.4, client_pct: 98.1, flags: [], uncovered_ranges: [] },
   checklist: [
     { id: 'site_accessible', label: 'Site accessible', type: 'boolean', answer: true },
+    {
+      id: 'structural_condition',
+      label: 'Overall structural condition',
+      type: 'single_select',
+      answer: 'good',
+    },
     { id: 'blockage_present', label: 'Blockage present', type: 'boolean', answer: false },
     { id: 'silt_depth_mm', label: 'Silt depth', type: 'number', answer: 20 },
     { id: 'flow_condition', label: 'Flow', type: 'single_select', answer: 'free' },
@@ -219,6 +225,114 @@ test('a well-formed reply is merged with the rules, rules first', async () => {
     assert.equal(r.concerns[1].field, undefined);
     assert.equal(r.photo_notes[0].shows_drain, false);
     assert.equal(r.model, 'gpt-4.1-mini');
+  } finally {
+    globalThis.fetch = savedFetch;
+    if (saved) process.env.OPENAI_API_KEY = saved;
+    else delete process.env.OPENAI_API_KEY;
+  }
+});
+
+/* ------------------------------------- the surcharged-drain false negative */
+
+test('surcharged flow is always surfaced, however tidy the rest of the form', () => {
+  // A drain recorded as overtopping is a flood risk on its own. This one got
+  // through as "looks sound": the model was shown the raw value `surcharged`
+  // and had no claimed defect to check the photograph against.
+  const i = answer(base(), 'flow_condition', 'surcharged');
+  const k = kinds(i);
+  assert.ok(k.includes('significant_condition'), 'surcharging was not surfaced');
+});
+
+test('surcharged with no cause recorded is a contradiction', () => {
+  // Water backs up because something restricts it. Overtopping alongside no
+  // blockage, no defect and sound structure describes two different drains.
+  let i = answer(base(), 'flow_condition', 'surcharged');
+  i = answer(i, 'structural_condition', 'good');
+  const c = ruleConcerns(i);
+  assert.ok(c.some((x) => x.kind === 'contradiction'), 'no contradiction raised');
+  assert.ok(
+    c.some((x) => /nothing on the form explains/.test(x.detail)),
+    'the contradiction should say why it is one',
+  );
+});
+
+test('restricted flow is surfaced too', () => {
+  const i = answer(base(), 'flow_condition', 'restricted');
+  assert.ok(kinds(i).includes('significant_condition'));
+});
+
+test('surcharging with a cause recorded is noted but not contradictory', () => {
+  let i = answer(base(), 'flow_condition', 'surcharged');
+  i = answer(i, 'blockage_present', true);
+  i = answer(i, 'silt_depth_mm', 180);
+  const c = ruleConcerns(i);
+  assert.ok(c.some((x) => x.kind === 'significant_condition'), 'still worth surfacing');
+  assert.ok(
+    !c.some((x) => x.field === 'flow_condition' && x.kind === 'contradiction'),
+    'a blockage explains the surcharge — not a contradiction',
+  );
+});
+
+test('ordinary flow conditions raise nothing', () => {
+  for (const flow of ['dry', 'free', 'standing']) {
+    const i = answer(base(), 'flow_condition', flow);
+    assert.ok(
+      !kinds(i).includes('significant_condition'),
+      `false positive on "${flow}"`,
+    );
+  }
+});
+
+test('select answers reach the model as labels, not as codes', async () => {
+  // `surcharged` tells a reader nothing; "Surcharged / overtopping" does. The
+  // raw code is what the model was given when it missed this.
+  const saved = process.env.OPENAI_API_KEY;
+  const savedFetch = globalThis.fetch;
+  process.env.OPENAI_API_KEY = 'sk-test';
+  let sent = '';
+  globalThis.fetch = async (_url: RequestInfo | URL, init?: RequestInit) => {
+    sent = String(init?.body ?? '');
+    return new Response(
+      JSON.stringify({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                verdict: 'needs_a_look',
+                confidence: 'high',
+                summary: 'x',
+                concerns: [],
+                photo_notes: [],
+              }),
+            },
+          },
+        ],
+      }),
+      { status: 200 },
+    );
+  };
+  try {
+    let i = answer(base(), 'flow_condition', 'surcharged');
+    i = {
+      ...i,
+      checklist: i.checklist.map((a) =>
+        a.id === 'flow_condition'
+          ? {
+              ...a,
+              options: [
+                { value: 'dry', label: 'Dry' },
+                { value: 'surcharged', label: 'Surcharged / overtopping' },
+              ],
+            }
+          : a,
+      ),
+    };
+    await reviewInspection(i);
+    assert.match(sent, /Surcharged \/ overtopping/, 'the label was not sent');
+    // And the instruction that would have caught the dry photograph. Matched on
+    // a phrase the prompt does not wrap across a line.
+    assert.match(sent, /Check every photograph against EVERY recorded condition/);
+    assert.match(sent, /surcharged or overtopping should not/);
   } finally {
     globalThis.fetch = savedFetch;
     if (saved) process.env.OPENAI_API_KEY = saved;

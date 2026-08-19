@@ -548,7 +548,16 @@ app.get('/v1/checklist-templates/:id', (_req, res) => {
 /* ------------------------------------------------------------ ai review */
 
 /** Load the checklist template, so answers can be labelled rather than keyed. */
-function checklistTemplate(): { sections?: { fields?: { id: string; label?: string; type: string }[] }[] } | null {
+function checklistTemplate(): {
+  sections?: {
+    fields?: {
+      id: string;
+      label?: string;
+      type: string;
+      options?: { value: string; label: string }[];
+    }[];
+  }[];
+} | null {
   try {
     return JSON.parse(
       readFileSync(resolve(here, '../../contracts/examples/checklist-template.json'), 'utf8'),
@@ -570,9 +579,14 @@ function reviewInputFor(insp: InspectionRecord): ai.ReviewInput | null {
   if (!job) return null;
 
   const tmpl = checklistTemplate();
-  const fields = new Map<string, { label?: string; type: string }>();
+  const fields = new Map<
+    string,
+    { label?: string; type: string; options?: { value: string; label: string }[] }
+  >();
   for (const sec of tmpl?.sections ?? []) {
-    for (const f of sec.fields ?? []) fields.set(f.id, { label: f.label, type: f.type });
+    for (const f of sec.fields ?? []) {
+      fields.set(f.id, { label: f.label, type: f.type, options: f.options });
+    }
   }
 
   const answers = insp.checklist?.answers ?? {};
@@ -581,6 +595,7 @@ function reviewInputFor(insp: InspectionRecord): ai.ReviewInput | null {
     label: fields.get(id)?.label ?? id.replace(/_/g, ' '),
     type: fields.get(id)?.type ?? 'text',
     answer,
+    options: fields.get(id)?.options,
   }));
 
   const tracker = new CoverageTracker(

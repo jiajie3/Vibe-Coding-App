@@ -32,13 +32,38 @@ The rules, in [`server/ai.ts`](../frcde/server/ai.ts):
 | --- | --- |
 | `coverage_below_gate` | Server coverage is under `min_coverage_pct` |
 | `coverage_flag` | Any of `mock_location`, `implausible_speed`, `large_gap_bridged`, `override_used` |
-| `contradiction` | Blockage with zero silt; blockage with free flow; severity ≥ 3 with no defect type; site recorded inaccessible yet more than half the drain walked |
+| `contradiction` | Blockage with zero silt; blockage with free flow; severity ≥ 3 with no defect type; site recorded inaccessible yet more than half the drain walked; surcharged or restricted flow with nothing on the form to explain it |
+| `significant_condition` | Flow recorded as surcharged/overtopping or restricted |
 | `missing_evidence` | Severity ≥ 3 with no photographs |
 | `thin_remarks` | Remarks that are only "nil", "ok", "n/a", "-" and similar |
 
 These are instant, free, and cannot hallucinate. The console labels them
 `rule`; the model's findings are labelled `read`. A reviewer who cannot tell
 arithmetic from judgement learns to distrust both.
+
+### Why surcharging has its own rule
+
+An inspection came back reading *"looks sound"* with flow recorded as
+**Surcharged / overtopping**, no blockage, sound structure, and a photograph of a
+dry drain. Nothing caught it. Three things were wrong at once:
+
+- **No rule covered it.** Overtopping is a flood risk on its own, and overtopping
+  with no blockage, no defect and no deterioration recorded is a form describing
+  two different drains. Both are now rules, so this can never again depend on the
+  model noticing.
+- **The model saw a code, not a condition.** Select answers were serialised as
+  their raw values — `surcharged`, not "Surcharged / overtopping". Labels are now
+  sent.
+- **It had nothing to compare the photograph against.** The instruction was to
+  check photographs against *the defect that was claimed*, and this report
+  claimed none. It now checks every photograph against every recorded
+  condition — flow, blockage and structure by name — and sets
+  `matches_description` false when a photograph contradicts any of them.
+
+The general lesson is worth keeping: a false negative here is invisible. A
+supervisor sees "looks sound" and moves on. That is the argument for putting
+anything enumerable into a rule, and for treating the model as the second net
+rather than the first.
 
 ## What the model is for
 

@@ -36,7 +36,7 @@ const API = 'https://api.openai.com/v1/chat/completions';
  * past reviews meant and there is no way to tell which ones were produced by
  * which instructions.
  */
-export const PROMPT_VERSION = 1;
+export const PROMPT_VERSION = 2;
 
 export const apiKey = () => process.env.OPENAI_API_KEY ?? '';
 export const isConfigured = () => apiKey().length > 0;
@@ -98,6 +98,8 @@ export interface ChecklistAnswer {
   label: string;
   type: string;
   answer: unknown;
+  /** Option labels, so a select reads as "Surcharged / overtopping", not "surcharged". */
+  options?: { value: string; label: string }[];
 }
 
 export interface ReviewInput {
@@ -207,6 +209,51 @@ export function ruleConcerns(input: ReviewInput): Concern[] {
     });
   }
 
+  /**
+   * Flow that is not flowing.
+   *
+   * A drain recorded as surcharged or overtopping is a flood risk on its own,
+   * and it always warrants a look — however tidy the rest of the form is.
+   */
+  const flow = answerOf(c, 'flow_condition');
+  if (flow === 'surcharged' || flow === 'restricted') {
+    const word = flow === 'surcharged' ? 'surcharged or overtopping' : 'restricted';
+    out.push({
+      source: 'rule',
+      kind: 'significant_condition',
+      field: 'flow_condition',
+      detail: `Flow was recorded as ${word}.`,
+    });
+
+    /**
+     * …and with no cause recorded, the form contradicts itself.
+     *
+     * Water backs up because something restricts it. A drain that is
+     * overtopping while the same form reports no blockage, no defect and sound
+     * structure is describing two different drains.
+     */
+    const noBlockage = answerOf(c, 'blockage_present') === false;
+    const noDefects = isBlank(answerOf(c, 'defect_types'));
+    // Only real deterioration explains a surcharge. `good`, `fair`, and a field
+    // left unanswered all mean the same thing here: nothing on the form
+    // accounts for the water. Requiring `good` exactly would let the
+    // contradiction slip through whenever the question went unanswered — which
+    // is precisely the report that deserves the most attention.
+    const structuralCause = ['poor', 'critical'].includes(
+      String(answerOf(c, 'structural_condition') ?? ''),
+    );
+    if (noBlockage && noDefects && !structuralCause) {
+      out.push({
+        source: 'rule',
+        kind: 'contradiction',
+        field: 'flow_condition',
+        detail:
+          `Flow recorded as ${word}, yet no blockage, no defect and sound structure ` +
+          'were recorded — nothing on the form explains why the water is backing up.',
+      });
+    }
+  }
+
   const remarks = answerOf(c, 'remarks');
   if (typeof remarks === 'string' && EMPTY_PROSE.test(remarks.trim())) {
     out.push({
@@ -234,13 +281,26 @@ Rules you must follow:
    itself. Never dispute, recompute or estimate them.
 2. Concerns already found by rules are listed for you. Do not repeat them. Say
    something new or say nothing.
-3. Judge the writing and the photographs. Does the prose actually describe
-   something? Do the photographs show a drain, and do they show the defect that
-   was claimed?
-4. Be specific. "Remarks are vague" is useless; "remarks say 'ok' for a severity
+3. Judge the writing. Does the prose actually describe something, or does it
+   occupy the field without saying anything?
+4. Check every photograph against EVERY recorded condition, not only against a
+   claimed defect. In particular:
+     - flow condition. A drain recorded as surcharged or overtopping should not
+       photograph as dry or empty. A drain recorded as dry should not photograph
+       full of water.
+     - blockage. "No blockage" should not photograph with silt, refuse or
+       vegetation obstructing the channel.
+     - structural condition. "Good, no visible defects" should not photograph
+       with cracking, spalling or a collapsed wall.
+   Set matches_description to false whenever a photograph contradicts ANY
+   recorded condition, and say which one in the note. A contradiction between a
+   photograph and the form is always worth reporting, however tidy the rest of
+   the report looks.
+5. Be specific. "Remarks are vague" is useless; "remarks say 'ok' for a severity
    4 structural defect" is actionable.
-5. If nothing is wrong, say so plainly and return no concerns. A reviewer who
-   finds a problem every time gets ignored.
+6. If genuinely nothing is wrong, say so plainly and return no concerns. Do not
+   invent concerns to seem thorough — but do not withhold a real one because the
+   report is otherwise neat.
 
 Verdicts:
   looks_sound   nothing needs a human's attention beyond a glance
@@ -293,9 +353,22 @@ const SCHEMA = {
   },
 } as const;
 
+/** `surcharged` means nothing to a reader; "Surcharged / overtopping" does. */
+function readable(a: ChecklistAnswer): string {
+  const label = (v: unknown) =>
+    a.options?.find((o) => o.value === v)?.label ?? String(v);
+  if (Array.isArray(a.answer)) {
+    return a.answer.length ? a.answer.map(label).join(', ') : '(none selected)';
+  }
+  if (a.answer === true) return 'Yes';
+  if (a.answer === false) return 'No';
+  if (a.answer == null || a.answer === '') return '(blank)';
+  return label(a.answer);
+}
+
 function describe(input: ReviewInput, rules: Concern[]): string {
   const answers = input.checklist
-    .map((a) => `  - ${a.label} (${a.id}): ${JSON.stringify(a.answer)}`)
+    .map((a) => `  - ${a.label} (${a.id}): ${readable(a)}`)
     .join('\n');
   const gaps =
     input.coverage.uncovered_ranges.length === 0
@@ -323,7 +396,9 @@ function describe(input: ReviewInput, rules: Concern[]): string {
     input.photos.length
       ? `PHOTOGRAPHS: ${input.photos.length} attached, below. Their ids are: ${input.photos
           .map((p) => p.id)
-          .join(', ')}. Return one photo_note per photograph, using these ids.`
+          .join(', ')}. Return one photo_note per photograph, using these ids. ` +
+        'Compare each one against the checklist answers above before deciding ' +
+        'matches_description.'
       : 'PHOTOGRAPHS: none attached.',
   ]
     .filter(Boolean)
