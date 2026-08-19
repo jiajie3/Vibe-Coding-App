@@ -14,6 +14,8 @@ import {
   STATUS_COLOUR,
 } from '../api.ts';
 import type { JobRecord, Overview } from '../api.ts';
+import { toast } from '../toast.ts';
+import Confirm from '../components/Confirm.tsx';
 
 const DISPATCHED = ['available', 'accepted', 'in_progress', 'submitted'];
 
@@ -56,6 +58,7 @@ const SORT_LABEL: Record<Sort, string> = {
 
 export default function Dashboard() {
   const [data, setData] = useState<Overview | null>(null);
+  const [resetting, setResetting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Defaults to the whole register — the queue is a filter on it, not the
   // starting point. A supervisor opens this to see the estate.
@@ -104,7 +107,7 @@ export default function Dashboard() {
       await fn();
       await pull();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Action failed');
+      toast.error(e, 'Action failed');
     } finally {
       setBusy(null);
     }
@@ -279,26 +282,59 @@ export default function Dashboard() {
   if (!data) return <div className="page"><div className="empty">Loading…</div></div>;
 
   const s = data.stats;
+  const overdue = dispatched.filter((j) => dueLabel(j.due_at).overdue).length;
+  const dueSoon = dispatched.filter((j) => dueLabel(j.due_at).severity === 'soon').length;
 
   return (
     <div className="page">
+      {/*
+        * Three numbers, not seven.
+        *
+        * Every figure used to be the same size, so "Drains: 40" shouted as loudly
+        * as "Overdue: 1" — and a dashboard where everything is emphasised has
+        * nothing emphasised. These three are the ones a supervisor can act on
+        * this morning; the rest is context and reads as a sentence below.
+        */}
       <div className="kpis">
-        <div className="kpi"><div className="v">{s.total}</div><div className="k">Drains</div></div>
-        <div className="kpi"><div className="v">{dispatched.length}</div><div className="k">Due for inspection</div></div>
         <div className="kpi warn">
-          <div className="v">{dispatched.filter((j) => dueLabel(j.due_at).overdue).length}</div>
+          <div className="v">{overdue}</div>
           <div className="k">Overdue</div>
         </div>
         <div className="kpi soon">
-          <div className="v">
-            {dispatched.filter((j) => dueLabel(j.due_at).severity === 'soon').length}
-          </div>
+          <div className="v">{dueSoon}</div>
           <div className="k">Due within {FLAG_WITHIN_DAYS}d</div>
         </div>
-        <div className="kpi active"><div className="v">{s.in_progress}</div><div className="k">In progress</div></div>
-        <div className="kpi review"><div className="v">{s.submitted}</div><div className="k">Awaiting review</div></div>
-        <div className="kpi"><div className="v">{s.approved}</div><div className="k">Closed</div></div>
+        <div className="kpi review">
+          <div className="v">{s.submitted}</div>
+          <div className="k">Awaiting review</div>
+        </div>
       </div>
+
+      <p className="context">
+        {s.total} drains · {dispatched.length} in the queue · {s.in_progress} being
+        walked · {s.approved} closed
+      </p>
+
+      {resetting && (
+        <Confirm
+          title="Reset the demo?"
+          confirmLabel="Delete everything"
+          onCancel={() => setResetting(false)}
+          onConfirm={() => {
+            void api
+              .reset()
+              .then(() => location.reload())
+              .catch((e) => {
+                toast.error(e, 'Could not reset');
+                setResetting(false);
+              });
+          }}
+        >
+          Deletes every inspection, photograph and follow-up, and puts the 40 drains
+          back to five due for inspection. Accounts and passwords are kept. This
+          cannot be undone.
+        </Confirm>
+      )}
 
       <div className="split">
         <div className="panel">
@@ -368,14 +404,7 @@ export default function Dashboard() {
                 <option key={k} value={k}>Sort: {SORT_LABEL[k]}</option>
               ))}
             </select>
-            <button
-              className="btn tiny"
-              onClick={() => {
-                if (confirm('Reset all jobs and delete every inspection?')) {
-                  void api.reset().then(() => location.reload());
-                }
-              }}
-            >
+            <button className="btn tiny" onClick={() => setResetting(true)}>
               Reset
             </button>
           </div>

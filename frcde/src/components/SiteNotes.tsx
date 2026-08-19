@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { api } from '../api.ts';
 import type { JobRecord } from '../api.ts';
+import { toast } from '../toast.ts';
 
 /**
  * Editor for the two fields that exist purely for the person at the gate.
@@ -70,7 +71,7 @@ export default function SiteNotes({
       onSaved();
       setTimeout(() => setSaved(false), 2500);
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Could not save');
+      toast.error(e, 'Could not save');
     } finally {
       setSaving(false);
     }

@@ -52,7 +52,13 @@ a { color: inherit; text-decoration: none; }
 
 /* ------------------------------------------------------------------- kpis */
 
-.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
+/* Three cards, sized to their content rather than stretched across the monitor.
+   Seven equal cards made every number shout; these are the ones worth acting on. */
+.kpis { display: grid; grid-template-columns: repeat(3, minmax(150px, 230px)); gap: 12px; margin-bottom: 10px; }
+@media (max-width: 640px) { .kpis { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); } }
+
+/* The rest of the numbers, as a sentence. Present, not competing. */
+.context { margin: 0 0 16px; color: var(--muted); font-size: 15.5px; font-weight: 500; }
 .kpi { background: var(--panel); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); }
 .kpi .v { font-size: 37px; font-weight: 800; letter-spacing: -1px; line-height: 1.1; }
 .kpi .k { font-size: 14.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.7px; font-weight: 700; margin-top: 2px; }
@@ -151,7 +157,20 @@ a { color: inherit; text-decoration: none; }
 /* ----------------------------------------------------------------- detail */
 
 .crumb { font-size: 17.5px; color: var(--accent); font-weight: 600; margin-bottom: 10px; display: inline-block; }
-.detail-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+/* Sticky, because JobDetail runs to several screens of evidence and the approve
+   and reject buttons live in this header. A reviewer who has scrolled to the
+   photographs can act on what they just saw without scrolling back up.
+   One rule, not two: a second .detail-head block further down would silently
+   win on whichever properties it happened to repeat. */
+.detail-head {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 16px; flex-wrap: wrap;
+  position: sticky; top: 0; z-index: 20;
+  background: var(--bg);
+  padding: 8px 0 12px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 12px;
+}
 .detail-head h2 { margin: 4px 0 2px; font-size: 32px; letter-spacing: -0.5px; }
 .detail-head .facts { font-size: 17.5px; color: var(--muted); }
 
@@ -425,3 +444,40 @@ a { color: inherit; text-decoration: none; }
 .autoreview .tag.model { background: #ede9fe; color: #5b21b6; }
 .autoreview .tag.bad { background: #fee2e2; color: #7f1d1d; }
 .autoreview .provenance { margin: 0; font-size: 12.5px; color: var(--muted); }
+
+/* ---------------------------------------------------------------- toasts */
+/* Bottom-left: the console's own controls sit at the top of each panel, and a
+   message that covers the button you just pressed hides what you are reading. */
+.toasts {
+  position: fixed; left: 20px; bottom: 20px; z-index: 60;
+  display: flex; flex-direction: column; gap: 8px; max-width: min(460px, calc(100vw - 40px));
+}
+.toast {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 14px; border-radius: 10px; color: #fff;
+  box-shadow: 0 8px 28px rgb(15 23 42 / 0.22);
+  font-size: 16px; line-height: 1.4;
+  animation: toastin 160ms ease-out;
+}
+.toast.error { background: #b91c1c; }
+.toast.ok { background: #15803d; }
+.toast button {
+  background: none; border: 0; color: inherit; opacity: 0.75;
+  font-size: 20px; line-height: 1; cursor: pointer; padding: 0 2px;
+}
+.toast button:hover { opacity: 1; }
+@keyframes toastin { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* -------------------------------------------------------------- focus */
+/* One :focus rule used to cover the whole console. Keyboard users could not see
+   where they were. :focus-visible so it appears for keyboards and not for mice. */
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.topbar :where(button, a):focus-visible { outline-color: #93c5fd; }
+
+@media (prefers-reduced-motion: reduce) {
+  .toast { animation: none; }
+}

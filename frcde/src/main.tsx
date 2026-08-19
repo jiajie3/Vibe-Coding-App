@@ -6,6 +6,7 @@ import { auth } from './api.ts';
 import Dashboard from './pages/Dashboard.tsx';
 import JobDetail from './pages/JobDetail.tsx';
 import SignIn from './pages/SignIn.tsx';
+import Toasts from './components/Toasts.tsx';
 import WorkOrders from './pages/WorkOrders.tsx';
 import { api } from './api.ts';
 import './styles.css';
@@ -39,6 +40,7 @@ function Shell() {
         <Route path="/jobs/:id" element={<JobDetail />} />
         <Route path="/work-orders" element={<WorkOrders />} />
       </Routes>
+      <Toasts />
     </>
   );
 }

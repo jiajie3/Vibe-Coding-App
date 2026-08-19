@@ -5,6 +5,7 @@ import CompleteFollowUp from '../components/CompleteFollowUp.tsx';
 import SendBackFollowUp from '../components/SendBackFollowUp.tsx';
 import { api, dueLabel } from '../api.ts';
 import type { JobRecord, Overview, WorkOrder, WorkOrderStatus } from '../api.ts';
+import { toast } from '../toast.ts';
 
 const STATUS_LABEL: Record<WorkOrderStatus, string> = {
   open: 'Open',
@@ -97,7 +98,7 @@ export default function WorkOrders() {
       setSendingBack(null);
       await pull();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Could not send it back');
+      toast.error(e, 'Could not send it back');
     } finally {
       setBusy(null);
     }

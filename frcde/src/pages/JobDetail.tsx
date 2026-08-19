@@ -9,6 +9,7 @@ import RouteFollowUp from '../components/RouteFollowUp.tsx';
 import type { FollowUpDraft } from '../components/RouteFollowUp.tsx';
 import SiteNotes from '../components/SiteNotes.tsx';
 import { api, dueLabel, jobStatusColour, jobStatusLabel } from '../api.ts';
+import { toast } from '../toast.ts';
 
 import type {
   ChecklistTemplate,
@@ -126,7 +127,7 @@ export default function JobDetail() {
       setRouting(false);
       await load();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Could not route this follow-up');
+      toast.error(e, 'Could not route this follow-up');
     } finally {
       setBusy(false);
     }
@@ -182,7 +183,7 @@ export default function JobDetail() {
       await fn();
       await load();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Action failed');
+      toast.error(e, 'Action failed');
     } finally {
       setBusy(false);
     }

@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import { api } from '../api.ts';
 import type { AiReview } from '../api.ts';
+import { toast } from '../toast.ts';
 
 /**
  * The automated first pass, shown beside the evidence rather than instead of it.
@@ -41,7 +42,7 @@ export default function AutoReview({
       await api.rerunAiReview(inspectionId);
       onRefreshed();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Could not run the review');
+      toast.error(e, 'Could not run the review');
     } finally {
       setBusy(false);
     }
