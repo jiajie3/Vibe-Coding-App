@@ -128,9 +128,6 @@ async function call<T>(method: string, payload: unknown): Promise<T> {
   return body;
 }
 
-const severityWord = (n: number) =>
-  n >= 5 ? 'Critical' : n >= 4 ? 'High' : n >= 3 ? 'Moderate' : n >= 2 ? 'Low' : 'Minor';
-
 const dueWord = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString('en-SG', { day: 'numeric', month: 'short' }) : 'not set';
 
@@ -153,61 +150,90 @@ export function caseBlocks(c: CaseView): unknown[] {
         ? ':eyes: *Acknowledged* — awaiting completion'
         : ':bell: *Awaiting acknowledgement*';
 
+  /**
+   * Only what was actually captured.
+   *
+   * Severity is no longer asked for when raising a follow-up, so printing
+   * "Moderate (3/5)" would be inventing a judgement nobody made — and a
+   * contractor has no way to tell a real severity from a default. Same for a due
+   * date: absent means absent, not "not set" occupying a field.
+   */
+  const fields: unknown[] = [
+    { type: 'mrkdwn', text: `*Inspection*\n${c.reference}` },
+    { type: 'mrkdwn', text: `*Routed to*\n${c.assigned_to}` },
+    {
+      type: 'mrkdwn',
+      text: `*Location*\n${c.chainage_m == null ? 'along the drain' : `chainage ${Math.round(c.chainage_m)} m`}`,
+    },
+    { type: 'mrkdwn', text: `*Case*\n\`${c.id.slice(0, 8)}\`` },
+  ];
+  if (c.due_at) fields.push({ type: 'mrkdwn', text: `*Due*\n${dueWord(c.due_at)}` });
+
   const blocks: unknown[] = [
     {
       type: 'header',
       text: { type: 'plain_text', text: `${c.asset_name} — follow-up`, emoji: true },
     },
-    {
-      type: 'section',
-      fields: [
-        { type: 'mrkdwn', text: `*Inspection*\n${c.reference}` },
-        { type: 'mrkdwn', text: `*Routed to*\n${c.assigned_to}` },
-        {
-          type: 'mrkdwn',
-          text: `*Location*\n${c.chainage_m == null ? 'along the drain' : `chainage ${Math.round(c.chainage_m)} m`}`,
-        },
-        { type: 'mrkdwn', text: `*Severity*\n${severityWord(c.severity)} (${c.severity}/5)` },
-        { type: 'mrkdwn', text: `*Due*\n${dueWord(c.due_at)}` },
-        { type: 'mrkdwn', text: `*Case*\n\`${c.id.slice(0, 8)}\`` },
-      ],
-    },
+    { type: 'section', fields },
     { type: 'section', text: { type: 'mrkdwn', text: c.detail.slice(0, 2900) } },
     { type: 'context', elements: [{ type: 'mrkdwn', text: status }] },
   ];
 
   if (!closed && !blocked) {
-    blocks.push({
-      type: 'actions',
-      elements: [
-        !c.acknowledged_at && {
-          type: 'button',
-          action_id: 'case_ack',
-          value: c.id,
-          text: { type: 'plain_text', text: 'Acknowledge' },
-        },
-        {
-          type: 'button',
-          action_id: 'case_done',
-          value: c.id,
-          style: 'primary',
-          text: { type: 'plain_text', text: 'Completed' },
-        },
-        {
-          type: 'button',
-          action_id: 'case_blocked',
-          value: c.id,
-          style: 'danger',
-          text: { type: 'plain_text', text: 'Cannot complete' },
-        },
-      ].filter(Boolean),
-    });
+    /**
+     * Acknowledge first, and only then the two ways of finishing.
+     *
+     * Offering all three at once let a case be closed by someone who never said
+     * they had picked it up, which loses the one measurement that shows whether
+     * routing works at all: how long a case sits before anybody looks. It also
+     * made "acknowledged" meaningless — a status no one had to pass through.
+     *
+     * The buttons are withheld rather than disabled because Slack has no
+     * disabled state for them; a greyed-out look is not available, so the honest
+     * option is to not show a control that would be refused.
+     */
+    blocks.push(
+      c.acknowledged_at
+        ? {
+            type: 'actions',
+            elements: [
+              {
+                type: 'button',
+                action_id: 'case_done',
+                value: c.id,
+                style: 'primary',
+                text: { type: 'plain_text', text: 'Completed' },
+              },
+              {
+                type: 'button',
+                action_id: 'case_blocked',
+                value: c.id,
+                style: 'danger',
+                text: { type: 'plain_text', text: 'Cannot complete' },
+              },
+            ],
+          }
+        : {
+            type: 'actions',
+            elements: [
+              {
+                type: 'button',
+                action_id: 'case_ack',
+                value: c.id,
+                style: 'primary',
+                text: { type: 'plain_text', text: 'Acknowledge' },
+              },
+            ],
+          },
+    );
     blocks.push({
       type: 'context',
       elements: [
         {
           type: 'mrkdwn',
-          text: 'Post photographs in this thread — they are filed against the case.',
+          text: c.acknowledged_at
+            ? 'Post photographs in this thread — they are filed against the case.'
+            : 'Acknowledge to pick this up. The options to close it appear after that.',
         },
       ],
     });

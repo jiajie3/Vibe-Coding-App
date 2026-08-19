@@ -15,10 +15,12 @@ FRCDE                                     Slack
   │
   │  supervisor routes a follow-up
   │  ──────────────────────────────────▶  case card posted in a channel
-  │                                        Acknowledge · Completed · Cannot complete
+  │                                        Acknowledge
   │
   │  ◀─────────────────────────────────── Acknowledge
   │     status → in_progress, acknowledged_at stamped
+  │  ──────────────────────────────────▶  card repaints
+  │                                        Completed · Cannot complete
   │
   │  ◀─────────────────────────────────── Completed + note
   │     status → done, closing_note, closed_at
@@ -30,6 +32,17 @@ FRCDE                                     Slack
   │     downloaded and filed against the work order
 ```
 
+**Acknowledgement comes first.** The two ways of finishing a case are withheld
+until somebody says they have picked it up. Offering all three at once let a case
+be closed by someone who never acknowledged it, which destroys the one
+measurement showing whether routing works at all — how long a case sits before
+anyone looks — and makes `acknowledged` a status nothing has to pass through.
+
+The buttons are withheld rather than disabled because Slack has no disabled state
+for them. The rule is also enforced on the server, not just by hiding controls: a
+card posted earlier keeps whatever buttons it was rendered with, so a stale
+Completed still arrives and is refused.
+
 **The case never stops living in FRCDE.** Slack is a doorbell and an input
 surface. A status derived from someone typing *done lah* in a channel cannot be
 queried, chased, or reported on, and completion photographs left in Slack sit
@@ -37,6 +50,16 @@ under the workspace retention policy — 90 days on the free plan — when they 
 evidence of works on public infrastructure.
 
 ## Choosing the channel
+
+Raising a follow-up asks two things: what needs doing, and which channel the case
+opens in. **It does not ask who to route it to** — picking `#nea` says the same
+thing as typing "NEA", and asking for both invites them to disagree. The name the
+work order records comes from the routing table's label for that channel.
+
+**Severity and a due date are not asked for either.** Both were filled in out of
+habit rather than judgement, and a card telling a contractor "Moderate (3/5)"
+states a severity nobody decided — with no way for them to tell a real one from a
+default. The card shows a due date only when something actually set one.
 
 FRCDE proposes a channel and shows its reasoning; the supervisor can pick
 differently. Rules are tried in order and the first match wins:

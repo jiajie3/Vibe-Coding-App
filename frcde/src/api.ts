@@ -100,6 +100,8 @@ export interface ChannelSuggestion extends ChannelOption {
 export interface SuggestResponse {
   suggestion: ChannelSuggestion;
   channels: string[];
+  /** Channel to the name a case routed there is recorded under. */
+  labels: Record<string, string>;
   /** False when no workspace is configured — the post will be simulated. */
   slack_configured: boolean;
 }

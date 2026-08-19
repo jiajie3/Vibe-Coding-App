@@ -85,23 +85,53 @@ async function main() {
 
   /* ------------------------------------------------------- open the case */
 
+  // No officer, no severity, no due date — the console asks for none of them.
+  // The channel is the party, and the stored name comes from the routing table.
   const created = await fetch(`${BASE}/v1/console/work-orders`, {
     method: 'POST',
     headers: bearer,
     body: JSON.stringify({
       job_id: job.id,
       detail: 'Blockage at the downstream end — approx 260 mm silt. Jetting required.',
-      assigned_to: 'NEA vector control',
-      severity: 4,
-      slack_channel: suggested.suggestion.channel,
+      slack_channel: '#nea',
     }),
   });
   if (created.status !== 201) die(`work order not created (${created.status})`);
   const order = await created.json();
   if (!order.slack?.ts) die('the case was not opened in Slack');
   if (order.slack.channel !== '#nea') die('opened in the wrong channel');
+  if (order.assigned_to !== 'NEA') {
+    die(`assigned_to should come from the channel, got "${order.assigned_to}"`);
+  }
+  if (order.due_at !== null) die('a due date was invented');
   if (order.acknowledged_at !== null) die('a new case cannot already be acknowledged');
-  ok(`case opened in ${order.slack.channel}`);
+  ok(`case opened in ${order.slack.channel}, recorded as "${order.assigned_to}"`);
+
+  /* -------------------------------- closing before acknowledging is refused */
+
+  // A card posted before the case was picked up still carries whatever buttons
+  // it was rendered with, so withholding them in the UI is not enough.
+  const earlyClose = form({
+    type: 'view_submission',
+    user: { username: 'contractor.lim' },
+    view: {
+      callback_id: 'case_done_submit',
+      private_metadata: order.id,
+      state: { values: { note: { value: { value: 'Sneaking this one closed.' } } } },
+    },
+  });
+  const early = await fetch(`${BASE}/v1/slack/interactions`, {
+    method: 'POST',
+    headers: slackHeaders(earlyClose),
+    body: earlyClose,
+  });
+  const earlyBody = await early.json();
+  if (earlyBody?.response_action !== 'errors') {
+    die('closing an unacknowledged case was allowed');
+  }
+  const stillOpen = await readOrder(order.id);
+  if (stillOpen.status !== 'open') die(`status became ${stillOpen.status} without acknowledgement`);
+  ok('closing before acknowledging is refused, and the case stays open');
 
   /* ------------------------------------------------ reject forged requests */
 

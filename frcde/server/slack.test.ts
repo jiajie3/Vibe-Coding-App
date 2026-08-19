@@ -158,18 +158,23 @@ const view = (over: Partial<CaseView> = {}): CaseView => ({
 
 const json = (blocks: unknown[]) => JSON.stringify(blocks);
 
-test('an open case offers all three actions', () => {
+test('an unacknowledged case offers only acknowledgement', () => {
+  // Closing without acknowledging loses the one measurement that shows whether
+  // routing works: how long a case sits before anybody picks it up. It also
+  // makes "acknowledged" a status nothing has to pass through.
   const b = json(caseBlocks(view()));
   assert.match(b, /case_ack/);
-  assert.match(b, /case_done/);
-  assert.match(b, /case_blocked/);
+  assert.ok(!b.includes('case_done'), 'must not offer to close before acknowledgement');
+  assert.ok(!b.includes('case_blocked'), 'must not offer to block before acknowledgement');
   assert.match(b, /Awaiting acknowledgement/);
+  assert.match(b, /options to close it appear after that/);
 });
 
-test('an acknowledged case stops offering acknowledgement', () => {
+test('acknowledging swaps in the two ways of finishing', () => {
   const b = json(caseBlocks(view({ acknowledged_at: '2026-08-19T01:00:00.000Z' })));
   assert.ok(!b.includes('case_ack'), 'should not offer to acknowledge twice');
   assert.match(b, /case_done/);
+  assert.match(b, /case_blocked/);
   assert.match(b, /Acknowledged/);
 });
 
@@ -192,7 +197,23 @@ test('the card says what and where without needing a click', () => {
   assert.match(b, /Sungei Whampoa/);
   assert.match(b, /INS-2026-004021/);
   assert.match(b, /chainage 261 m/);
-  assert.match(b, /High \(4\/5\)/);
+  assert.match(b, /Ang Mo Kio Town Council/);
+});
+
+test('a severity nobody chose is not reported to the contractor', () => {
+  // Severity is no longer captured when raising a follow-up, so printing
+  // "Moderate (3/5)" would state a judgement that was never made — and a
+  // contractor cannot tell a real severity from a default.
+  const b = json(caseBlocks(view({ severity: 3 })));
+  assert.ok(!b.includes('Severity'), 'card should not claim a severity');
+  assert.ok(!/\d\/5/.test(b), 'card should not print a severity score');
+});
+
+test('a due date shows when there is one, and is absent when there is not', () => {
+  assert.match(json(caseBlocks(view())), /\*Due\*/);
+  const undated = json(caseBlocks(view({ due_at: null })));
+  assert.ok(!undated.includes('*Due*'), 'an empty Due field is noise, not information');
+  assert.ok(!undated.includes('not set'));
 });
 
 test('a very long detail is truncated rather than rejected by Slack', () => {

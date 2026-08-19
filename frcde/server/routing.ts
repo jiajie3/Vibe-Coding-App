@@ -266,6 +266,23 @@ function dedupe(options: ChannelOption[], exclude: string): ChannelOption[] {
   return out;
 }
 
+/**
+ * Who a channel belongs to, by its label in the table.
+ *
+ * The console no longer asks a supervisor to type who a follow-up goes to — they
+ * pick a channel, and the channel *is* the party. This turns that choice back
+ * into the name the work order records, so "routed to" still reads as an
+ * organisation rather than as a Slack channel.
+ */
+export function partyForChannel(channel: string): string | null {
+  if (!channel) return null;
+  const cfg = routingConfig();
+  const party = cfg.parties.find((p) => p.channel === channel);
+  if (party) return party.label;
+  const zone = cfg.zones.find((z) => z.channel === channel);
+  return zone ? `${zone.label} zone` : null;
+}
+
 /** Every channel the table knows about — the console's override list. */
 export function knownChannels(): string[] {
   const cfg = routingConfig();

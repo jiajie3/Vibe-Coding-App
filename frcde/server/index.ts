@@ -21,7 +21,7 @@ import type { CoverageFlag } from '../../cfpi/src/core/types.ts';
 import { issue, publicUser, requireAuth, rotate } from './auth.ts';
 import type { AuthedRequest } from './auth.ts';
 import { hashPassword, hashPasswordSync, needsRehash, verifyPassword } from './password.ts';
-import { knownChannels, suggestChannel } from './routing.ts';
+import { knownChannels, partyForChannel, suggestChannel } from './routing.ts';
 import * as slack from './slack.ts';
 import { cycleFor, DUE_WINDOW_DAYS, load, reset, store, UPLOAD_DIR } from './store.ts';
 import type { AttachmentRecord, InspectionRecord, WorkOrder } from './store.ts';
@@ -838,8 +838,28 @@ app.post('/v1/console/work-orders', async (req: AuthedRequest, res) => {
 
   const detail = String(req.body?.detail ?? '').trim();
   if (!detail) return problem(res, 422, 'Detail required', 'Say what needs doing.');
-  if (!String(req.body?.assigned_to ?? '').trim()) {
-    return problem(res, 422, 'Officer required', 'Name who this is routed to.');
+
+  /**
+   * Who this went to, derived from the channel when it was not typed.
+   *
+   * The console asks for a channel rather than a name now: picking `#nea` says
+   * the same thing as typing "NEA", and asking for both invites them to
+   * disagree. The stored name still reads as an organisation so the follow-up
+   * list does not turn into a column of channel handles.
+   */
+  const channel = String(req.body?.slack_channel ?? '').trim();
+  const assignedTo =
+    String(req.body?.assigned_to ?? '').trim() ||
+    partyForChannel(channel) ||
+    channel ||
+    '';
+  if (!assignedTo) {
+    return problem(
+      res,
+      422,
+      'Nowhere to route',
+      'Choose a channel to open the case in, or name who it goes to.',
+    );
   }
 
   // The console asks for a description, not a title — a one-line summary for
@@ -852,7 +872,7 @@ app.post('/v1/console/work-orders', async (req: AuthedRequest, res) => {
     job_id: job.id,
     inspection_id: req.body.inspection_id ?? null,
     title,
-    assigned_to: String(req.body.assigned_to).trim(),
+    assigned_to: assignedTo,
     detail,
     severity: Math.min(5, Math.max(1, Number(req.body.severity ?? 3))) as WorkOrder['severity'],
     due_at: req.body.due_at ? new Date(req.body.due_at).toISOString() : null,
@@ -868,7 +888,6 @@ app.post('/v1/console/work-orders', async (req: AuthedRequest, res) => {
   // Open the case in Slack before replying, so the console can show the channel
   // it actually landed in. A failure here must not lose the work order — the
   // record is the point, and Slack is a notification.
-  const channel = String(req.body?.slack_channel ?? '').trim();
   if (channel) {
     try {
       const view = caseView(order);
@@ -972,6 +991,12 @@ app.post('/v1/console/slack/suggest', (req, res) => {
       asset_name: job?.asset.name,
     }),
     channels: knownChannels(),
+    // The name each channel will be recorded under. Sent so the console shows
+    // the same words the work order will store, rather than deriving something
+    // similar from the channel handle and quietly disagreeing with it.
+    labels: Object.fromEntries(
+      knownChannels().map((c) => [c, partyForChannel(c) ?? c.replace(/^#/, '')]),
+    ),
     slack_configured: slack.isConfigured(),
   });
 });
@@ -1032,6 +1057,20 @@ app.post('/v1/slack/interactions', (req, res) => {
 
     if (i.actionId === 'case_done' || i.actionId === 'case_blocked') {
       res.status(200).end();
+
+      /**
+       * Acknowledgement is enforced here, not only by withholding the buttons.
+       *
+       * Cards already posted keep whatever buttons they were rendered with, so a
+       * message from before the case was picked up — or from before this rule
+       * existed — still carries a working Completed. Repainting makes those
+       * stale buttons disappear, which is both the refusal and the explanation.
+       */
+      if (!order.acknowledged_at) {
+        void syncCase(order);
+        return;
+      }
+
       const kind = i.actionId === 'case_done' ? 'done' : 'blocked';
       void slack
         .openModal(i.triggerId ?? '', slack.closeModal(kind, order.id))
@@ -1044,6 +1083,19 @@ app.post('/v1/slack/interactions', (req, res) => {
   }
 
   if (i.type === 'view_submission') {
+    // The same rule again at submission: the modal could have been opened
+    // before the case changed underneath it.
+    if (!order.acknowledged_at) {
+      // `response_action: errors` keeps the modal open and shows this against
+      // the field, which is the only way to say anything to someone mid-modal.
+      res.status(200).json({
+        response_action: 'errors',
+        errors: { note: 'Acknowledge this case before closing it.' },
+      });
+      void syncCase(order);
+      return;
+    }
+
     // An empty 200 is what closes the modal; anything else leaves it hanging.
     res.status(200).json({});
 
@@ -1052,14 +1104,12 @@ app.post('/v1/slack/interactions', (req, res) => {
       order.status = 'done';
       order.closed_at = now;
       order.closing_note = note || `Closed in Slack by ${who}.`;
-      order.acknowledged_at = order.acknowledged_at ?? now;
     } else if (i.callbackId === 'case_blocked_submit') {
       // Not a closed case. Someone still has to act, so it stays in the console
       // follow-up list rather than quietly disappearing from it.
       order.status = 'blocked';
       order.closed_at = null;
       order.blocked_reason = note || `Reported blocked in Slack by ${who}.`;
-      order.acknowledged_at = order.acknowledged_at ?? now;
     } else {
       return;
     }
