@@ -69,14 +69,16 @@ async function main() {
     await fetch(`${BASE}/v1/console/slack/suggest`, {
       method: 'POST',
       headers: bearer,
-      body: JSON.stringify({ job_id: job.id, assigned_to: 'Ang Mo Kio Town Council', severity: 4 }),
+      body: JSON.stringify({ job_id: job.id, assigned_to: 'NEA vector control', severity: 4 }),
     })
   ).json();
-  if (suggested.suggestion?.channel !== '#fu-amk-town-council') {
-    die(`expected the AMK channel, got ${suggested.suggestion?.channel}`);
+  // Asserted against the deployed table, not a fixture: this run is checking
+  // that the channels FRCDE will really post to are the ones configured.
+  if (suggested.suggestion?.channel !== '#nea') {
+    die(`expected #nea, got ${suggested.suggestion?.channel}`);
   }
   if (suggested.suggestion.confidence !== 'high') die('a named party should be high confidence');
-  if (!Array.isArray(suggested.channels) || suggested.channels.length < 5) {
+  if (!Array.isArray(suggested.channels) || suggested.channels.length === 0) {
     die('the override list came back empty');
   }
   ok(`suggested ${suggested.suggestion.channel} (${suggested.suggestion.confidence})`);
@@ -89,7 +91,7 @@ async function main() {
     body: JSON.stringify({
       job_id: job.id,
       detail: 'Blockage at the downstream end — approx 260 mm silt. Jetting required.',
-      assigned_to: 'Ang Mo Kio Town Council',
+      assigned_to: 'NEA vector control',
       severity: 4,
       slack_channel: suggested.suggestion.channel,
     }),
@@ -97,7 +99,7 @@ async function main() {
   if (created.status !== 201) die(`work order not created (${created.status})`);
   const order = await created.json();
   if (!order.slack?.ts) die('the case was not opened in Slack');
-  if (order.slack.channel !== '#fu-amk-town-council') die('opened in the wrong channel');
+  if (order.slack.channel !== '#nea') die('opened in the wrong channel');
   if (order.acknowledged_at !== null) die('a new case cannot already be acknowledged');
   ok(`case opened in ${order.slack.channel}`);
 

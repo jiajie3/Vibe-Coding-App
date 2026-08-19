@@ -13,10 +13,22 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { knownChannels, routingConfig, suggestChannel } from './routing.ts';
+import { knownChannels, reloadRouting, routingConfig, suggestChannel } from './routing.ts';
 import type { LineString } from '../../cfpi/src/core/types.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
+
+/**
+ * Exercised against a fixture, not the deployed table.
+ *
+ * The real config is deployment data — which channels exist in one workspace —
+ * and it changes whenever a contract does. Pointing the tests at it means every
+ * such edit breaks assertions that were never about routing behaviour. The
+ * fixture keeps a rich table of parties and zones so the rules stay covered
+ * whatever the live table has been trimmed to.
+ */
+process.env.SLACK_ROUTING_CONFIG = resolve(here, 'routing.fixture.json');
+reloadRouting();
 const jobs = JSON.parse(
   readFileSync(resolve(here, '../../contracts/examples/seed-jobs.json'), 'utf8'),
 ) as { asset: { name: string; geometry: LineString } }[];
@@ -146,4 +158,48 @@ test('malformed geometry degrades to the catch-all instead of throwing', () => {
   const empty = { type: 'LineString', coordinates: [] } as LineString;
   const s = suggestChannel({ assigned_to: 'nobody', severity: 3, geometry: empty });
   assert.equal(s.channel, '#drain-followups');
+});
+
+/* ------------------------------- a table with no catch-all configured */
+
+test('with no catch-all, an unmatched follow-up is not routed anywhere', () => {
+  // The shape the deployed table has while only a couple of channels exist.
+  // Proposing a channel that does not exist would fail at post time with
+  // `channel_not_found`, long after the supervisor stopped looking.
+  process.env.SLACK_ROUTING_CONFIG = resolve(here, 'routing.minimal.fixture.json');
+  reloadRouting();
+  try {
+    const matched = suggestChannel({ assigned_to: 'NEA vector control', severity: 3 });
+    assert.equal(matched.channel, '#nea');
+    assert.equal(matched.confidence, 'high');
+
+    const unmatched = suggestChannel({ assigned_to: 'Rajesh Kumar', severity: 3 });
+    assert.equal(unmatched.channel, '', 'should decline to route rather than invent one');
+    assert.equal(unmatched.confidence, 'low');
+    assert.match(unmatched.reason, /recorded in FRCDE only/);
+
+    // And nothing empty leaks into the console override list or alternatives.
+    assert.ok(!knownChannels().includes(''), 'empty channel in the picker');
+    const high = suggestChannel({ assigned_to: 'LTA', severity: 5 });
+    assert.ok(
+      !high.alternatives.some((a) => a.channel === ''),
+      'an unconfigured escalation channel was offered',
+    );
+  } finally {
+    process.env.SLACK_ROUTING_CONFIG = resolve(here, 'routing.fixture.json');
+    reloadRouting();
+  }
+});
+
+test('an unreadable table declines to route rather than guessing', () => {
+  process.env.SLACK_ROUTING_CONFIG = resolve(here, 'does-not-exist.json');
+  reloadRouting();
+  try {
+    const s = suggestChannel({ assigned_to: 'NEA', severity: 5 });
+    assert.equal(s.channel, '', 'a broken table must not post to a guessed channel');
+    assert.deepEqual(knownChannels(), []);
+  } finally {
+    process.env.SLACK_ROUTING_CONFIG = resolve(here, 'routing.fixture.json');
+    reloadRouting();
+  }
 });

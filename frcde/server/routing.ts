@@ -17,7 +17,19 @@ import { fileURLToPath } from 'node:url';
 import type { LineString } from '../../cfpi/src/core/types.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const CONFIG = resolve(here, '../config/slack-routing.json');
+
+/**
+ * Where the table lives.
+ *
+ * Overridable so the tests can exercise a rich fixture while the deployed table
+ * stays small. Without the seam they are the same file, and every trim to the
+ * real routing — the thing that changes most — breaks tests that were never
+ * about it.
+ */
+const configPath = () =>
+  process.env.SLACK_ROUTING_CONFIG
+    ? resolve(process.env.SLACK_ROUTING_CONFIG)
+    : resolve(here, '../config/slack-routing.json');
 
 interface Party {
   label: string;
@@ -58,9 +70,16 @@ export interface ChannelSuggestion extends ChannelOption {
   alternatives: ChannelOption[];
 }
 
+/**
+ * Used when the table is missing or unreadable.
+ *
+ * No channels: a broken routing table must not start posting cases to a guessed
+ * channel name. Everything still gets recorded in FRCDE, which is where the case
+ * lives anyway, and the console says plainly that nobody outside was told.
+ */
 const FALLBACK: RoutingConfig = {
-  default_channel: '#drain-followups',
-  escalation_channel: '#flood-response',
+  default_channel: '',
+  escalation_channel: '',
   escalate_above_severity: 4,
   parties: [],
   zones: [],
@@ -71,19 +90,22 @@ let cache: RoutingConfig | null = null;
 export function routingConfig(): RoutingConfig {
   if (cache) return cache;
   try {
-    if (!existsSync(CONFIG)) throw new Error(`missing ${CONFIG}`);
-    const raw = JSON.parse(readFileSync(CONFIG, 'utf8')) as Partial<RoutingConfig>;
+    const path = configPath();
+    if (!existsSync(path)) throw new Error(`missing ${path}`);
+    const raw = JSON.parse(readFileSync(path, 'utf8')) as Partial<RoutingConfig>;
     cache = {
       ...FALLBACK,
       ...raw,
+      default_channel: raw.default_channel ?? '',
+      escalation_channel: raw.escalation_channel ?? '',
       parties: raw.parties ?? [],
       zones: raw.zones ?? [],
     };
   } catch (e) {
-    // A broken routing table must not stop cases being raised. Everything lands
-    // in one channel and someone sorts it out by hand, which is worse than the
-    // rules working and far better than the console refusing to route at all.
-    console.warn('[routing] falling back to a single channel:', (e as Error).message);
+    // A broken routing table must not stop follow-ups being raised. They are
+    // recorded without a Slack case, which is visibly different from being
+    // routed — and far better than the console refusing to route at all.
+    console.warn('[routing] no usable table, cases will not be posted:', (e as Error).message);
     cache = { ...FALLBACK };
   }
   return cache;
@@ -193,25 +215,40 @@ export function suggestChannel(input: SuggestInput): ChannelSuggestion {
         `${input.asset_name ?? 'this drain'} sits in the ${zone.label} zone.`,
     };
     confidence = 'medium';
-  } else {
+  } else if (cfg.default_channel) {
     primary = {
       channel: cfg.default_channel,
       reason: 'Nothing to match on — neither a known party nor a location.',
+    };
+    confidence = 'low';
+  } else {
+    // No catch-all configured. Proposing a channel that does not exist would
+    // fail at `chat.postMessage` with `channel_not_found`, long after the
+    // supervisor stopped looking — better to say plainly that this one is not
+    // going anywhere.
+    primary = {
+      channel: '',
+      reason:
+        'No channel matches, and there is no catch-all configured. ' +
+        'The follow-up will be recorded in FRCDE only.',
     };
     confidence = 'low';
   }
 
   // Severity escalates *in addition*, never instead: the work still goes to
   // whoever does the work.
-  if (Number(input.severity) >= cfg.escalate_above_severity &&
-      primary.channel !== cfg.escalation_channel) {
+  if (
+    cfg.escalation_channel &&
+    Number(input.severity) >= cfg.escalate_above_severity &&
+    primary.channel !== cfg.escalation_channel
+  ) {
     alternatives.push({
       channel: cfg.escalation_channel,
       reason: `Severity ${input.severity} — worth flagging here as well.`,
     });
   }
 
-  if (primary.channel !== cfg.default_channel) {
+  if (cfg.default_channel && primary.channel !== cfg.default_channel) {
     alternatives.push({ channel: cfg.default_channel, reason: 'General follow-ups.' });
   }
 
@@ -233,11 +270,13 @@ function dedupe(options: ChannelOption[], exclude: string): ChannelOption[] {
 export function knownChannels(): string[] {
   const cfg = routingConfig();
   return [
-    ...new Set([
-      cfg.default_channel,
-      cfg.escalation_channel,
-      ...cfg.parties.map((p) => p.channel),
-      ...cfg.zones.map((z) => z.channel),
-    ]),
+    ...new Set(
+      [
+        cfg.default_channel,
+        cfg.escalation_channel,
+        ...cfg.parties.map((p) => p.channel),
+        ...cfg.zones.map((z) => z.channel),
+      ].filter(Boolean),
+    ),
   ].sort();
 }

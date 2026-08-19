@@ -47,6 +47,16 @@ differently. Rules are tried in order and the first match wins:
 | Zone | which zone centroid the drain sits nearest | medium |
 | Default | nothing left to try | low |
 
+**The shipped table has two parties — NEA and LTA — and no catch-all**, matching
+the channels that exist in the workspace. A follow-up matching neither is
+recorded in FRCDE with no Slack case, and the console says so. That is
+deliberate: proposing a channel nobody created fails at post time with
+`channel_not_found`, long after the supervisor has stopped looking. Add a
+catch-all by creating the channel, inviting the bot, and naming it in
+`default_channel`.
+
+Every channel in the table must exist **and have the bot invited to it**.
+
 Severity never changes the routing. Above the configured threshold it *adds* the
 escalation channel as an alternative — a severe defect still goes to whoever does
 the work, it just needs someone else to know.
@@ -62,6 +72,12 @@ matching alias wins, so a specific phrase is not beaten by a vague one.
 
 The confidence is shown to the supervisor on purpose. A suggestion that cannot
 say how sure it is invites people to accept all of them without reading.
+
+The tests run against `server/routing.fixture.json`, not the deployed table.
+The live one is deployment data — which channels exist in one workspace — and it
+changes whenever a contract does; pointing tests at it means every such edit
+breaks assertions that were never about routing. Override the path in either
+direction with `SLACK_ROUTING_CONFIG`.
 
 ## Setting it up
 

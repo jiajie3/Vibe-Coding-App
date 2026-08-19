@@ -1,0 +1,73 @@
+{
+  "//": [
+    "Which Slack channel a follow-up case should be opened in.",
+    "",
+    "Deliberately a config file rather than code: the parties a drain gets routed",
+    "to change with contracts and reorganisations, and that should not require a",
+    "deployment. Edited by whoever administers the workspace, not by a developer.",
+    "",
+    "Rules are tried in this order and the first match wins:",
+    "",
+    "  1. parties  — matched against the work order's `assigned_to` text. This is",
+    "                the strongest signal because a supervisor has already named",
+    "                who does the work.",
+    "  2. zones    — matched geographically, by which zone centroid the drain sits",
+    "                nearest. A fallback for when `assigned_to` is a person's name",
+    "                or something not in the party list.",
+    "  3. default  — everything else.",
+    "",
+    "`escalate_above_severity` does not change the routing. It adds the escalation",
+    "channel as an alternative, because a severe defect still goes to whoever does",
+    "the work — it just needs someone else to know about it too."
+  ],
+
+  "default_channel": "#drain-followups",
+  "escalation_channel": "#flood-response",
+  "escalate_above_severity": 4,
+
+  "parties": [
+    {
+      "label": "Ang Mo Kio Town Council",
+      "channel": "#fu-amk-town-council",
+      "aliases": ["ang mo kio town council", "amk tc", "amk town council", "ang mo kio tc"]
+    },
+    {
+      "label": "Jurong–Clementi Town Council",
+      "channel": "#fu-jrl-town-council",
+      "aliases": ["jurong clementi town council", "jrtc", "jurong tc", "clementi tc"]
+    },
+    {
+      "label": "Tampines Town Council",
+      "channel": "#fu-tampines-town-council",
+      "aliases": ["tampines town council", "tampines tc"]
+    },
+    {
+      "label": "PUB Catchment & Waterways",
+      "channel": "#fu-pub-catchment",
+      "aliases": ["pub", "catchment", "waterways", "pub catchment"]
+    },
+    {
+      "label": "Desilting contractor",
+      "channel": "#fu-contractor-desilting",
+      "aliases": ["desilting", "jetting", "silt removal", "vac truck", "contractor"]
+    },
+    {
+      "label": "NEA",
+      "channel": "#fu-nea",
+      "aliases": ["nea", "environment agency", "vector control", "mosquito"]
+    },
+    {
+      "label": "LTA",
+      "channel": "#fu-lta",
+      "aliases": ["lta", "transport authority", "road", "kerb"]
+    }
+  ],
+
+  "zones": [
+    { "label": "North",      "channel": "#fu-zone-north",     "lat": 1.4382, "lon": 103.7891 },
+    { "label": "North-East", "channel": "#fu-zone-northeast", "lat": 1.3868, "lon": 103.8914 },
+    { "label": "East",       "channel": "#fu-zone-east",      "lat": 1.3496, "lon": 103.9568 },
+    { "label": "West",       "channel": "#fu-zone-west",      "lat": 1.3404, "lon": 103.7090 },
+    { "label": "Central",    "channel": "#fu-zone-central",   "lat": 1.3200, "lon": 103.8400 }
+  ]
+}
