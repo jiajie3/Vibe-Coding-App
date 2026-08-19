@@ -96,6 +96,15 @@ export interface InspectionRecord {
     answers: Answers;
   } | null;
   attachment_ids: string[];
+  /**
+   * The automated first pass, stored rather than recomputed.
+   *
+   * A review that ran once and was kept can be shown instantly, costs one call,
+   * and can still be explained a year later — it carries the model and prompt
+   * version that produced it. Recomputing on each page view would quietly
+   * change the verdict under a reviewer as models are upgraded.
+   */
+  ai_review?: import('./ai.ts').AiReview | null;
   review: {
     decision: 'approved' | 'rejected';
     reason?: string;

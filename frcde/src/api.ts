@@ -31,6 +31,8 @@ export interface Attachment {
 }
 
 export interface InspectionDetail {
+  /** The automated first pass. Absent on older records. */
+  ai_review?: AiReview | null;
   id: string;
   job_id: string;
   inspector_id: string | null;
@@ -116,6 +118,34 @@ export interface SuggestResponse {
   labels: Record<string, string>;
   /** False when no workspace is configured — the post will be simulated. */
   slack_configured: boolean;
+}
+
+export interface AiConcern {
+  source: 'rule' | 'model';
+  kind: string;
+  detail: string;
+  field?: string;
+}
+
+export interface AiPhotoNote {
+  attachment_id: string;
+  shows_drain: boolean;
+  quality: 'usable' | 'poor';
+  matches_description: boolean | null;
+  note: string;
+}
+
+export interface AiReview {
+  verdict: 'looks_sound' | 'needs_a_look' | 'likely_reject' | 'skipped';
+  confidence: 'low' | 'medium' | 'high';
+  summary: string;
+  concerns: AiConcern[];
+  photo_notes: AiPhotoNote[];
+  /** Kept with the verdict so an old review can still be explained. */
+  model: string;
+  prompt_version: number;
+  generated_at: string;
+  error?: string;
 }
 
 export interface Overview {
@@ -293,6 +323,11 @@ export const api = {
   /** Take a drain back out of the queue. */
   close: (jobId: string) =>
     req<JobRecord>(`/v1/console/jobs/${jobId}/close`, { method: 'POST', body: '{}' }),
+  rerunAiReview: (inspectionId: string) =>
+    req<AiReview | null>(`/v1/console/inspections/${inspectionId}/ai-review`, {
+      method: 'POST',
+      body: '{}',
+    }),
   reset: () => req<{ ok: boolean }>('/v1/console/reset', { method: 'POST', body: '{}' }),
 };
 

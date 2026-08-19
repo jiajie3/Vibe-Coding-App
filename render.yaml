@@ -62,3 +62,17 @@ services:
         sync: false
       - key: SLACK_SIGNING_SECRET
         sync: false
+
+      # Automatic first-pass review. Absent, only the rule checks run and the
+      # verdict reads "Not reviewed" — the console is unchanged either way.
+      # See docs/ai-review.md.
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4.1-mini
+
+      # Where OpenAI and Slack fetch inspection photographs from. Both need an
+      # address reachable from the internet; a request host is guessed when this
+      # is unset, which is right locally and wrong behind a proxy.
+      - key: FRCDE_PUBLIC_URL
+        sync: false

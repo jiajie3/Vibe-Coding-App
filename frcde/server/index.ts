@@ -20,6 +20,7 @@ import { sliceAlignment } from '../../cfpi/src/core/geo.ts';
 import type { CoverageFlag } from '../../cfpi/src/core/types.ts';
 import { issue, publicUser, requireAuth, rotate } from './auth.ts';
 import type { AuthedRequest } from './auth.ts';
+import * as ai from './ai.ts';
 import { hashPassword, hashPasswordSync, needsRehash, verifyPassword } from './password.ts';
 import { knownChannels, partyForChannel, suggestChannel } from './routing.ts';
 import * as slack from './slack.ts';
@@ -451,6 +452,9 @@ app.post('/v1/inspections/:id/complete', (req, res) => {
   store.saveInspection(insp);
   store.updateJob(job.id, { status: 'submitted', heartbeat: null });
 
+  // Started, not awaited — see runAiReview.
+  void runAiReview(insp.id);
+
   res.json({
     inspection_id: insp.id,
     job_status: 'submitted',
@@ -539,6 +543,118 @@ app.get('/v1/checklist-templates/:id', (_req, res) => {
   } catch {
     problem(res, 404, 'Template not found');
   }
+});
+
+/* ------------------------------------------------------------ ai review */
+
+/** Load the checklist template, so answers can be labelled rather than keyed. */
+function checklistTemplate(): { sections?: { fields?: { id: string; label?: string; type: string }[] }[] } | null {
+  try {
+    return JSON.parse(
+      readFileSync(resolve(here, '../../contracts/examples/checklist-template.json'), 'utf8'),
+    );
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Assemble what the reviewer gets to see.
+ *
+ * The coverage figures come from `recomputeCoverage`, not from anything the
+ * handset claimed — the model is shown the number that governs, and told not to
+ * dispute it.
+ */
+function reviewInputFor(insp: InspectionRecord): ai.ReviewInput | null {
+  const job = store.job(insp.job_id);
+  if (!job) return null;
+
+  const tmpl = checklistTemplate();
+  const fields = new Map<string, { label?: string; type: string }>();
+  for (const sec of tmpl?.sections ?? []) {
+    for (const f of sec.fields ?? []) fields.set(f.id, { label: f.label, type: f.type });
+  }
+
+  const answers = insp.checklist?.answers ?? {};
+  const checklist: ai.ChecklistAnswer[] = Object.entries(answers).map(([id, answer]) => ({
+    id,
+    label: fields.get(id)?.label ?? id.replace(/_/g, ' '),
+    type: fields.get(id)?.type ?? 'text',
+    answer,
+  }));
+
+  const tracker = new CoverageTracker(
+    job.asset.geometry,
+    job.asset.segment_boundaries_m,
+    job.inspection_rules,
+  );
+  for (const p of insp.track) tracker.addFix(p);
+
+  const photos = (insp.attachment_ids ?? [])
+    .map((id) => store.attachment(id))
+    .filter((a): a is AttachmentRecord => Boolean(a?.stored))
+    .map((a) => ({
+      id: a.id,
+      caption: a.caption,
+      chainage_m: a.chainage_m,
+      path: resolve(UPLOAD_DIR, `${a.id}.jpg`),
+    }));
+
+  return {
+    reference: job.reference,
+    asset: { name: job.asset.name, type: job.asset.type },
+    min_coverage_pct: job.inspection_rules.min_coverage_pct,
+    coverage: {
+      server_pct: insp.server_coverage_pct ?? 0,
+      client_pct: insp.client_coverage?.client_computed_pct ?? null,
+      flags: insp.flags ?? [],
+      uncovered_ranges: tracker.uncoveredRanges().map(
+        ([a, b]) => [Number(a.toFixed(0)), Number(b.toFixed(0))] as [number, number],
+      ),
+    },
+    checklist,
+    photos,
+    override_reason: (insp as { override?: { note?: string } }).override?.note ?? null,
+  };
+}
+
+/**
+ * Run the first pass and keep it.
+ *
+ * Deliberately not awaited by the endpoint that triggers it: a handset waiting
+ * on an OpenAI round trip to learn its submission succeeded is a handset that
+ * times out in a culvert. The console fetches the result when the supervisor
+ * opens the job.
+ */
+async function runAiReview(inspectionId: string): Promise<void> {
+  const insp = store.inspection(inspectionId);
+  if (!insp) return;
+  const input = reviewInputFor(insp);
+  if (!input) return;
+  try {
+    const review = await ai.reviewInspection(input);
+    const fresh = store.inspection(inspectionId);
+    if (!fresh) return;
+    fresh.ai_review = review;
+    store.saveInspection(fresh);
+    console.log(`[ai] ${input.reference}: ${review.verdict} (${review.concerns.length} concerns)`);
+  } catch (e) {
+    console.warn('[ai] review failed outright:', (e as Error).message);
+  }
+}
+
+/**
+ * Re-run a review by hand.
+ *
+ * For when the key arrives after the inspection did, or the prompt changes and
+ * an old verdict is worth redoing. Supervisor-only, like everything under
+ * /v1/console.
+ */
+app.post('/v1/console/inspections/:id/ai-review', async (req, res) => {
+  const insp = store.inspection(req.params.id);
+  if (!insp) return problem(res, 404, 'Inspection not found');
+  await runAiReview(insp.id);
+  res.json(store.inspection(insp.id)?.ai_review ?? null);
 });
 
 /* ------------------------------------------------- console-only endpoints */

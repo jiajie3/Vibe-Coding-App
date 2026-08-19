@@ -41,7 +41,8 @@ signing in against no server achieves nothing. Jobs download on success.
 Per-project detail is in [cfpi/README.md](cfpi/README.md) and
 [frcde/README.md](frcde/README.md). Deployment is
 [docs/deploying.md](docs/deploying.md); the Slack integration is
-[docs/slack.md](docs/slack.md).
+[docs/slack.md](docs/slack.md); the automatic review is
+[docs/ai-review.md](docs/ai-review.md).
 
 ## How they fit together
 
@@ -121,7 +122,9 @@ a 93.5% track is flagged.
 
 ## Status
 
-**Built.** Slack follow-ups — a case is opened in a routed channel, the contractor
+**Built.** An automatic first pass over every submitted inspection — rule checks
+plus a model reading the remarks and the photographs, advisory only
+([docs/ai-review.md](docs/ai-review.md)); Slack follow-ups — a case is opened in a routed channel, the contractor
 acknowledges and closes it there, and the outcome comes back
 ([docs/slack.md](docs/slack.md)); authentication with roles; job dispatch and lifecycle; GPS coverage
 verification with server-side recomputation; pause and resume across days; server-driven

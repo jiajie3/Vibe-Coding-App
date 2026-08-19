@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 import DrainMap from '../components/DrainMap.tsx';
 import type { MapLayer, MapPin } from '../components/DrainMap.tsx';
 import RejectInspection from '../components/RejectInspection.tsx';
+import AutoReview from '../components/AutoReview.tsx';
 import RouteFollowUp from '../components/RouteFollowUp.tsx';
 import type { FollowUpDraft } from '../components/RouteFollowUp.tsx';
 import SiteNotes from '../components/SiteNotes.tsx';
@@ -424,6 +425,15 @@ export default function JobDetail() {
               )}
             </div>
           </div>
+
+          {/* --------------------------------------------------- first pass */}
+          {current && current.status !== 'in_progress' && (
+            <AutoReview
+              inspectionId={current.id}
+              review={current.ai_review}
+              onRefreshed={load}
+            />
+          )}
 
           {/* --------------------------------------------------- checklist */}
           {current?.checklist && (
