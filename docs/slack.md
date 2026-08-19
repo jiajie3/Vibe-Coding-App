@@ -15,21 +15,27 @@ FRCDE                                     Slack
   │
   │  supervisor routes a follow-up
   │  ──────────────────────────────────▶  case card posted in a channel
+  │  ──────────────────────────────────▶  inspection photos into the thread
   │                                        Acknowledge
   │
   │  ◀─────────────────────────────────── Acknowledge
-  │     status → in_progress, acknowledged_at stamped
-  │  ──────────────────────────────────▶  card repaints
+  │     status → in_progress
+  │  ──────────────────────────────────▶  card repaints, thread reply
   │                                        Completed · Cannot complete
   │
+  │  ◀─────────────────────────────────── photo posted in the case thread
+  │     downloaded and filed against the work order
+  │
   │  ◀─────────────────────────────────── Completed + note
-  │     status → done, closing_note, closed_at
+  │     status → awaiting_verification        (refused without a photo)
+  │  ──────────────────────────────────▶  thread reply: with the supervisor
+  │
+  │  supervisor checks the photographs
+  │     status → done, verified_by
+  │  ──────────────────────────────────▶  thread reply: checked and closed
   │
   │  ◀─────────────────────────────────── Cannot complete + reason
   │     status → blocked, stays in the follow-up list
-  │
-  │  ◀─────────────────────────────────── photos posted in the case thread
-  │     downloaded and filed against the work order
 ```
 
 **Acknowledgement comes first.** The two ways of finishing a case are withheld
@@ -42,6 +48,21 @@ The buttons are withheld rather than disabled because Slack has no disabled stat
 for them. The rule is also enforced on the server, not just by hiding controls: a
 card posted earlier keeps whatever buttons it was rendered with, so a stale
 Completed still arrives and is refused.
+
+**A photograph is required, and the contractor does not close the case.** Pressing
+Completed without one is refused; pressing it with one parks the work order at
+`awaiting_verification` for a supervisor to check. A work order on public
+infrastructure signed off on the word of the party paid to do the work is not a
+record anyone can stand behind.
+
+Slack modals cannot take a file upload, so the photograph arrives as a thread
+message and is filed by the events handler — which means **this feature depends
+on Event Subscriptions being configured.** Without it no photograph is ever
+recorded, and Completed can never be pressed successfully.
+
+**Every transition speaks in the thread.** The card repaints in place, which is
+easy to miss in a busy channel; a threaded reply is what actually notifies
+people, and it leaves the history where the contractor is.
 
 **The case never stops living in FRCDE.** Slack is a doorbell and an input
 surface. A status derived from someone typing *done lah* in a channel cannot be
@@ -205,6 +226,23 @@ also means "it posted nothing" is never indistinguishable from "it failed".
 Inbound verification needs only `SLACK_SIGNING_SECRET`, so setting that alone
 gives you a server that accepts signed requests while still simulating its
 replies — which is exactly what `npm run slack:e2e` exercises.
+
+## Photographs
+
+The inspector's own photographs are posted into the case thread when the case
+opens. A contractor is being asked to fix something they never saw, and "approx
+260 mm silt" is much less use than the picture of it.
+
+They are sent **by URL, not uploaded**: FRCDE already serves `/uploads`
+statically, so Slack fetches them itself and no `files:write` scope is needed.
+Two consequences worth knowing:
+
+- **Those URLs are public.** Anyone holding one can read the photograph without
+  signing in. That is true of the console today as well, and wants an authorising
+  proxy or signed URLs before any real deployment.
+- **Slack fetches the URL itself**, so it must be reachable from the internet.
+  On a laptop it is not, and images silently fail to render. Set
+  `FRCDE_PUBLIC_URL` on the deployment; the request's own host is used otherwise.
 
 ## Security
 

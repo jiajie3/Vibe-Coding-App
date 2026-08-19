@@ -8,6 +8,7 @@ import type { JobRecord, Overview, WorkOrder, WorkOrderStatus } from '../api.ts'
 const STATUS_LABEL: Record<WorkOrderStatus, string> = {
   open: 'Open',
   in_progress: 'In progress',
+  awaiting_verification: 'Check the photos',
   done: 'Done',
   blocked: 'Cannot complete',
   cancelled: 'Cancelled',
@@ -24,6 +25,9 @@ const STATUS_LABEL: Record<WorkOrderStatus, string> = {
 const STATUS_COLOUR: Record<WorkOrderStatus, string> = {
   open: '#dc2626',
   in_progress: '#d97706',
+  // Blue: this one is waiting on *you*, not on them. It is the only status in
+  // the list that a supervisor can clear without chasing anybody.
+  awaiting_verification: '#2563eb',
   done: '#16a34a',
   blocked: '#7c3aed',
   cancelled: '#94a3b8',
@@ -57,7 +61,11 @@ export default function WorkOrders() {
     const live = showClosed
       ? all
       : all.filter(
-          (w) => w.status === 'open' || w.status === 'in_progress' || w.status === 'blocked',
+          (w) =>
+            w.status === 'open' ||
+            w.status === 'in_progress' ||
+            w.status === 'awaiting_verification' ||
+            w.status === 'blocked',
         );
     // Soonest due first — the same rule the drain queue uses, so urgency means
     // one thing across the whole console. Undated ones sink to the bottom.
@@ -168,6 +176,22 @@ export default function WorkOrders() {
                 </div>
               )}
 
+              {(w.completion_attachment_ids?.length ?? 0) > 0 && (
+                <div className="photos" style={{ marginTop: 8 }}>
+                  {w.completion_attachment_ids!.map((id) => (
+                    <a
+                      key={id}
+                      className="photo"
+                      href={`/uploads/${id}.jpg`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <img src={`/uploads/${id}.jpg`} alt="Work reported complete" />
+                    </a>
+                  ))}
+                </div>
+              )}
+
               {w.blocked_reason && (
                 <div className="note" style={{ marginTop: 8 }}>
                   <strong>Cannot complete:</strong> {w.blocked_reason}
@@ -176,6 +200,25 @@ export default function WorkOrders() {
 
               {w.closing_note && (
                 <div className="note" style={{ marginTop: 8 }}>{w.closing_note}</div>
+              )}
+
+              {w.status === 'awaiting_verification' && (
+                <div className="rowactions">
+                  <button
+                    className="btn tiny primary"
+                    disabled={busy === w.id}
+                    onClick={() => advance(w, 'done')}
+                  >
+                    Photos check out — close it
+                  </button>
+                  <button
+                    className="btn tiny"
+                    disabled={busy === w.id}
+                    onClick={() => advance(w, 'in_progress')}
+                  >
+                    Send back
+                  </button>
+                </div>
               )}
 
               {(w.status === 'open' || w.status === 'in_progress' || w.status === 'blocked') && (

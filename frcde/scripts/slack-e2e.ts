@@ -8,6 +8,11 @@
  * invalidates every request Slack ever sends — and the only symptom is a 401
  * that looks like a misconfigured secret.
  *
+ * One thing this cannot reach: photographs arriving from a thread. That path
+ * needs a real workspace to download from, so the run checks the *gate* — that
+ * completion is refused without evidence — and the ingestion itself is only
+ * exercised against a live Slack app.
+ *
  * Run against a server started with SLACK_SIGNING_SECRET set:
  *
  *   SLACK_SIGNING_SECRET=test-secret npm start
@@ -176,6 +181,25 @@ async function main() {
   if (afterAck.status !== 'in_progress') die(`status is ${afterAck.status}, expected in_progress`);
   ok('acknowledgement reached FRCDE, status is in progress');
 
+  /* -------------------------------- completing without evidence is refused */
+
+  const noPhoto = form({
+    type: 'block_actions',
+    user: { username: 'contractor.lim' },
+    actions: [{ action_id: 'case_done', value: order.id }],
+  });
+  const refused = await fetch(`${BASE}/v1/slack/interactions`, {
+    method: 'POST',
+    headers: slackHeaders(noPhoto),
+    body: noPhoto,
+  });
+  if (!refused.ok) die(`the refusal should still answer 200 (${refused.status})`);
+  const stillWorking = await readOrder(order.id);
+  if (stillWorking.status !== 'in_progress') {
+    die(`status became ${stillWorking.status} with no photograph`);
+  }
+  ok('completing with no photograph is refused, and the case stays in progress');
+
   /* ------------------------------------------------- cannot complete */
 
   const blockedBody = form({
@@ -219,10 +243,35 @@ async function main() {
   if (!done.ok) die(`completion refused (${done.status})`);
 
   const afterDone = await readOrder(order.id);
-  if (afterDone.status !== 'done') die(`status is ${afterDone.status}, expected done`);
-  if (!afterDone.closed_at) die('closed_at was not stamped');
+  // Reported complete is not closed: a work order signed off on the word of the
+  // party paid to do it is not a record anyone can stand behind.
+  if (afterDone.status !== 'awaiting_verification') {
+    die(`status is ${afterDone.status}, expected awaiting_verification`);
+  }
+  if (afterDone.closed_at !== null) die('a case awaiting a check must not read as closed');
+  if (!afterDone.completed_at) die('completed_at was not stamped');
   if (!afterDone.closing_note?.includes('0.4 m3')) die('the closing note was not kept');
-  ok('completion closed the case, with its note');
+  ok('completion parks the case for verification rather than closing it');
+
+  /* ------------------------------------------- the supervisor signs it off */
+
+  const auth2 = await fetch(`${BASE}/v1/auth/token`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ username: USER, password: PASS, device_id: 'slack-e2e' }),
+  });
+  const { access_token: token2 } = (await auth2.json()) as { access_token: string };
+  const closed = await fetch(`${BASE}/v1/console/work-orders/${order.id}`, {
+    method: 'PATCH',
+    headers: { authorization: `Bearer ${token2}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ status: 'done' }),
+  });
+  if (!closed.ok) die(`the supervisor could not close it (${closed.status})`);
+  const verified = await readOrder(order.id);
+  if (verified.status !== 'done') die(`status is ${verified.status}, expected done`);
+  if (!verified.closed_at) die('closed_at was not stamped on verification');
+  if (!verified.verified_by) die('nobody was recorded as having checked it');
+  ok(`supervisor verified and closed it (${verified.verified_by})`);
 
   /* --------------------------------------------- a case that no longer exists */
 

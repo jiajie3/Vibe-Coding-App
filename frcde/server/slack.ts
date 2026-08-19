@@ -106,6 +106,8 @@ export interface CaseView {
   acknowledged_at?: string | null;
   closing_note?: string;
   blocked_reason?: string;
+  /** How many photographs have come back. Gates the Completed button. */
+  completion_photos?: number;
 }
 
 export interface PostedCase {
@@ -141,14 +143,20 @@ const dueWord = (iso: string | null) =>
 export function caseBlocks(c: CaseView): unknown[] {
   const closed = c.status === 'done' || c.status === 'cancelled';
   const blocked = c.status === 'blocked';
+  const submitted = c.status === 'awaiting_verification';
+  const photos = c.completion_photos ?? 0;
 
   const status = closed
-    ? `:white_check_mark: *Closed* — ${c.closing_note || 'no note given'}`
+    ? `:white_check_mark: *Verified and closed* — ${c.closing_note || 'no note given'}`
     : blocked
       ? `:warning: *Cannot complete* — ${c.blocked_reason || 'no reason given'}`
-      : c.acknowledged_at
-        ? ':eyes: *Acknowledged* — awaiting completion'
-        : ':bell: *Awaiting acknowledgement*';
+      : submitted
+        ? `:hourglass_flowing_sand: *With the supervisor to check* — ${c.closing_note || 'no note given'}`
+        : c.acknowledged_at
+          ? photos > 0
+            ? `:camera: *Acknowledged* — ${photos} photo${photos === 1 ? '' : 's'} received, ready to close`
+            : ':eyes: *Acknowledged* — post a photograph in this thread when the work is done'
+          : ':bell: *Awaiting acknowledgement*';
 
   /**
    * Only what was actually captured.
@@ -179,7 +187,7 @@ export function caseBlocks(c: CaseView): unknown[] {
     { type: 'context', elements: [{ type: 'mrkdwn', text: status }] },
   ];
 
-  if (!closed && !blocked) {
+  if (!closed && !blocked && !submitted) {
     /**
      * Acknowledge first, and only then the two ways of finishing.
      *
@@ -202,7 +210,10 @@ export function caseBlocks(c: CaseView): unknown[] {
                 action_id: 'case_done',
                 value: c.id,
                 style: 'primary',
-                text: { type: 'plain_text', text: 'Completed' },
+                text: {
+                  type: 'plain_text',
+                  text: photos > 0 ? 'Completed' : 'Completed (photo needed)',
+                },
               },
               {
                 type: 'button',
@@ -232,7 +243,9 @@ export function caseBlocks(c: CaseView): unknown[] {
         {
           type: 'mrkdwn',
           text: c.acknowledged_at
-            ? 'Post photographs in this thread — they are filed against the case.'
+            ? photos > 0
+              ? 'Photographs are filed against the case. Post more here if needed.'
+              : 'Post a photograph of the completed work in this thread — it is required before the case can be closed, and is filed against the record.'
             : 'Acknowledge to pick this up. The options to close it appear after that.',
         },
       ],
@@ -267,6 +280,45 @@ export async function updateCase(channel: string, ts: string, c: CaseView): Prom
     ts,
     text: `Follow-up on ${c.asset_name}: ${c.title}`,
     blocks: caseBlocks(c),
+  });
+}
+
+/**
+ * Put the inspection's own photographs in the case thread.
+ *
+ * The contractor is being asked to fix something they did not see. A card
+ * describing "approx 260 mm silt" is a great deal less useful than the
+ * photograph the inspector took of it, and sending them means nobody has to ask
+ * for them later.
+ *
+ * Images are referenced by URL rather than uploaded: FRCDE already serves
+ * `/uploads` publicly, so Slack fetches them itself and no `files:write` scope
+ * is needed. That does mean anyone with the URL can read them — see docs.
+ */
+export async function postThreadImages(
+  channel: string,
+  ts: string,
+  images: { url: string; caption: string }[],
+  heading: string,
+): Promise<void> {
+  if (images.length === 0) return;
+  if (!isConfigured() || ts.startsWith('sim-')) {
+    console.log(`[slack] (simulated) would post ${images.length} image(s) to ${channel}/${ts}`);
+    return;
+  }
+  await call('chat.postMessage', {
+    channel,
+    thread_ts: ts,
+    text: heading,
+    blocks: [
+      { type: 'section', text: { type: 'mrkdwn', text: heading } },
+      ...images.slice(0, 8).map((i) => ({
+        type: 'image',
+        image_url: i.url,
+        alt_text: i.caption.slice(0, 200) || 'Inspection photograph',
+        title: { type: 'plain_text', text: i.caption.slice(0, 150) || 'Photograph' },
+      })),
+    ],
   });
 }
 
@@ -346,6 +398,8 @@ export interface Interaction {
   actionId?: string;
   caseId?: string;
   triggerId?: string;
+  /** Where to send a message only this user sees, in reply to their click. */
+  responseUrl?: string;
   userName?: string;
   channel?: string;
   messageTs?: string;
@@ -382,6 +436,7 @@ export function parseInteraction(raw: string): Interaction | null {
       actionId: action?.action_id,
       caseId: action?.value,
       triggerId: p.trigger_id,
+      responseUrl: p.response_url,
       userName: p.user?.username ?? p.user?.name,
       channel: p.channel?.id,
       messageTs: p.message?.ts,
@@ -389,6 +444,26 @@ export function parseInteraction(raw: string): Interaction | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Say something only the person who clicked will see.
+ *
+ * A refusal has to reach them somehow, and the alternatives are both wrong:
+ * editing the card shouts at the channel, and staying silent reads as the
+ * button being broken. `response_url` needs no token and works for 30 minutes.
+ */
+export async function respondEphemeral(url: string | undefined, text: string): Promise<void> {
+  if (!url) return;
+  if (!isConfigured()) {
+    console.log(`[slack] (simulated) would reply privately: ${text}`);
+    return;
+  }
+  await fetch(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ response_type: 'ephemeral', replace_original: false, text }),
+  });
 }
 
 /** Download a file a contractor posted in a case thread. */

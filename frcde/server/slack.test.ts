@@ -178,6 +178,42 @@ test('acknowledging swaps in the two ways of finishing', () => {
   assert.match(b, /Acknowledged/);
 });
 
+test('the card asks for a photograph until one arrives', () => {
+  const ack = { acknowledged_at: '2026-08-19T01:00:00.000Z' };
+
+  const none = json(caseBlocks(view({ ...ack, completion_photos: 0 })));
+  assert.match(none, /Completed \(photo needed\)/);
+  assert.match(none, /post a photograph in this thread/i);
+
+  const some = json(caseBlocks(view({ ...ack, completion_photos: 2 })));
+  assert.match(some, /2 photos received/);
+  assert.ok(!some.includes('photo needed'), 'should stop nagging once photos arrive');
+});
+
+test('a case awaiting verification offers nothing further', () => {
+  // The contractor is finished; it is the supervisor's move. Leaving Completed
+  // clickable invites them to press it again and wonder why nothing changed.
+  const b = json(
+    caseBlocks(
+      view({
+        status: 'awaiting_verification',
+        acknowledged_at: '2026-08-19T01:00:00.000Z',
+        closing_note: 'Jetted and cleared.',
+        completion_photos: 1,
+      }),
+    ),
+  );
+  assert.ok(!b.includes('case_done'));
+  assert.ok(!b.includes('case_blocked'));
+  assert.match(b, /With the supervisor to check/);
+  assert.match(b, /Jetted and cleared/);
+});
+
+test('a verified case says so, rather than just "closed"', () => {
+  const b = json(caseBlocks(view({ status: 'done', closing_note: 'Jetted and cleared.' })));
+  assert.match(b, /Verified and closed/);
+});
+
 test('a closed case offers no buttons at all', () => {
   const b = json(caseBlocks(view({ status: 'done', closing_note: 'Jetted and cleared.' })));
   assert.ok(!b.includes('case_done'), 'a closed case must not be closable again');

@@ -58,7 +58,13 @@ export interface InspectionDetail {
   review: { decision: string; reason?: string; at: string } | null;
 }
 
-export type WorkOrderStatus = 'open' | 'in_progress' | 'done' | 'blocked' | 'cancelled';
+export type WorkOrderStatus =
+  | 'open'
+  | 'in_progress'
+  | 'awaiting_verification'
+  | 'done'
+  | 'blocked'
+  | 'cancelled';
 
 export interface WorkOrder {
   id: string;
@@ -85,6 +91,10 @@ export interface WorkOrder {
   slack?: { channel: string; ts: string };
   /** Evidence posted back in the Slack case thread. */
   completion_attachment_ids?: string[];
+  /** When the contractor said it was finished — before anyone checked. */
+  completed_at?: string | null;
+  /** Who signed it off here. */
+  verified_by?: string;
 }
 
 export interface ChannelOption {

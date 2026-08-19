@@ -156,7 +156,19 @@ export interface Session {
 
 /* ---------------------------------------------------------- work orders */
 
-export type WorkOrderStatus = 'open' | 'in_progress' | 'done' | 'blocked' | 'cancelled';
+/**
+ * `awaiting_verification` sits between the contractor saying they are finished
+ * and FRCDE agreeing. Work on public infrastructure closed on the word of the
+ * party paid to do it is not a record anyone can stand behind; a supervisor
+ * looks at the photographs first.
+ */
+export type WorkOrderStatus =
+  | 'open'
+  | 'in_progress'
+  | 'awaiting_verification'
+  | 'done'
+  | 'blocked'
+  | 'cancelled';
 
 /**
  * Remediation raised off the back of an inspection.
@@ -215,6 +227,11 @@ export interface WorkOrder {
 
   /** Evidence the contractor posted in the case thread, as attachment ids. */
   completion_attachment_ids?: string[];
+
+  /** When the contractor said it was finished. Distinct from `closed_at`. */
+  completed_at?: string | null;
+  /** Who signed it off in FRCDE, and when. */
+  verified_by?: string;
 }
 
 interface Db {

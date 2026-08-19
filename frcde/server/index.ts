@@ -894,6 +894,7 @@ app.post('/v1/console/work-orders', async (req: AuthedRequest, res) => {
       if (view) {
         const posted = await slack.postCase(channel, view);
         order.slack = { channel: posted.channel, ts: posted.ts };
+        await postEvidence(order, publicBase(req));
       }
     } catch (e) {
       console.warn('[slack] could not open the case:', (e as Error).message);
@@ -913,6 +914,11 @@ app.patch('/v1/console/work-orders/:id', (req, res) => {
     order.status = status;
     order.closed_at =
       status === 'done' || status === 'cancelled' ? new Date().toISOString() : null;
+    // Record who signed it off. "Closed" with nobody's name against it is the
+    // kind of record that cannot answer a question a year later.
+    if (status === 'done') {
+      order.verified_by = (req as AuthedRequest).user?.name ?? 'the supervisor';
+    }
   }
   if (typeof req.body?.closing_note === 'string') order.closing_note = req.body.closing_note;
   if (typeof req.body?.assigned_to === 'string') order.assigned_to = req.body.assigned_to.trim();
@@ -920,6 +926,17 @@ app.patch('/v1/console/work-orders/:id', (req, res) => {
   // A channel still showing buttons on a case closed from the console invites
   // someone to close it a second time.
   void syncCase(order);
+  // Tell the contractor too. Being checked and signed off is the half of the
+  // loop they otherwise never see.
+  if (order.slack && status === 'done') {
+    void slack
+      .replyInThread(
+        order.slack.channel,
+        order.slack.ts,
+        `Checked and closed by ${order.verified_by}. Thanks.`,
+      )
+      .catch(() => {});
+  }
   res.json(order);
 });
 
@@ -959,7 +976,52 @@ function caseView(order: WorkOrder): slack.CaseView | null {
     acknowledged_at: order.acknowledged_at,
     closing_note: order.closing_note,
     blocked_reason: order.blocked_reason,
+    completion_photos: order.completion_attachment_ids?.length ?? 0,
   };
+}
+
+/**
+ * Where Slack should fetch photographs from.
+ *
+ * Slack renders an image by fetching the URL itself, so this has to be an
+ * address reachable from the internet — `localhost` silently renders nothing.
+ * Set FRCDE_PUBLIC_URL on any deployment; the request's own host is the right
+ * guess everywhere else.
+ */
+function publicBase(req: express.Request): string {
+  const configured = (process.env.FRCDE_PUBLIC_URL ?? '').trim().replace(/\/+$/, '');
+  return configured || `${req.protocol}://${req.get('host')}`;
+}
+
+/**
+ * Send the inspector's own photographs into the case thread.
+ *
+ * The contractor is being asked to fix something they never saw. "Approx 260 mm
+ * silt" is a good deal less useful than the photograph of it, and attaching them
+ * up front saves the round of messages that otherwise asks for them.
+ */
+async function postEvidence(order: WorkOrder, base: string): Promise<void> {
+  if (!order.slack) return;
+  const shots = (order.attachment_ids ?? [])
+    .map((id) => store.attachment(id))
+    .filter((a): a is AttachmentRecord => Boolean(a?.stored));
+  if (shots.length === 0) return;
+
+  try {
+    await slack.postThreadImages(
+      order.slack.channel,
+      order.slack.ts,
+      shots.map((a) => ({
+        url: `${base}/uploads/${a.id}.jpg`,
+        caption:
+          a.caption ||
+          (a.chainage_m != null ? `Chainage ${Math.round(a.chainage_m)} m` : 'From the inspection'),
+      })),
+      `*From the inspection* — ${shots.length} photograph${shots.length === 1 ? '' : 's'}.`,
+    );
+  } catch (e) {
+    console.warn('[slack] could not attach inspection photos:', (e as Error).message);
+  }
 }
 
 /** Repaint the posted card. Never throws — Slack being down is not our outage. */
@@ -1068,6 +1130,27 @@ app.post('/v1/slack/interactions', (req, res) => {
        */
       if (!order.acknowledged_at) {
         void syncCase(order);
+        void slack
+          .respondEphemeral(i.responseUrl, 'Acknowledge this case before closing it.')
+          .catch(() => {});
+        return;
+      }
+
+      /**
+       * Completion needs evidence, and the evidence has to arrive first.
+       *
+       * Slack modals cannot take a file, so the photograph comes in as a thread
+       * message and is filed by the events handler. Refusing here — rather than
+       * accepting a bare note — is what stops a case being closed on an
+       * assertion, which is the whole reason a supervisor still checks it.
+       */
+      if (i.actionId === 'case_done' && (order.completion_attachment_ids?.length ?? 0) === 0) {
+        void slack
+          .respondEphemeral(
+            i.responseUrl,
+            'Post a photograph of the completed work in this thread first, then press Completed again.',
+          )
+          .catch(() => {});
         return;
       }
 
@@ -1100,21 +1183,43 @@ app.post('/v1/slack/interactions', (req, res) => {
     res.status(200).json({});
 
     const note = (i.value ?? '').trim();
+    let reply: string;
+
     if (i.callbackId === 'case_done_submit') {
-      order.status = 'done';
-      order.closed_at = now;
-      order.closing_note = note || `Closed in Slack by ${who}.`;
+      /**
+       * Finished, but not closed.
+       *
+       * A work order on public infrastructure closed on the word of the party
+       * paid to do the work is not a record anyone can stand behind. The
+       * contractor says they are done and sends the photographs; FRCDE holds it
+       * until a supervisor has looked.
+       */
+      order.status = 'awaiting_verification';
+      order.completed_at = now;
+      order.closed_at = null;
+      order.closing_note = note || `Reported complete in Slack by ${who}.`;
+      const n = order.completion_attachment_ids?.length ?? 0;
+      reply =
+        `Marked complete by ${who} with ${n} photograph${n === 1 ? '' : 's'}. ` +
+        'Now with the supervisor to check.';
     } else if (i.callbackId === 'case_blocked_submit') {
       // Not a closed case. Someone still has to act, so it stays in the console
       // follow-up list rather than quietly disappearing from it.
       order.status = 'blocked';
       order.closed_at = null;
       order.blocked_reason = note || `Reported blocked in Slack by ${who}.`;
+      reply = `${who} cannot complete this: ${order.blocked_reason}`;
     } else {
       return;
     }
+
     store.saveWorkOrder(order);
     void syncCase(order);
+    // The card repaints in place, which is easy to miss in a busy channel. The
+    // thread is where the conversation is, and where a notification lands.
+    if (order.slack) {
+      void slack.replyInThread(order.slack.channel, order.slack.ts, reply).catch(() => {});
+    }
     return;
   }
 
