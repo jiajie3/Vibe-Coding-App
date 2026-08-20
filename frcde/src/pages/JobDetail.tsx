@@ -269,7 +269,7 @@ export default function JobDetail() {
             <button
               className="btn dark"
               disabled={busy}
-              onClick={() => queueAction(() => api.dispatch(job.id, { due_in_days: 7 }))}
+              onClick={() => queueAction(() => api.dispatch(job.id))}
             >
               Add to queue
             </button>

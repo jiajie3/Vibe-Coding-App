@@ -58,25 +58,26 @@ console.log(`auth ok: anonymous 401, bad password 401, ${inspector.name} blocked
 
 await signIn('supervisor', 'supervisor');
 
-// 0. the data has to agree with the label the console puts on it: being in the
-//    queue means being due for inspection, so every queued drain falls inside
-//    the 7-day window and every closed one falls outside it.
+// 0. a closed drain must be scheduled beyond the window — that is the
+//    scheduler's own rule, and a closed drain reading "overdue by 3d" is a
+//    deadline nobody owes.
+//
+//    The converse used to be asserted too: that every queued drain was due
+//    within the window. It no longer holds. Queuing is who has been sent out;
+//    the due date is when the drain needs walking, and a supervisor can put a
+//    drain due in three weeks into the queue without rescheduling it.
 const DUE_WINDOW = 7;
 const daysOut = (iso: string) => Math.round((Date.parse(iso) - Date.now()) / 86_400_000);
 
 const overview = await j('/console/overview');
 for (const x of overview.jobs) {
-  const d = daysOut(x.due_at);
   const queued = ['available', 'accepted', 'in_progress', 'submitted'].includes(x.status);
-  if (queued && d > DUE_WINDOW) {
-    throw new Error(`${x.reference} is queued but due in ${d}d — outside the window`);
-  }
-  if (!queued && d <= DUE_WINDOW) {
-    throw new Error(`${x.reference} is closed but due in ${d}d — should be next cycle`);
+  if (!queued && daysOut(x.due_at) <= DUE_WINDOW) {
+    throw new Error(`${x.reference} is closed but due in ${daysOut(x.due_at)}d — should be next cycle`);
   }
 }
 console.log(
-  `due dates coherent: ${overview.jobs.filter((x: any) => daysOut(x.due_at) <= DUE_WINDOW).length} within ${DUE_WINDOW}d, all queued`,
+  `due dates coherent: ${overview.jobs.filter((x: any) => daysOut(x.due_at) <= DUE_WINDOW).length} within ${DUE_WINDOW}d`,
 );
 
 const job = overview.jobs.find((x: any) => x.status === 'available');
@@ -275,8 +276,18 @@ if (!(await j('/jobs')).data.find((x: any) => x.id === job.id)) {
   throw new Error('manually dispatched job did not reach CFPI');
 }
 const dispatched2 = (await j('/jobs')).data.find((x: any) => x.id === job.id);
-if (daysOut(dispatched2.due_at) > DUE_WINDOW) {
-  throw new Error('manual dispatch set a due date outside the window');
+if (daysOut(dispatched2.due_at) > 3) {
+  throw new Error('manual dispatch ignored the due date it was given');
+}
+
+// Queuing without a date must leave the drain's own deadline alone. Dispatch
+// used to force everything into the seven-day window, silently rewriting a date
+// the scheduler had worked out from the drain's own inspection cycle.
+const beforeDue = dispatched2.due_at;
+await j(`/console/jobs/${job.id}/dispatch`, { method: 'POST', body: '{}' });
+const requeued = (await j('/jobs')).data.find((x: any) => x.id === job.id);
+if (requeued.due_at !== beforeDue) {
+  throw new Error(`dispatch rewrote the due date: ${beforeDue} -> ${requeued.due_at}`);
 }
 
 await j(`/console/jobs/${job.id}/close`, { method: 'POST', body: '{}' });

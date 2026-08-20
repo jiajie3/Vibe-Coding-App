@@ -896,17 +896,31 @@ app.post('/v1/console/jobs/:id/dispatch', (req, res) => {
     );
   }
 
-  // Clamped to the due window. Being in the queue *is* being due for
-  // inspection, so a drain scheduled three weeks out would sit there
-  // contradicting the label the console gives it.
-  const requested = Number(req.body?.due_in_days ?? DUE_WINDOW_DAYS);
-  const days = Math.max(0, Math.min(requested, DUE_WINDOW_DAYS));
+  /**
+   * The drain keeps its own deadline unless one is asked for.
+   *
+   * This used to force everything to the seven-day window, on the reasoning
+   * that being in the queue *is* being due. That conflated two different
+   * things: the queue is who has been sent out, and the due date is when the
+   * drain needs walking. A supervisor pushing a drain due in three weeks
+   * wanted it inspected, not rescheduled — and rewriting the date lost the
+   * cycle the scheduler had worked out.
+   *
+   * Nothing depends on the conflation any more: the dashboard colours by
+   * due-ness, so a queued drain due in twenty-two days reads as "not due"
+   * rather than contradicting a label.
+   */
+  const requested = req.body?.due_in_days;
+  const dueAt =
+    requested == null || Number.isNaN(Number(requested))
+      ? job.due_at
+      : new Date(Date.now() + Math.max(0, Number(requested)) * 86_400_000).toISOString();
 
   res.json(
     store.updateJob(job.id, {
       status: 'available',
       priority: req.body?.priority ?? job.priority,
-      due_at: new Date(Date.now() + days * 86_400_000).toISOString(),
+      due_at: dueAt,
       assigned_inspector_id: null,
       rejection_reason: null,
       superseded_inspection_id: null,

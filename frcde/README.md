@@ -91,6 +91,12 @@ approve  → gone for good; both attempts kept for audit
 Which drains are due is set by `DISPATCH_PLAN` in `server/store.ts` — five by default,
 spread across priorities with one already overdue. Add or remove entries to change it.
 
+Queuing a drain by hand does **not** reschedule it. The queue is who has been sent
+out; the due date is when the drain needs walking, and the two are separate. Pushing
+a drain due in three weeks into the queue leaves it due in three weeks — it simply
+reads as "not due" on the map until it is. Pass `due_in_days` to the dispatch
+endpoint to set a deadline deliberately.
+
 Every request is logged with its status, so a failing call from the phone is visible in
 the terminal rather than having to be guessed at.
 

@@ -425,7 +425,7 @@ export default function Dashboard() {
                 job={j}
                 busy={busy === j.id}
                 onOpen={() => nav(`/jobs/${j.id}`)}
-                onDispatch={() => act(() => api.dispatch(j.id, { due_in_days: 7 }), j.id)}
+                onDispatch={() => act(() => api.dispatch(j.id), j.id)}
                 onClose={() => act(() => api.close(j.id), j.id)}
               />
             ))}
