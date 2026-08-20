@@ -524,49 +524,52 @@ html, body { height: 100%; }
 
 /* --------------------------------------------------------- subsections */
 /*
- * Sections of one panel rather than panels of their own.
+ * Sections of one panel, not panels of their own.
  *
- * The AI check, the checklist, the photographs and the follow-ups are all part
- * of reading a result. As separate cards they competed with the evidence
- * instead of sitting alongside it, and the column became a stack of boxes.
+ * The checklist, the photographs and the follow-ups are all part of reading a
+ * result, so they keep the panel's white field — a grey header bar on each made
+ * them read as separate cards stacked inside a card.
  *
- * A heavier top rule and a tinted header bar make the divisions obvious without
- * breaking the single white field of the panel.
+ * What marks a division instead is a rule the full width of the panel and a
+ * heading that cannot be mistaken for a panel title: small, uppercase, spaced,
+ * with a short accent bar in front of it. It reads as "next part of this",
+ * where a filled bar reads as "next thing".
  */
-.subsection { border-top: 2px solid var(--line); }
+.subsection { border-top: 1px solid var(--line); }
 .subhead {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding: 11px 16px;
-  background: #f1f5f9;
-  border-bottom: 1px solid var(--line);
+  padding: 14px 16px 2px;
 }
 .subhead h3 {
-  margin: 0; font-size: 13px; font-weight: 700;
-  letter-spacing: 0.09em; text-transform: uppercase; color: #475569;
+  display: flex; align-items: center; gap: 9px;
+  margin: 0; font-size: 12.5px; font-weight: 800;
+  letter-spacing: 0.1em; text-transform: uppercase; color: #475569;
+}
+.subhead h3::before {
+  content: ''; width: 3px; height: 15px; border-radius: 2px;
+  background: var(--accent); flex: none;
 }
 
 /* ------------------------------------------------------------ ai section */
 /*
- * Marked out as the one section a machine wrote.
+ * The one section a machine wrote, and it says so without a label.
  *
- * A violet rail and tint, borrowed from nothing else on the page, so a reader
- * never has to wonder which of these opinions came from a person. The pulse
- * runs only while it is reading — an animation that never stops is a distraction
- * rather than a signal.
+ * A violet wash across the whole section — not just its heading — so a reader
+ * never has to work out which of these opinions came from a person. Violet is
+ * used nowhere else on this page.
+ *
+ * The pulse runs only while it is reading. An animation that never stops is a
+ * distraction rather than a signal.
  */
-.subsection.ai .subhead {
-  background: linear-gradient(90deg, #f5f3ff 0%, #faf5ff 60%, #f8fafc 100%);
-  border-left: 3px solid var(--violet);
-}
+.subsection.ai { background: #faf8ff; border-top-color: #ddd6fe; }
 .subsection.ai .subhead h3 { color: #6d28d9; }
-.subsection.ai .body { border-left: 3px solid #ede9fe; }
+.subsection.ai .subhead h3::before { background: var(--violet); }
+.subsection.ai .body { background: transparent; }
 
-.subsection.ai.thinking .subhead {
-  animation: aipulse 1.5s ease-in-out infinite;
-}
+.subsection.ai.thinking { animation: aipulse 1.6s ease-in-out infinite; }
 @keyframes aipulse {
-  0%, 100% { background: linear-gradient(90deg, #f5f3ff, #faf5ff 60%, #f8fafc); }
-  50% { background: linear-gradient(90deg, #ede9fe, #f3e8ff 60%, #eef2ff); }
+  0%, 100% { background: #faf8ff; }
+  50% { background: #f1ebff; }
 }
 
 /* Same size as everything else in the panel — it was set two steps smaller and
@@ -585,5 +588,5 @@ html, body { height: 100%; }
 .verdict.muted { background: var(--line); color: var(--muted); }
 
 @media (prefers-reduced-motion: reduce) {
-  .subsection.ai.thinking .subhead { animation: none; }
+  .subsection.ai.thinking { animation: none; }
 }

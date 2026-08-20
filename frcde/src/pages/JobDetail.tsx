@@ -233,8 +233,11 @@ export default function JobDetail() {
       <div className="detail-head">
         <div>
           <h2>{job.asset.name}</h2>
+          {/* Length and type used to sit here as well as in the asset card
+              beside the map. One owner each: the header carries the name and
+              when it is due — what a reviewer scans for — and the physical
+              facts live in the card that is about the drain. */}
           <div className="facts">
-            {job.asset.length_m.toFixed(0)} m · {job.asset.type.replace(/_/g, ' ')} ·{' '}
             <span className={`due-${inQueue ? dueLabel(job.due_at).severity : 'later'}`}>
               {dueLabel(job.due_at).text}
             </span>{' '}
@@ -289,6 +292,18 @@ export default function JobDetail() {
           * thing being read.
           */}
         <div className="col">
+          {/* ------------------------------------------------------- asset */}
+          <div className="panel">
+            <header><h2>Asset</h2></header>
+            <div className="body">
+              <dl className="kv">
+                <dt>Asset ID</dt><dd>{job.asset.id}</dd>
+                <dt>Type</dt><dd style={{ textTransform: 'capitalize' }}>{job.asset.type.replace(/_/g, ' ')}</dd>
+                <dt>Length</dt><dd>{job.asset.length_m.toFixed(1)} m</dd>
+              </dl>
+            </div>
+          </div>
+
         <div className="panel">
           <header>
             <h2>Coverage</h2>
@@ -306,18 +321,6 @@ export default function JobDetail() {
             <span><i style={{ background: '#f59e0b', height: 10, width: 10, borderRadius: '50%' }} />Photograph</span>
           </div>
         </div>
-
-{/* ------------------------------------------------------- asset */}
-          <div className="panel">
-            <header><h2>Asset</h2></header>
-            <div className="body">
-              <dl className="kv">
-                <dt>Asset ID</dt><dd>{job.asset.id}</dd>
-                <dt>Type</dt><dd style={{ textTransform: 'capitalize' }}>{job.asset.type.replace(/_/g, ' ')}</dd>
-                <dt>Length</dt><dd>{job.asset.length_m.toFixed(1)} m</dd>
-              </dl>
-            </div>
-          </div>
 
           {/* Access notes and hazards live here rather than in the read-only
               asset card: they are the only part of a drain's record a
@@ -499,9 +502,6 @@ export default function JobDetail() {
             <div className="subsection">
               <div className="subhead">
                 <h3>Checklist</h3>
-                <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-                  {current.checklist.template_id} v{current.checklist.template_version}
-                </span>
               </div>
               <div className="body">
                 {(sections.length ? sections : [{ id: '_', title: '' }]).map((sec) => {
