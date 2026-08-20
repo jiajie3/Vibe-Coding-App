@@ -673,6 +673,7 @@ export default function JobDetail() {
           coveragePct={serverPct}
           gapCount={current.uncovered_ranges.length}
           inspectionId={current.id}
+          review={current.ai_review}
           busy={busy}
           onCancel={() => setRejecting(false)}
           onSubmit={(d) => review('rejected', d.reason)}

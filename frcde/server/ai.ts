@@ -438,6 +438,17 @@ One or two sentences. No greeting, no sign-off, no apology. Say what is wrong
 and what to do about it, concretely, using the chainages and the field names
 from the report where they help.
 
+Rejecting is the supervisor's decision, already taken. You are not being asked
+whether it is right, and you must NOT manufacture grounds for it. If the record
+genuinely does not support sending this back, say so: choose "other" and write a
+note asking the inspector to expect the supervisor's own explanation. A drafted
+reason that invents a fault is worse than no draft, because it goes out over the
+supervisor's name and the inspector will act on it.
+
+Where a reading of this inspection is supplied below, stay consistent with it.
+Two accounts of the same drain that disagree is how a reviewer stops trusting
+either.
+
 Also choose the single reason code that best fits:
   coverage_gaps           stretches of the drain were not walked
   insufficient_photos     defects reported without photographs to support them
@@ -460,11 +471,22 @@ const DRAFT_SCHEMA = {
 } as const;
 
 /** Returns null when it cannot draft — the console then says so rather than guessing. */
-export async function draftRejection(input: ReviewInput): Promise<RejectionDraft | null> {
+export async function draftRejection(
+  input: ReviewInput,
+  /** What the check on the review page concluded, when it has been run. */
+  priorReading?: string,
+): Promise<RejectionDraft | null> {
   if (!isConfigured()) return null;
 
   const rules = ruleConcerns(input);
   const content: unknown[] = [{ type: 'text', text: describe(input, rules) }];
+  if (priorReading) {
+    content.push({
+      type: 'text',
+      text: `A READING OF THIS INSPECTION HAS ALREADY BEEN MADE:
+${priorReading}`,
+    });
+  }
   for (const p of input.photos.slice(0, MAX_PHOTOS)) {
     try {
       const b64 = readFileSync(p.path).toString('base64');

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import { api } from '../api.ts';
+import type { AiReview } from '../api.ts';
 import { toast } from '../toast.ts';
 
 /**
@@ -53,6 +54,7 @@ export default function RejectInspection({
   coveragePct,
   gapCount,
   inspectionId,
+  review,
   busy,
   onCancel,
   onSubmit,
@@ -60,6 +62,7 @@ export default function RejectInspection({
   coveragePct: number;
   gapCount: number;
   inspectionId: string;
+  review: AiReview | null | undefined;
   busy: boolean;
   onCancel: () => void;
   onSubmit: (draft: RejectionDraft) => void;
@@ -125,6 +128,26 @@ export default function RejectInspection({
           Coverage {coveragePct.toFixed(0)}%
           {gapCount > 0 && ` · ${gapCount} stretch${gapCount === 1 ? '' : 'es'} not walked`}
         </div>
+
+        {/*
+          * What the check on the review page concluded, shown here.
+          *
+          * Rejecting after it said the inspection looked approvable is a
+          * perfectly good decision — a supervisor knows things the model does
+          * not. But it is worth seeing at the moment of deciding, rather than
+          * discovering later that the two records disagree. It is also the case
+          * where a drafted reason is thinnest, because there was little wrong in
+          * the record to write about.
+          */}
+        {review && review.verdict !== 'skipped' && (
+          <div className={`modal-note${review.verdict === 'looks_sound' ? ' warn' : ''}`}>
+            {review.verdict === 'looks_sound'
+              ? 'The AI check thought this looked approvable. Rejecting is still your call — but a drafted reason may be thin.'
+              : review.verdict === 'likely_reject'
+                ? 'The AI check also thought this should go back.'
+                : 'The AI check flagged something worth a look.'}
+          </div>
+        )}
 
         <label>
           Reason

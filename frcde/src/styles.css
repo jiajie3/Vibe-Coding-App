@@ -600,3 +600,6 @@ html, body { height: 100%; }
   display: flex; align-items: center; justify-content: space-between;
   gap: 12px; width: 100%;
 }
+
+/* A note that is a caution rather than context. */
+.modal-note.warn { background: #fffbeb; border-color: #fcd34d; color: #78350f; }

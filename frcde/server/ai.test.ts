@@ -501,3 +501,36 @@ test('with no key it declines to draft rather than inventing one', async () => {
     if (saved) process.env.OPENAI_API_KEY = saved;
   }
 });
+
+test('the draft is told not to manufacture grounds, and to follow the earlier reading', async () => {
+  const saved = process.env.OPENAI_API_KEY;
+  const savedFetch = globalThis.fetch;
+  process.env.OPENAI_API_KEY = 'sk-test';
+  let sent = '';
+  globalThis.fetch = async (_url: RequestInfo | URL, init?: RequestInit) => {
+    sent = String(init?.body ?? '');
+    return new Response(
+      JSON.stringify({
+        choices: [{ message: { content: JSON.stringify({ code: 'other', note: 'x' }) } }],
+      }),
+      { status: 200 },
+    );
+  };
+  try {
+    await draftRejection(base(), 'Verdict: looks_sound. Full coverage, photographs match.');
+
+    // Asked to justify a rejection, a model will always find something. That is
+    // the failure worth guarding: an invented fault goes out over the
+    // supervisor's name and the inspector acts on it.
+    assert.match(sent, /must NOT manufacture grounds/);
+    assert.match(sent, /invents a fault is worse than no draft/);
+
+    // And the two readings must not contradict each other in front of one person.
+    assert.match(sent, /A READING OF THIS INSPECTION HAS ALREADY BEEN MADE/);
+    assert.match(sent, /looks_sound/);
+  } finally {
+    globalThis.fetch = savedFetch;
+    if (saved) process.env.OPENAI_API_KEY = saved;
+    else delete process.env.OPENAI_API_KEY;
+  }
+});

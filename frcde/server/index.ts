@@ -706,7 +706,14 @@ app.post('/v1/console/inspections/:id/draft-rejection', async (req, res) => {
   const input = reviewInputFor(insp);
   if (!input) return problem(res, 404, 'Job not found');
 
-  const draft = await ai.draftRejection(input);
+  // The check from the review page, when there is one, so the two readings
+  // cannot contradict each other in front of the same supervisor.
+  const draft = await ai.draftRejection(
+    input,
+    insp.ai_review && insp.ai_review.verdict !== 'skipped'
+      ? `Verdict: ${insp.ai_review.verdict}. ${insp.ai_review.explanation}`
+      : undefined,
+  );
   if (!draft) {
     return problem(
       res,
