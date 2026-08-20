@@ -30,14 +30,6 @@ const DISPATCHED = ['available', 'accepted', 'in_progress', 'submitted'];
 const emphasis = (j: JobRecord) =>
   DISPATCHED.includes(j.status) ? dueLabel(j.due_at).severity : 'later';
 
-function relativeTime(iso: string): string {
-  const secs = Math.round((Date.now() - Date.parse(iso)) / 1000);
-  if (secs < 90) return 'just now';
-  if (secs < 3600) return `${Math.round(secs / 60)} min ago`;
-  if (secs < 86_400) return `${Math.round(secs / 3600)} h ago`;
-  return new Date(iso).toLocaleString();
-}
-
 const esc = (s: string) =>
   s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
@@ -351,12 +343,6 @@ export default function Dashboard() {
         <div className="panel">
           <header>
             <h2>Drain network</h2>
-            <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-              {dispatched.length} queued
-              {filter === 'all'
-                ? ` · ${notQueued.length} not queued · hover any marker`
-                : ' · closed drains hidden'}
-            </span>
           </header>
           <div className="maprow">
             <DrainMap layers={layers} pins={allPins} fitTo={fitTo} />
@@ -422,12 +408,7 @@ export default function Dashboard() {
           {/* Evidence that the queue maintains itself. A supervisor should be
               able to see the scheduler is running, not be asked to run it. */}
           {data.scheduler && (
-            <div className="schedbar">
-              Auto-scheduling on · checked {data.scheduler.checked} closed drains{' '}
-              {relativeTime(data.scheduler.last_run_at)}
-              {data.scheduler.queued.length > 0 &&
-                ` · queued ${data.scheduler.queued.join(', ')}`}
-            </div>
+            <div className="schedbar">Auto-scheduling on</div>
           )}
 
           <div className="queue">
