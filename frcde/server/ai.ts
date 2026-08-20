@@ -391,6 +391,127 @@ function describe(input: ReviewInput, rules: Concern[]): string {
     .join('\n');
 }
 
+/* ----------------------------------------------------- drafting a rejection */
+
+/**
+ * The reason codes the console offers.
+ *
+ * Duplicated in RejectInspection.tsx, which owns their labels and hints. Kept
+ * as bare strings on both sides rather than shared through a module: the console
+ * is a separate bundle, and a code that drifts shows up immediately as a reason
+ * that will not select.
+ */
+export const REJECTION_CODES = [
+  'coverage_gaps',
+  'insufficient_photos',
+  'checklist_incomplete',
+  'photo_quality',
+  'override_not_justified',
+  'other',
+] as const;
+
+export interface RejectionDraft {
+  code: (typeof REJECTION_CODES)[number];
+  note: string;
+}
+
+/**
+ * Write the sentence the inspector will read, not the one the reviewer read.
+ *
+ * The review explains an inspection to a supervisor: "a supervisor should ask
+ * the inspector for clearer photographs". Pasted into a rejection that goes
+ * back to the inspector, it addresses them in the third person about
+ * themselves. Same facts, wrong reader — so this is its own prompt rather than
+ * a reuse of that text.
+ *
+ * It also picks the reason code, because the reviewer would otherwise read the
+ * draft and then hunt for the category it obviously belongs to.
+ */
+const DRAFT_SYSTEM = `You are drafting a short message to the field inspector who
+walked this drain, explaining why their inspection is being sent back.
+
+Write TO the inspector, in the second person. "Please re-walk the last 120 m" —
+not "the supervisor should ask the inspector to re-walk". Never refer to them in
+the third person, and never refer to the supervisor at all.
+
+One or two sentences. No greeting, no sign-off, no apology. Say what is wrong
+and what to do about it, concretely, using the chainages and the field names
+from the report where they help.
+
+Also choose the single reason code that best fits:
+  coverage_gaps           stretches of the drain were not walked
+  insufficient_photos     defects reported without photographs to support them
+  checklist_incomplete    answers missing, contradictory or clearly wrong
+  photo_quality           photographs blurred, too dark, or not showing the defect
+  override_not_justified  submitted short of coverage without an adequate reason
+  other                   none of the above fits`;
+
+const DRAFT_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['code', 'note'],
+  properties: {
+    code: { type: 'string', enum: [...REJECTION_CODES] },
+    note: {
+      type: 'string',
+      description: 'One or two sentences addressed directly to the inspector.',
+    },
+  },
+} as const;
+
+/** Returns null when it cannot draft — the console then says so rather than guessing. */
+export async function draftRejection(input: ReviewInput): Promise<RejectionDraft | null> {
+  if (!isConfigured()) return null;
+
+  const rules = ruleConcerns(input);
+  const content: unknown[] = [{ type: 'text', text: describe(input, rules) }];
+  for (const p of input.photos.slice(0, MAX_PHOTOS)) {
+    try {
+      const b64 = readFileSync(p.path).toString('base64');
+      content.push({
+        type: 'text',
+        text: `Photograph ${p.id}${
+          p.field_label ? ` filed under "${p.field_label}" (answered "${p.field_answer ?? '—'}")` : ''
+        }.`,
+      });
+      content.push({
+        type: 'image_url',
+        image_url: { url: `data:image/jpeg;base64,${b64}`, detail: imageDetail() },
+      });
+    } catch {
+      // A photograph that cannot be read is not a reason to abandon the draft.
+    }
+  }
+
+  try {
+    const res = await fetch(API, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey()}` },
+      body: JSON.stringify({
+        model: model(),
+        temperature: 0,
+        messages: [
+          { role: 'system', content: DRAFT_SYSTEM },
+          { role: 'user', content },
+        ],
+        response_format: {
+          type: 'json_schema',
+          json_schema: { name: 'rejection_draft', strict: true, schema: DRAFT_SCHEMA },
+        },
+      }),
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+    const raw = body.choices?.[0]?.message?.content;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as RejectionDraft;
+    if (!REJECTION_CODES.includes(parsed.code)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 /* --------------------------------------------------------------- call */
 
 /** Rule findings as prose, so they can lead an explanation rather than sit in a list. */

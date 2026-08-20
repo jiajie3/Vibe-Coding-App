@@ -15,7 +15,14 @@ import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-import { PROMPT_VERSION, isConfigured, reviewInspection, ruleConcerns } from './ai.ts';
+import {
+  PROMPT_VERSION,
+  REJECTION_CODES,
+  draftRejection,
+  isConfigured,
+  reviewInspection,
+  ruleConcerns,
+} from './ai.ts';
 import type { ReviewInput } from './ai.ts';
 
 const base = (over: Partial<ReviewInput> = {}): ReviewInput => ({
@@ -403,5 +410,94 @@ test('a photograph reaches the model with its question, answer and origin', asyn
     globalThis.fetch = savedFetch;
     if (saved) process.env.OPENAI_API_KEY = saved;
     else delete process.env.OPENAI_API_KEY;
+  }
+});
+
+/* --------------------------------------------------- drafting a rejection */
+
+test('the draft is addressed to the inspector, not about them', async () => {
+  const saved = process.env.OPENAI_API_KEY;
+  const savedFetch = globalThis.fetch;
+  process.env.OPENAI_API_KEY = 'sk-test';
+  let sent = '';
+  globalThis.fetch = async (_url: RequestInfo | URL, init?: RequestInit) => {
+    sent = String(init?.body ?? '');
+    return new Response(
+      JSON.stringify({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                code: 'coverage_gaps',
+                note: 'Please re-walk from chainage 490 to the outfall.',
+              }),
+            },
+          },
+        ],
+      }),
+      { status: 200 },
+    );
+  };
+  try {
+    const d = await draftRejection(base());
+    assert.equal(d?.code, 'coverage_gaps');
+    assert.match(d!.note, /Please re-walk/);
+
+    // The failure this guards against: the review explains an inspection to a
+    // supervisor, so its words address the inspector in the third person about
+    // themselves. The drafting prompt has to say otherwise, explicitly.
+    assert.match(sent, /Write TO the inspector, in the second person/);
+    assert.match(sent, /never refer to the supervisor at all/);
+  } finally {
+    globalThis.fetch = savedFetch;
+    if (saved) process.env.OPENAI_API_KEY = saved;
+    else delete process.env.OPENAI_API_KEY;
+  }
+});
+
+test('a code the console does not offer is refused rather than passed on', async () => {
+  const saved = process.env.OPENAI_API_KEY;
+  const savedFetch = globalThis.fetch;
+  process.env.OPENAI_API_KEY = 'sk-test';
+  globalThis.fetch = async () =>
+    new Response(
+      JSON.stringify({
+        choices: [{ message: { content: JSON.stringify({ code: 'made_up', note: 'x' }) } }],
+      }),
+      { status: 200 },
+    );
+  try {
+    // A code with no button behind it would select nothing and look broken.
+    assert.equal(await draftRejection(base()), null);
+  } finally {
+    globalThis.fetch = savedFetch;
+    if (saved) process.env.OPENAI_API_KEY = saved;
+    else delete process.env.OPENAI_API_KEY;
+  }
+});
+
+test('the codes match the ones the console renders', () => {
+  // RejectInspection.tsx owns their labels; these are the same strings, and a
+  // drift shows up as a reason that will not select.
+  assert.deepEqual(
+    [...REJECTION_CODES],
+    [
+      'coverage_gaps',
+      'insufficient_photos',
+      'checklist_incomplete',
+      'photo_quality',
+      'override_not_justified',
+      'other',
+    ],
+  );
+});
+
+test('with no key it declines to draft rather than inventing one', async () => {
+  const saved = process.env.OPENAI_API_KEY;
+  delete process.env.OPENAI_API_KEY;
+  try {
+    assert.equal(await draftRejection(base()), null);
+  } finally {
+    if (saved) process.env.OPENAI_API_KEY = saved;
   }
 });

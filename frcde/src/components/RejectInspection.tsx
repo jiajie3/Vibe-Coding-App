@@ -1,7 +1,6 @@
 import { useState } from 'react';
 
 import { api } from '../api.ts';
-import type { AiReview } from '../api.ts';
 import { toast } from '../toast.ts';
 
 /**
@@ -54,7 +53,6 @@ export default function RejectInspection({
   coveragePct,
   gapCount,
   inspectionId,
-  review,
   busy,
   onCancel,
   onSubmit,
@@ -62,7 +60,6 @@ export default function RejectInspection({
   coveragePct: number;
   gapCount: number;
   inspectionId: string;
-  review: AiReview | null | undefined;
   busy: boolean;
   onCancel: () => void;
   onSubmit: (draft: RejectionDraft) => void;
@@ -75,27 +72,26 @@ export default function RejectInspection({
   const needsNote = code === 'other';
 
   /**
-   * Borrow the AI check's own words.
+   * Ask for a draft written to the inspector, and the reason it fits.
    *
-   * It has already read the coverage, the answers and the photographs and said
-   * what is wrong with them — which is the paragraph a reviewer is about to
-   * write by hand. Reuses an existing check rather than paying for another.
+   * Not the AI check's own words. That paragraph explains an inspection to a
+   * supervisor — "a supervisor should ask the inspector for clearer
+   * photographs" — and pasted here it addresses the inspector in the third
+   * person about themselves. Same facts, wrong reader, so the server asks for
+   * this separately.
    *
-   * A draft, never a send: it lands in the box for the supervisor to edit, and
-   * the rejection still goes out under their name.
+   * It picks the reason too, since a reviewer handed a draft would otherwise
+   * read it and then go hunting for the category it obviously belongs to.
+   *
+   * A draft, never a send: it lands in the box to be edited, and the rejection
+   * still goes out under the supervisor's name.
    */
   const draft = async () => {
     setDrafting(true);
     try {
-      const r = review ?? (await api.rerunAiReview(inspectionId));
-      if (!r || r.verdict === 'skipped') {
-        toast.error(
-          r?.explanation ?? 'The check has not run',
-          'Nothing to draft from — run the AI check first',
-        );
-        return;
-      }
-      setNotes(r.explanation);
+      const d = await api.draftRejection(inspectionId);
+      setNotes(d.note);
+      if (REASONS.some((r) => r.code === d.code)) setCode(d.code);
       setError(null);
     } catch (e) {
       toast.error(e, 'Could not draft a reason');

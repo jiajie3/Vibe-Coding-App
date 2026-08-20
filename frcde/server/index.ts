@@ -690,6 +690,36 @@ app.post('/v1/console/inspections/:id/ai-review', async (req, res) => {
   res.json(store.inspection(insp.id)?.ai_review ?? null);
 });
 
+/**
+ * Draft the message a rejection will carry.
+ *
+ * Separate from the review because the reader is different: the review explains
+ * an inspection to a supervisor, and this is written to the inspector who
+ * walked the drain. Same facts, opposite end of the conversation.
+ *
+ * It returns a suggestion, never a rejection — the console puts it in the box
+ * for the supervisor to edit, and the decision still goes out under their name.
+ */
+app.post('/v1/console/inspections/:id/draft-rejection', async (req, res) => {
+  const insp = store.inspection(req.params.id);
+  if (!insp) return problem(res, 404, 'Inspection not found');
+  const input = reviewInputFor(insp);
+  if (!input) return problem(res, 404, 'Job not found');
+
+  const draft = await ai.draftRejection(input);
+  if (!draft) {
+    return problem(
+      res,
+      503,
+      'Could not draft',
+      ai.isConfigured()
+        ? 'The model did not return a usable draft. Write the reason yourself.'
+        : 'No OPENAI_API_KEY is configured, so nothing can be drafted.',
+    );
+  }
+  res.json(draft);
+});
+
 /* ------------------------------------------------- console-only endpoints */
 
 app.get('/v1/console/overview', (_req, res) => {
