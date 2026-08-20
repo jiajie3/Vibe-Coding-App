@@ -71,13 +71,24 @@ a { color: inherit; text-decoration: none; }
    surface, so neither should crowd the other — and at half width the panel has
    room for the larger type without every row wrapping. */
 .split {
+  /*
+   * Both panels are exactly this tall, and each scrolls inside itself.
+   *
+   * `align-items: stretch` alone was not enough: a grid row is as tall as its
+   * tallest child, so an unbounded list of forty drains made the row enormous
+   * and dragged the map panel along with it. The row height has to be stated,
+   * not inferred from content.
+   *
+   * `--maph` is the map area, unchanged from before. The row adds roughly the
+   * header and legend that sit around it, so the map itself keeps the size it
+   * had — a slim map needs the vertical room or a north-south drain like Sungei
+   * Ulu Pandan barely fits.
+   */
+  --maph: clamp(460px, 72vh, 980px);
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-auto-rows: calc(var(--maph) + 94px);
   gap: 16px;
-  /* Stretch, not start: the queue should end level with the map rather than
-     stopping wherever its content happens to run out. The map sets the height
-     — it is the one with a fixed aspect worth preserving — and the queue fills
-     whatever that comes to. */
   align-items: stretch;
 }
 @media (max-width: 1200px) { .split { grid-template-columns: minmax(0, 1fr); } }
@@ -96,9 +107,8 @@ a { color: inherit; text-decoration: none; }
 .panel > header h2 { margin: 0; font-size: 18.5px; font-weight: 700; }
 .panel .body { padding: 14px 16px; }
 
-/* Taller, to compensate for being narrower — a slim map needs vertical room or
-   a north-south drain like Sungei Ulu Pandan barely fits. */
-.maprow { height: clamp(460px, 72vh, 980px); }
+/* Fills the panel between header and legend. */
+.maprow { flex: 1; min-height: 0; }
 .maprow .maplibregl-map { border-radius: var(--radius); }
 
 /* ------------------------------------------------------------------ queue */

@@ -8,7 +8,7 @@ import {
   auth,
   AuthError,
   dueLabel,
-  FLAG_WITHIN_DAYS,
+  DUE_COLOUR,
   jobStatusColour,
   jobStatusLabel,
   STATUS_COLOUR,
@@ -163,28 +163,38 @@ export default function Dashboard() {
     [visible, filter],
   );
 
-  /* The estate underneath, today's work on top. The closed network was
-     previously drawn in near-white at 3px, which is invisible over OSM raster
-     tiles — it needs enough contrast to read as a real layer. */
+  /*
+   * Coloured by when a drain is due, not by what status its job is in.
+   *
+   * The legend has always described due-ness — overdue, due soon, later — while
+   * the map underneath was grouping by job status and colouring from a different
+   * table. The two happened to look similar and meant different things, so a
+   * drain pushed into the queue changed colour for reasons the legend could not
+   * explain.
+   *
+   * `emphasis` and `DUE_COLOUR` are the same ones the job rows and the phone
+   * use, so a colour means one thing across the whole system.
+   *
+   * Drawn later → soon → overdue, so the urgent ones sit on top where two drains
+   * overlap. The closed network stays thinner: it is the estate underneath, and
+   * it was once drawn in near-white at 3px, which is invisible over OSM tiles.
+   */
   const layers: MapLayer[] = useMemo(() => {
-    const out: MapLayer[] = [
-      {
-        id: 'network',
-        lines: notQueued.map((j) => j.asset.geometry.coordinates),
-        colour: '#7c8da3',
-        width: 4,
-      },
-    ];
-    const byStatus = new Map<string, number[][][]>();
-    for (const j of dispatched) {
-      const list = byStatus.get(j.status) ?? [];
+    const buckets = new Map<string, number[][][]>();
+    for (const j of [...notQueued, ...dispatched]) {
+      const sev = emphasis(j);
+      const list = buckets.get(sev) ?? [];
       list.push(j.asset.geometry.coordinates);
-      byStatus.set(j.status, list);
+      buckets.set(sev, list);
     }
-    for (const [status, lines] of byStatus) {
-      out.push({ id: status, lines, colour: STATUS_COLOUR[status] ?? '#64748b', width: 7 });
-    }
-    return out;
+    return (['later', 'soon', 'overdue'] as const)
+      .map((sev) => ({
+        id: sev,
+        lines: buckets.get(sev) ?? [],
+        colour: DUE_COLOUR[sev],
+        width: sev === 'later' ? 4 : 7,
+      }))
+      .filter((l) => l.lines.length > 0);
   }, [dispatched, notQueued]);
 
   const popupFor = useCallback(
@@ -307,7 +317,7 @@ export default function Dashboard() {
         </div>
         <div className="kpi soon">
           <div className="v">{dueSoon}</div>
-          <div className="k">Due within {FLAG_WITHIN_DAYS}d</div>
+          <div className="k">Due soon</div>
         </div>
         <div className="kpi review">
           <div className="v">{s.submitted}</div>
@@ -351,13 +361,13 @@ export default function Dashboard() {
           <div className="maprow">
             <DrainMap layers={layers} pins={allPins} fitTo={fitTo} />
           </div>
+          {/* Three entries, and the map uses these exact colours — from the
+              same DUE_COLOUR table, so the legend cannot drift from what is
+              drawn. */}
           <div className="legend">
-            <span><i style={{ background: '#dc2626' }} />Overdue</span>
-            <span><i style={{ background: '#f59e0b' }} />Due within {FLAG_WITHIN_DAYS}d</span>
-            <span><i style={{ background: '#475569' }} />Queued, due later</span>
-            {filter === 'all' && (
-              <span><i style={{ background: '#7c8da3' }} />Not queued</span>
-            )}
+            <span><i style={{ background: DUE_COLOUR.overdue }} />Overdue</span>
+            <span><i style={{ background: DUE_COLOUR.soon }} />Due soon</span>
+            <span><i style={{ background: DUE_COLOUR.later }} />Not due</span>
           </div>
         </div>
 
