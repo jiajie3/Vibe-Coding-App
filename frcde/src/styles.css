@@ -153,6 +153,9 @@ a { color: inherit; text-decoration: none; }
 .btn.primary.tiny { background: var(--green); color: #fff; }
 .jobrow .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .jobrow .ref { font-size: 14.5px; font-weight: 700; color: var(--muted); letter-spacing: 0.4px; }
+/* The name shares the top line with the status pill, so no leading margin here.
+   It takes the slack so the pill stays hard right however short the name is. */
+.jobrow .top .name { flex: 1; min-width: 0; margin-top: 0; }
 .jobrow .name { font-weight: 650; margin-top: 3px; }
 .jobrow .meta { font-size: 15.5px; color: var(--muted); margin-top: 3px; display: flex; gap: 6px; flex-wrap: wrap; }
 .jobrow .bar { height: 4px; border-radius: 2px; background: var(--line); margin-top: 8px; overflow: hidden; }

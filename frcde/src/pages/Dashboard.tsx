@@ -455,13 +455,16 @@ function QueueRow({
   return (
     <div className="jobrow">
       <div onClick={onOpen} style={{ cursor: 'pointer' }}>
+        {/* Name and status on one line. The inspection reference used to sit
+            above them, which cost a row in a list that scrolls and told a
+            supervisor nothing they were scanning for — they look for the drain,
+            not for INS-2026-004017. It is still on the drain's own page. */}
         <div className="top">
-          <span className="ref">{job.reference}</span>
+          <div className="name">{job.asset.name}</div>
           <span className="pill" style={{ background: jobStatusColour(job) }}>
             {jobStatusLabel(job)}
           </span>
         </div>
-        <div className="name">{job.asset.name}</div>
         <div className="meta">
           <span>{job.asset.length_m.toFixed(0)} m</span>
           <span>·</span>
