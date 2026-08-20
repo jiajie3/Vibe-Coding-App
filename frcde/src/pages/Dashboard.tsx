@@ -339,7 +339,7 @@ export default function Dashboard() {
         </Confirm>
       )}
 
-      <div className="split">
+      <div className="split dashsplit">
         <div className="panel">
           <header>
             <h2>Drain network</h2>

@@ -224,11 +224,15 @@ export default function JobDetail() {
 
   return (
     <div className="page">
-      <Link to="/" className="crumb">‹ Dashboard</Link>
+      {/* A button, not a link in body text. Leaving a record is the second
+          most common thing done on this page and it was a line of small blue
+          text competing with a 32px drain name directly beneath it. */}
+      <Link to="/" className="crumb">
+        <span aria-hidden="true">←</span> Back to dashboard
+      </Link>
 
       <div className="detail-head">
         <div>
-          <span className="ref">{job.reference}</span>
           <h2>{job.asset.name}</h2>
           <div className="facts">
             {job.asset.length_m.toFixed(0)} m · {job.asset.type.replace(/_/g, ' ')} ·{' '}
@@ -274,7 +278,18 @@ export default function JobDetail() {
         </div>
       )}
 
-      <div className="split">
+      <div className="split detailsplit">
+        {/*
+          * Two columns that end level, each scrolling inside itself.
+          *
+          * Everything except the map used to be stacked in the right-hand
+          * column, so a completed inspection ran for several screens beside a
+          * map with nothing under it. Split by what the reader is doing: the
+          * left is the drain — where it is, what it is, what to know before
+          * going — and stays put. The right is this inspection, and is the
+          * thing being read.
+          */}
+        <div className="col">
         <div className="panel">
           <header>
             <h2>Coverage</h2>
@@ -293,8 +308,52 @@ export default function JobDetail() {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gap: 16 }}>
-          {/* ------------------------------------------------------ result */}
+{/* ------------------------------------------------------- asset */}
+          <div className="panel">
+            <header><h2>Asset</h2></header>
+            <div className="body">
+              <dl className="kv">
+                <dt>Asset ID</dt><dd>{job.asset.id}</dd>
+                <dt>Type</dt><dd style={{ textTransform: 'capitalize' }}>{job.asset.type.replace(/_/g, ' ')}</dd>
+                <dt>Length</dt><dd>{job.asset.length_m.toFixed(1)} m</dd>
+              </dl>
+            </div>
+          </div>
+
+          {/* Access notes and hazards live here rather than in the read-only
+              asset card: they are the only part of a drain's record a
+              supervisor is expected to change, and they reach the handset. */}
+          <SiteNotes job={job} onSaved={load} />
+
+          {/* Only when the drain has genuinely been inspected more than once.
+              This used to appear for a single inspection because superseded
+              attempts were counted — which read as duplicated history for work
+              that had only been done once. */}
+          {attempts.length > 1 && (
+            <div className="panel">
+              <header><h2>Previous inspections</h2></header>
+              <div className="body" style={{ display: 'grid', gap: 6 }}>
+                {attempts.map((i, n) => (
+                  <button
+                    key={i.id}
+                    className={`answer histrow${i.id === current?.id ? ' active' : ''}`}
+                    onClick={() => setSelected(i.id)}
+                  >
+                    <span className="q">
+                      Attempt {attempts.length - n} · {new Date(i.started_at).toLocaleDateString()}
+                    </span>
+                    <span className="a">
+                      {(i.server_coverage_pct ?? 0).toFixed(0)}% · {i.status}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="col">
+{/* ------------------------------------------------------ result */}
           <div className="panel">
             <header>
               <h2>Result</h2>
@@ -540,20 +599,6 @@ export default function JobDetail() {
             </div>
           )}
 
-          {/* ------------------------------------------------------- asset */}
-          <div className="panel">
-            <header><h2>Asset</h2></header>
-            <div className="body">
-              <dl className="kv">
-                <dt>Asset ID</dt><dd>{job.asset.id}</dd>
-                <dt>Type</dt><dd style={{ textTransform: 'capitalize' }}>{job.asset.type.replace(/_/g, ' ')}</dd>
-                <dt>Length</dt><dd>{job.asset.length_m.toFixed(1)} m</dd>
-                <dt>Segments</dt><dd>{job.asset.segment_boundaries_m.length - 1} × {job.inspection_rules.segment_length_m} m</dd>
-                <dt>Corridor</dt><dd>±{job.inspection_rules.corridor_tolerance_m} m</dd>
-              </dl>
-            </div>
-          </div>
-
           {/* -------------------------------------------------- work orders */}
           <div className="panel">
             <header>
@@ -600,37 +645,6 @@ export default function JobDetail() {
               </div>
             </div>
           </div>
-
-          {/* Access notes and hazards live here rather than in the read-only
-              asset card: they are the only part of a drain's record a
-              supervisor is expected to change, and they reach the handset. */}
-          <SiteNotes job={job} onSaved={load} />
-
-          {/* Only when the drain has genuinely been inspected more than once.
-              This used to appear for a single inspection because superseded
-              attempts were counted — which read as duplicated history for work
-              that had only been done once. */}
-          {attempts.length > 1 && (
-            <div className="panel">
-              <header><h2>Previous inspections</h2></header>
-              <div className="body" style={{ display: 'grid', gap: 6 }}>
-                {attempts.map((i, n) => (
-                  <button
-                    key={i.id}
-                    className={`answer histrow${i.id === current?.id ? ' active' : ''}`}
-                    onClick={() => setSelected(i.id)}
-                  >
-                    <span className="q">
-                      Attempt {attempts.length - n} · {new Date(i.started_at).toLocaleDateString()}
-                    </span>
-                    <span className="a">
-                      {(i.server_coverage_pct ?? 0).toFixed(0)}% · {i.status}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
