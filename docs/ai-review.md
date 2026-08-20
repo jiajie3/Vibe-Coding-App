@@ -69,6 +69,19 @@ supervisor sees "looks sound" and moves on. That is the argument for putting
 anything enumerable into a rule, and for treating the model as the second net
 rather than the first.
 
+## The four outcomes
+
+| Shown as | Means |
+| --- | --- |
+| **Looks approvable** | Nothing needs attention beyond a glance |
+| **Worth a look** | Something specific to check before approving |
+| **Would send back** | The record does not support approval as it stands |
+| **Not checked** | It could not run, or has not been asked to yet |
+
+Each comes with a confidence and a paragraph of prose. None of them does
+anything: there is no approve or reject control in the section, and the
+supervisor's own buttons are untouched.
+
 ## What the model is for
 
 Two things rules cannot reach:
@@ -78,6 +91,16 @@ Two things rules cannot reach:
 - **Photographs.** Does the image show a drain at all? Is it too dark or too
   close to evidence anything? Does it show what was recorded — a drain reported
   as surcharged should not photograph as dry.
+- **Photographs against the question they were filed under.** Each one is sent
+  labelled with its checklist question and the answer given, so a shot attached
+  to "was the full stretch accessible? No" is judged on whether it shows
+  something blocking access. A perfectly good photograph of a drain that does
+  not evidence the answer it is filed under is still worth reporting.
+- **Where a photograph came from.** Each is marked as taken on the walk or
+  chosen from the phone's album. An album photograph is explicitly **not** a
+  reason to recommend sending an inspection back — it is normal and often
+  unavoidable. The model mentions it and suggests confirming with the inspector
+  when and where it was taken.
 
 The answer comes back as a recommendation and a paragraph of prose, not a
 taxonomy. It used to arrive as concerns split from photograph notes, each tagged

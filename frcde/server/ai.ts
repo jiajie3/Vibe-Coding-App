@@ -36,7 +36,7 @@ const API = 'https://api.openai.com/v1/chat/completions';
  * past reviews meant and there is no way to tell which ones were produced by
  * which instructions.
  */
-export const PROMPT_VERSION = 3;
+export const PROMPT_VERSION = 4;
 
 export const apiKey = () => process.env.OPENAI_API_KEY ?? '';
 export const isConfigured = () => apiKey().length > 0;
@@ -110,7 +110,26 @@ export interface ReviewInput {
     uncovered_ranges: [number, number][];
   };
   checklist: ChecklistAnswer[];
-  photos: { id: string; caption?: string; chainage_m: number | null; path: string }[];
+  photos: {
+    id: string;
+    caption?: string;
+    chainage_m: number | null;
+    path: string;
+    /**
+     * Taken during the inspection, or chosen from the phone's album.
+     *
+     * Both are legitimate evidence and neither is grounds for rejection on its
+     * own. They are not equally self-proving, though: a camera shot was taken
+     * on the walk, where a library one carries only whatever EXIF it came with
+     * and could be from anywhere, any day. Worth a word to the reviewer, not a
+     * verdict.
+     */
+    source?: 'camera' | 'library';
+    /** The checklist question this was attached to, if any. */
+    field_label?: string;
+    /** What the inspector answered that question, in words. */
+    field_answer?: string;
+  }[];
   override_reason?: string | null;
 }
 
@@ -284,9 +303,20 @@ Rules you must follow:
        with cracking, spalling or a collapsed wall.
    Say so plainly when a photograph contradicts a recorded condition. That is
    always worth reporting, however tidy the rest of the report looks.
-6. Be specific. "Remarks are vague" is useless; "remarks say 'ok' for a severity
+6. Each photograph is labelled with the checklist question it was attached to
+   and the answer given. Judge it against that answer first. A photograph
+   attached to "was the full stretch accessible? No" should show something
+   obstructing access; one attached to "blockage present? Yes" should show the
+   blockage. A photograph that does not evidence the answer it is filed under is
+   worth reporting even when it is a perfectly good photograph of a drain.
+7. Photographs are marked as taken on the walk or chosen from the phone's
+   album. An album photograph is NOT a reason to recommend sending the
+   inspection back — it is normal and often unavoidable. Mention it, and suggest
+   the reviewer confirm with the inspector when and where it was taken. Only
+   raise it further if something else about the evidence is already wrong.
+8. Be specific. "Remarks are vague" is useless; "remarks say 'ok' for a severity
    4 structural defect" is actionable.
-7. If genuinely nothing is wrong, say so plainly and return no concerns. Do not
+9. If genuinely nothing is wrong, say so plainly and return no concerns. Do not
    invent concerns to seem thorough — but do not withhold a real one because the
    report is otherwise neat.
 
@@ -352,11 +382,9 @@ function describe(input: ReviewInput, rules: Concern[]): string {
     rules.length ? rules.map((r) => `  - ${r.detail}`).join('\n') : '  (nothing)',
     '',
     input.photos.length
-      ? `PHOTOGRAPHS: ${input.photos.length} attached, below. Their ids are: ${input.photos
-          .map((p) => p.id)
-          .join(', ')}. Return one photo_note per photograph, using these ids. ` +
-        'Compare each one against the checklist answers above before deciding ' +
-        'matches_description.'
+      ? `PHOTOGRAPHS: ${input.photos.length} attached below, each labelled with ` +
+        'the checklist question it was filed under, the answer given, and whether ' +
+        'it was taken on the walk or chosen from the album.'
       : 'PHOTOGRAPHS: none attached.',
   ]
     .filter(Boolean)
@@ -398,11 +426,24 @@ export async function reviewInspection(input: ReviewInput): Promise<AiReview> {
   for (const p of input.photos.slice(0, MAX_PHOTOS)) {
     try {
       const b64 = readFileSync(p.path).toString('base64');
+      const filed = p.field_label
+        ? `Filed under "${p.field_label}", answered "${p.field_answer ?? 'not answered'}".`
+        : 'Not filed under any checklist question.';
+      const origin =
+        p.source === 'library'
+          ? 'Chosen from the album, not taken during the walk.'
+          : 'Taken during the walk.';
       content.push({
         type: 'text',
-        text: `Photograph ${p.id}${p.caption ? ` — "${p.caption}"` : ''}${
-          p.chainage_m != null ? ` (chainage ${Math.round(p.chainage_m)} m)` : ''
-        }`,
+        text: [
+          `Photograph ${p.id}.`,
+          filed,
+          origin,
+          p.caption ? `Caption: "${p.caption}".` : '',
+          p.chainage_m != null ? `Chainage ${Math.round(p.chainage_m)} m.` : '',
+        ]
+          .filter(Boolean)
+          .join(' '),
       });
       content.push({
         type: 'image_url',

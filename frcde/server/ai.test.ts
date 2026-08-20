@@ -10,6 +10,10 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const here = dirname(fileURLToPath(import.meta.url));
 
 import { PROMPT_VERSION, isConfigured, reviewInspection, ruleConcerns } from './ai.ts';
 import type { ReviewInput } from './ai.ts';
@@ -342,6 +346,59 @@ test('select answers reach the model as labels, not as codes', async () => {
     // a phrase the prompt does not wrap across a line.
     assert.match(sent, /Check every photograph against EVERY recorded condition/);
     assert.match(sent, /surcharged or overtopping should not/);
+  } finally {
+    globalThis.fetch = savedFetch;
+    if (saved) process.env.OPENAI_API_KEY = saved;
+    else delete process.env.OPENAI_API_KEY;
+  }
+});
+
+/* ------------------------------------------------- photographs in context */
+
+test('a photograph reaches the model with its question, answer and origin', async () => {
+  const saved = process.env.OPENAI_API_KEY;
+  const savedFetch = globalThis.fetch;
+  process.env.OPENAI_API_KEY = 'sk-test';
+  let sent = '';
+  globalThis.fetch = async (_url: RequestInfo | URL, init?: RequestInit) => {
+    sent = String(init?.body ?? '');
+    return new Response(
+      JSON.stringify({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({ verdict: 'looks_sound', confidence: 'high', explanation: 'x' }),
+            },
+          },
+        ],
+      }),
+      { status: 200 },
+    );
+  };
+  try {
+    await reviewInspection(
+      base({
+        photos: [
+          {
+            id: 'a1',
+            chainage_m: 120,
+            // A real file: an unreadable one is skipped entirely, image and
+            // context together, so it would prove nothing here.
+            path: resolve(here, 'routing.fixture.json'),
+            source: 'library',
+            field_label: 'Was the full stretch accessible?',
+            field_answer: 'No',
+          },
+        ],
+      }),
+    );
+    // Judging a photograph against the answer it was filed under is the whole
+    // point; without these the model sees an unlabelled picture of a drain.
+    assert.match(sent, /Filed under \\"Was the full stretch accessible\?\\"/);
+    assert.match(sent, /answered \\"No\\"/);
+    assert.match(sent, /Chosen from the album/);
+    // And an album photograph is never on its own a reason to send work back.
+    assert.match(sent, /NOT a reason to recommend sending the/);
   } finally {
     globalThis.fetch = savedFetch;
     if (saved) process.env.OPENAI_API_KEY = saved;

@@ -242,7 +242,10 @@ html, body { height: 100%; }
 .detail-head h2 { margin: 4px 0 2px; font-size: 32px; letter-spacing: -0.5px; }
 .detail-head .facts { font-size: 17.5px; color: var(--muted); }
 
-.kv { display: grid; grid-template-columns: 160px 1fr; gap: 6px 14px; font-size: 17.5px; }
+/* Tighter than it was: a three-row card had a 160px label column and generous
+   line spacing, so the asset took as much height as the map beside it for three
+   short facts. */
+.kv { display: grid; grid-template-columns: minmax(72px, auto) 1fr; gap: 2px 16px; font-size: 16.5px; }
 .kv dt { color: var(--muted); }
 .kv dd { margin: 0; font-weight: 600; }
 
@@ -267,7 +270,7 @@ html, body { height: 100%; }
 .histrow:hover { background: #f8fafc; }
 .histrow.active { background: #eff6ff; }
 
-.sec + .sec { margin-top: 14px; }
+.sec + .sec { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
 .minilabel {
   font-size: 13.5px; font-weight: 800; color: var(--muted);
   letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 6px;

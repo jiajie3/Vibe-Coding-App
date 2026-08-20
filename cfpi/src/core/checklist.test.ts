@@ -33,7 +33,6 @@ const VALID: Answers = {
   structural_condition: 'good',
   blockage_present: false,
   flow_condition: 'free',
-  inspector_signature: 'sig_018f3b55',
 };
 /** General photographs are optional, so the baseline attaches none. */
 const VALID_PHOTOS: Record<string, number> = {};

@@ -602,6 +602,19 @@ function reviewInputFor(insp: InspectionRecord): ai.ReviewInput | null {
   );
   for (const p of insp.track) tracker.addFix(p);
 
+  /** The answer a photograph was filed against, in the words the form used. */
+  const answerFor = (fieldId?: string | null): string | undefined => {
+    if (!fieldId) return undefined;
+    const raw = (answers as Record<string, unknown>)[fieldId];
+    if (raw === undefined) return undefined;
+    const f = fields.get(fieldId);
+    const label = (v: unknown) => f?.options?.find((o) => o.value === v)?.label ?? String(v);
+    if (Array.isArray(raw)) return raw.length ? raw.map(label).join(', ') : 'none selected';
+    if (raw === true) return 'Yes';
+    if (raw === false) return 'No';
+    return label(raw);
+  };
+
   const photos = (insp.attachment_ids ?? [])
     .map((id) => store.attachment(id))
     .filter((a): a is AttachmentRecord => Boolean(a?.stored))
@@ -610,6 +623,11 @@ function reviewInputFor(insp: InspectionRecord): ai.ReviewInput | null {
       caption: a.caption,
       chainage_m: a.chainage_m,
       path: resolve(UPLOAD_DIR, `${a.id}.jpg`),
+      source: a.source,
+      field_label: a.checklist_field_id
+        ? fields.get(a.checklist_field_id)?.label ?? a.checklist_field_id
+        : undefined,
+      field_answer: answerFor(a.checklist_field_id),
     }));
 
   return {
