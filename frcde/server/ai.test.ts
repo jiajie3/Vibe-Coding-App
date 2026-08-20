@@ -18,6 +18,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 import {
   PROMPT_VERSION,
   REJECTION_CODES,
+  draftFollowUp,
   draftRejection,
   isConfigured,
   reviewInspection,
@@ -530,6 +531,124 @@ test('the draft is told not to manufacture grounds, and to follow the earlier re
     assert.match(sent, /looks_sound/);
   } finally {
     globalThis.fetch = savedFetch;
+    if (saved) process.env.OPENAI_API_KEY = saved;
+    else delete process.env.OPENAI_API_KEY;
+  }
+});
+
+/* ---------------------------------------------------- drafting a follow-up */
+
+const CHANNELS = [
+  { channel: '#nea', label: 'NEA' },
+  { channel: '#lta', label: 'LTA' },
+];
+
+test('the follow-up is written for the crew, and routed by kind of problem', async () => {
+  const saved = process.env.OPENAI_API_KEY;
+  const savedFetch = globalThis.fetch;
+  process.env.OPENAI_API_KEY = 'sk-test';
+  let sent = '';
+  globalThis.fetch = async (_url: RequestInfo | URL, init?: RequestInit) => {
+    sent = String(init?.body ?? '');
+    return new Response(
+      JSON.stringify({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                detail: 'Silt across the invert around chainage 260 m. Jetting required.',
+                channel: '#nea',
+              }),
+            },
+          },
+        ],
+      }),
+      { status: 200 },
+    );
+  };
+  try {
+    const d = await draftFollowUp(base(), CHANNELS);
+    assert.equal(d?.channel, '#nea');
+    assert.match(d!.detail, /chainage 260/);
+
+    // Written for someone who was not there and cannot see the drain.
+    assert.match(sent, /The reader is the crew who will do the work/);
+    assert.match(sent, /Say nothing about coverage, GPS or inspection procedure/);
+
+    // Routed by what kind of problem it is, not by who reported it.
+    assert.match(sent, /anything inside the drain/);
+    assert.match(sent, /anything on or about the road/);
+
+    // And only the channels that actually exist are on offer.
+    assert.match(sent, /#nea/);
+    assert.match(sent, /#lta/);
+  } finally {
+    globalThis.fetch = savedFetch;
+    if (saved) process.env.OPENAI_API_KEY = saved;
+    else delete process.env.OPENAI_API_KEY;
+  }
+});
+
+test('a channel nobody offered is refused rather than passed on', async () => {
+  const saved = process.env.OPENAI_API_KEY;
+  const savedFetch = globalThis.fetch;
+  process.env.OPENAI_API_KEY = 'sk-test';
+  globalThis.fetch = async () =>
+    new Response(
+      JSON.stringify({
+        choices: [
+          { message: { content: JSON.stringify({ detail: 'x', channel: '#invented' }) } },
+        ],
+      }),
+      { status: 200 },
+    );
+  try {
+    // Posting to a channel that does not exist fails at `chat.postMessage`,
+    // long after the supervisor has stopped looking.
+    assert.equal(await draftFollowUp(base(), CHANNELS), null);
+  } finally {
+    globalThis.fetch = savedFetch;
+    if (saved) process.env.OPENAI_API_KEY = saved;
+    else delete process.env.OPENAI_API_KEY;
+  }
+});
+
+test('an empty channel is allowed — some findings go to nobody', async () => {
+  const saved = process.env.OPENAI_API_KEY;
+  const savedFetch = globalThis.fetch;
+  process.env.OPENAI_API_KEY = 'sk-test';
+  globalThis.fetch = async () =>
+    new Response(
+      JSON.stringify({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                detail: 'No remedial work identified.',
+                channel: '',
+              }),
+            },
+          },
+        ],
+      }),
+      { status: 200 },
+    );
+  try {
+    const d = await draftFollowUp(base(), CHANNELS);
+    assert.equal(d?.channel, '');
+  } finally {
+    globalThis.fetch = savedFetch;
+    if (saved) process.env.OPENAI_API_KEY = saved;
+    else delete process.env.OPENAI_API_KEY;
+  }
+});
+
+test('with no channels configured it declines rather than guessing', async () => {
+  const saved = process.env.OPENAI_API_KEY;
+  process.env.OPENAI_API_KEY = 'sk-test';
+  try {
+    assert.equal(await draftFollowUp(base(), []), null);
+  } finally {
     if (saved) process.env.OPENAI_API_KEY = saved;
     else delete process.env.OPENAI_API_KEY;
   }

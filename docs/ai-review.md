@@ -69,6 +69,34 @@ supervisor sees "looks sound" and moves on. That is the argument for putting
 anything enumerable into a rule, and for treating the model as the second net
 rather than the first.
 
+## Three readers, three prompts
+
+The same inspection is written up three times, because three different people
+read it and confusing them is how the wrong words reach the wrong person.
+
+| Asked for | Reader | Produces |
+| --- | --- | --- |
+| The check | The supervisor | A recommendation and why |
+| A rejection | The inspector who walked it | What to do differently, second person |
+| A follow-up | The crew who will fix it | What was found and where, plus the channel |
+
+The rejection drafter learned this the hard way: it began by pasting the
+check's own paragraph, which says things like "a supervisor should ask the
+inspector for clearer photographs" — addressing the inspector in the third
+person about themselves.
+
+The rejection drafter is also handed the check's conclusion when there is one,
+and told the decision is already taken and not to manufacture grounds for it. A
+model asked to explain a rejection will always find something, and an invented
+fault goes out over the supervisor's name.
+
+The follow-up drafter picks the Slack channel as well, because routing here is
+a judgement about *what kind of problem* it is — something inside the drain, or
+something about the road — and `routing.ts` can only match words a supervisor
+typed. At that point nobody has typed anything. Channels it was not offered are
+refused rather than passed on: posting to one that does not exist fails long
+after anyone is looking.
+
 ## The four outcomes
 
 | Shown as | Means |

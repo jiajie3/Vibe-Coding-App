@@ -603,3 +603,10 @@ html, body { height: 100%; }
 
 /* A note that is a caution rather than context. */
 .modal-note.warn { background: #fffbeb; border-color: #fcd34d; color: #78350f; }
+
+/* The button that fills a form in, sitting above the fields it populates. */
+.btn.aifill {
+  align-self: flex-start;
+  background: #f5f3ff; border-color: #ddd6fe; color: #6d28d9; font-weight: 700;
+}
+.btn.aifill:hover:not(:disabled) { background: #ede9fe; border-color: #c4b5fd; }

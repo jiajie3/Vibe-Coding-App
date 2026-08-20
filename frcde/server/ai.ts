@@ -534,6 +534,126 @@ ${priorReading}`,
   }
 }
 
+/* -------------------------------------------------- drafting a follow-up */
+
+export interface FollowUpDraft {
+  detail: string;
+  /** One of the channels offered, or '' for "record it, tell nobody". */
+  channel: string;
+}
+
+/**
+ * Write the case a contractor will act on, and choose where it opens.
+ *
+ * A third reader again. The review speaks to a supervisor and a rejection to
+ * the inspector; this one is read by whoever turns up with a jetting truck, who
+ * was not there and cannot see the drain. It needs the chainage and what was
+ * found, and nothing about coverage or inspection procedure.
+ *
+ * Routing is a judgement about *what kind of problem* it is, which is why it is
+ * asked of a model at all: the rules in routing.ts can only match words a
+ * supervisor typed, and here nobody has typed anything yet.
+ */
+export async function draftFollowUp(
+  input: ReviewInput,
+  channels: { channel: string; label: string }[],
+): Promise<FollowUpDraft | null> {
+  if (!isConfigured() || channels.length === 0) return null;
+
+  const system = `You are writing a maintenance follow-up for a Singapore drain,
+from an inspection report, and choosing who it goes to.
+
+The reader is the crew who will do the work. They were not at the inspection and
+cannot see the drain. Tell them what was found and where — use the chainage and
+the drain's name. One or two sentences, plain and specific. No greeting, no
+sign-off. Say nothing about coverage, GPS or inspection procedure: none of it is
+their business and none of it helps them.
+
+Choose exactly one channel from this list:
+${channels.map((c) => `  ${c.channel}  — ${c.label}`).join('\n')}
+
+Route by the kind of problem, not by who reported it:
+  - anything inside the drain: silt, litter, refuse, vegetation, blockage,
+    obstruction, cleanliness, standing water, mosquito breeding — these go to
+    the environment agency channel (NEA)
+  - anything on or about the road: the carriageway, kerbs, gratings in the road,
+    a collapsed edge under a road, vehicular access — these go to the transport
+    authority channel (LTA)
+  - if neither fits, choose the channel whose label best matches, or return ""
+    to record the follow-up without opening a case anywhere.
+
+Do not invent work. If the inspection found nothing needing a follow-up, return
+"" as the channel and say plainly in the detail that no remedial work was
+identified.`;
+
+  const rules = ruleConcerns(input);
+  const content: unknown[] = [{ type: 'text', text: describe(input, rules) }];
+  for (const p of input.photos.slice(0, MAX_PHOTOS)) {
+    try {
+      const b64 = readFileSync(p.path).toString('base64');
+      content.push({
+        type: 'text',
+        text: `Photograph ${p.id}${
+          p.field_label ? ` filed under "${p.field_label}" (answered "${p.field_answer ?? '—'}")` : ''
+        }${p.chainage_m != null ? `, chainage ${Math.round(p.chainage_m)} m` : ''}.`,
+      });
+      content.push({
+        type: 'image_url',
+        image_url: { url: `data:image/jpeg;base64,${b64}`, detail: imageDetail() },
+      });
+    } catch {
+      // Unreadable photograph, skipped — not a reason to abandon the draft.
+    }
+  }
+
+  try {
+    const res = await fetch(API, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey()}` },
+      body: JSON.stringify({
+        model: model(),
+        temperature: 0,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content },
+        ],
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'follow_up_draft',
+            strict: true,
+            schema: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['detail', 'channel'],
+              properties: {
+                detail: {
+                  type: 'string',
+                  description: 'One or two sentences for the crew doing the work.',
+                },
+                channel: {
+                  type: 'string',
+                  enum: ['', ...channels.map((c) => c.channel)],
+                },
+              },
+            },
+          },
+        },
+      }),
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+    const raw = body.choices?.[0]?.message?.content;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as FollowUpDraft;
+    // A channel nobody offered would post nowhere and look broken.
+    if (parsed.channel && !channels.some((c) => c.channel === parsed.channel)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 /* --------------------------------------------------------------- call */
 
 /** Rule findings as prose, so they can lead an explanation rather than sit in a list. */

@@ -124,6 +124,12 @@ export default function RejectInspection({
           list. Their original submission is kept in full.
         </p>
 
+        {/* At the top, because it fills in the form below it. Offered after the
+            fields it populates, it reads as a footnote to work already done. */}
+        <button className="btn aifill" type="button" onClick={draft} disabled={drafting}>
+          {drafting ? 'Reading the inspection…' : 'Let AI populate this'}
+        </button>
+
         <div className="modal-note">
           Coverage {coveragePct.toFixed(0)}%
           {gapCount > 0 && ` · ${gapCount} stretch${gapCount === 1 ? '' : 'es'} not walked`}
@@ -170,12 +176,7 @@ export default function RejectInspection({
         </label>
 
         <label>
-          <span className="labelrow">
-            What should they do differently{needsNote ? '' : ' (optional)'}
-            <button className="btn tiny" type="button" onClick={draft} disabled={drafting}>
-              {drafting ? 'Drafting…' : 'Let AI draft this'}
-            </button>
-          </span>
+          What should they do differently{needsNote ? '' : ' (optional)'}
           <textarea
             className="textarea"
             rows={3}

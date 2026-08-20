@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { api } from '../api.ts';
+import { toast } from '../toast.ts';
 import type { SuggestResponse } from '../api.ts';
 
 /**
@@ -26,18 +27,21 @@ export interface FollowUpDraft {
 
 export default function RouteFollowUp({
   jobId,
+  inspectionId,
   suggestion,
   busy,
   onCancel,
   onSubmit,
 }: {
   jobId: string;
+  inspectionId: string | null;
   suggestion: { detail: string; chainage_m: number | null } | null;
   busy: boolean;
   onCancel: () => void;
   onSubmit: (draft: FollowUpDraft) => void;
 }) {
   const [detail, setDetail] = useState(suggestion?.detail ?? '');
+  const [drafting, setDrafting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [routing, setRouting] = useState<SuggestResponse | null>(null);
@@ -63,6 +67,31 @@ export default function RouteFollowUp({
 
   const chosen = channel ?? '';
 
+  /**
+   * Fill in what needs doing, and where the case opens.
+   *
+   * Routing is asked of the model rather than of routing.ts because the table
+   * can only match words a supervisor typed, and at this point nobody has typed
+   * anything. What kind of problem it is — something in the drain, or something
+   * about the road — is a judgement about the finding itself.
+   *
+   * A draft. Both fields stay editable and the case is still opened by hand.
+   */
+  const populate = async () => {
+    if (!inspectionId) return;
+    setDrafting(true);
+    try {
+      const d = await api.draftFollowUp(inspectionId);
+      setDetail(d.detail);
+      setChannel(d.channel);
+      setError(null);
+    } catch (e) {
+      toast.error(e, 'Could not draft the follow-up');
+    } finally {
+      setDrafting(false);
+    }
+  };
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!detail.trim()) return setError('Say what needs doing.');
@@ -77,11 +106,17 @@ export default function RouteFollowUp({
     <div className="modal" onClick={onCancel}>
       <form className="modal-card" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
         <h2>Route for follow-up</h2>
-        <p className="modal-sub">
-          {suggestion?.detail
-            ? 'Pre-filled from this inspection. Edit anything that is not right.'
-            : 'Describe what needs doing, and where the case should be opened.'}
-        </p>
+        {inspectionId && (
+          /* At the top, because it fills in the form below it. */
+          <button
+            className="btn aifill"
+            type="button"
+            onClick={populate}
+            disabled={drafting}
+          >
+            {drafting ? 'Reading the inspection…' : 'Let AI populate this'}
+          </button>
+        )}
 
         <label>
           Details
@@ -90,7 +125,6 @@ export default function RouteFollowUp({
             rows={4}
             value={detail}
             onChange={(e) => setDetail(e.target.value)}
-            placeholder="Blockage reported at the downstream end — approx 260 mm silt. Jetting required."
             autoFocus
           />
         </label>

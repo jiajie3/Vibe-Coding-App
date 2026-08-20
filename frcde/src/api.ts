@@ -307,6 +307,11 @@ export const api = {
   /** Take a drain back out of the queue. */
   close: (jobId: string) =>
     req<JobRecord>(`/v1/console/jobs/${jobId}/close`, { method: 'POST', body: '{}' }),
+  draftFollowUp: (inspectionId: string) =>
+    req<{ detail: string; channel: string }>(
+      `/v1/console/inspections/${inspectionId}/draft-follow-up`,
+      { method: 'POST', body: '{}' },
+    ),
   draftRejection: (inspectionId: string) =>
     req<{ code: string; note: string }>(
       `/v1/console/inspections/${inspectionId}/draft-rejection`,

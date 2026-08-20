@@ -727,6 +727,40 @@ app.post('/v1/console/inspections/:id/draft-rejection', async (req, res) => {
   res.json(draft);
 });
 
+/**
+ * Draft the follow-up a crew will act on, and pick the channel it opens in.
+ *
+ * A third reader again — the review speaks to a supervisor, a rejection to the
+ * inspector, and this to whoever turns up with a jetting truck. Routing is
+ * asked of the model because it is a judgement about what kind of problem this
+ * is, and routing.ts can only match words a supervisor typed. Here nobody has
+ * typed anything yet.
+ */
+app.post('/v1/console/inspections/:id/draft-follow-up', async (req, res) => {
+  const insp = store.inspection(req.params.id);
+  if (!insp) return problem(res, 404, 'Inspection not found');
+  const input = reviewInputFor(insp);
+  if (!input) return problem(res, 404, 'Job not found');
+
+  const channels = knownChannels().map((c) => ({
+    channel: c,
+    label: partyForChannel(c) ?? c.replace(/^#/, ''),
+  }));
+
+  const draft = await ai.draftFollowUp(input, channels);
+  if (!draft) {
+    return problem(
+      res,
+      503,
+      'Could not draft',
+      ai.isConfigured()
+        ? 'The model did not return a usable draft. Write the follow-up yourself.'
+        : 'No OPENAI_API_KEY is configured, so nothing can be drafted.',
+    );
+  }
+  res.json(draft);
+});
+
 /* ------------------------------------------------- console-only endpoints */
 
 app.get('/v1/console/overview', (_req, res) => {
