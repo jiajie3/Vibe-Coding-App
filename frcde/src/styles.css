@@ -593,3 +593,10 @@ html, body { height: 100%; }
 @media (prefers-reduced-motion: reduce) {
   .subsection.ai.thinking { animation: none; }
 }
+
+/* A label with an action on the same line — the field title on the left, the
+   thing that fills it in on the right. */
+.labelrow {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; width: 100%;
+}

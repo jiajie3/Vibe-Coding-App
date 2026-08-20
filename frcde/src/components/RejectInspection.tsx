@@ -1,5 +1,9 @@
 import { useState } from 'react';
 
+import { api } from '../api.ts';
+import type { AiReview } from '../api.ts';
+import { toast } from '../toast.ts';
+
 /**
  * Reject an inspection, with a reason the inspector will read.
  *
@@ -7,8 +11,10 @@ import { useState } from 'react';
  * walked the drain and tells them what to do differently — it deserves more than
  * a one-line box with no context about what they submitted.
  *
- * The reason codes are the things reviewers actually send work back for; the
- * notes are what makes it actionable.
+ * The reason codes are the things reviewers actually send work back for. The
+ * note is what makes one actionable, and is required only when the reason is
+ * "Other" — the other five say enough on their own, and demanding a sentence
+ * for every rejection is how "see above" and "as discussed" get typed.
  */
 
 export interface RejectionDraft {
@@ -47,28 +53,67 @@ const REASONS = [
 export default function RejectInspection({
   coveragePct,
   gapCount,
+  inspectionId,
+  review,
   busy,
   onCancel,
   onSubmit,
 }: {
   coveragePct: number;
   gapCount: number;
+  inspectionId: string;
+  review: AiReview | null | undefined;
   busy: boolean;
   onCancel: () => void;
   onSubmit: (draft: RejectionDraft) => void;
 }) {
   const [code, setCode] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
+  const [drafting, setDrafting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const needsNote = code === 'other';
+
+  /**
+   * Borrow the AI check's own words.
+   *
+   * It has already read the coverage, the answers and the photographs and said
+   * what is wrong with them — which is the paragraph a reviewer is about to
+   * write by hand. Reuses an existing check rather than paying for another.
+   *
+   * A draft, never a send: it lands in the box for the supervisor to edit, and
+   * the rejection still goes out under their name.
+   */
+  const draft = async () => {
+    setDrafting(true);
+    try {
+      const r = review ?? (await api.rerunAiReview(inspectionId));
+      if (!r || r.verdict === 'skipped') {
+        toast.error(
+          r?.explanation ?? 'The check has not run',
+          'Nothing to draft from — run the AI check first',
+        );
+        return;
+      }
+      setNotes(r.explanation);
+      setError(null);
+    } catch (e) {
+      toast.error(e, 'Could not draft a reason');
+    } finally {
+      setDrafting(false);
+    }
+  };
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const chosen = REASONS.find((r) => r.code === code);
     if (!chosen) return setError('Choose a reason.');
-    if (!notes.trim()) return setError('Tell the inspector what to do differently.');
-    // One sentence the inspector sees on their job list — the category alone
-    // ("checklist incomplete") does not tell them which answer to fix.
-    onSubmit({ reason: `${chosen.label}: ${notes.trim()}` });
+    if (needsNote && !notes.trim()) return setError('Say what is wrong.');
+    // One sentence the inspector sees on their job list. The category alone
+    // ("checklist incomplete") does not say which answer to fix, so the note is
+    // appended whenever there is one.
+    const note = notes.trim();
+    onSubmit({ reason: note ? `${chosen.label}: ${note}` : chosen.label });
   };
 
   return (
@@ -106,13 +151,17 @@ export default function RejectInspection({
         </label>
 
         <label>
-          What should they do differently
+          <span className="labelrow">
+            What should they do differently{needsNote ? '' : ' (optional)'}
+            <button className="btn tiny" type="button" onClick={draft} disabled={drafting}>
+              {drafting ? 'Drafting…' : 'Let AI draft this'}
+            </button>
+          </span>
           <textarea
             className="textarea"
             rows={3}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="The last 120 m was not walked — please cover from chainage 490 to the outfall."
           />
         </label>
 

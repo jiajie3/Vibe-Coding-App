@@ -28,6 +28,9 @@ function formatAnswer(v: unknown, field?: { options?: { value: string; label: st
   return label(v) + (field?.unit ? ` ${field.unit}` : '');
 }
 
+/** A signature is a token, not information a reviewer can read. */
+const isSignature = (key: string) => /signature/i.test(key);
+
 const titleCase = (id: string) =>
   id.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
 
@@ -549,14 +552,19 @@ export default function JobDetail() {
                   );
                 })}
                 {/* Answers whose field is not in the template — an older
-                    submission against a schema that has since changed. */}
+                    submission against a schema that has since changed.
+
+                    Signatures are excluded. They survive in records submitted
+                    before the field was dropped, and rendering one prints
+                    `sig_018f3b55` at a reviewer, which occupies a row to say
+                    nothing. */}
                 {sections.length > 0 &&
-                  Object.keys(answers).some((k) => !fieldsById.has(k)) && (
+                  Object.keys(answers).some((k) => !fieldsById.has(k) && !isSignature(k)) && (
                     <div className="sec">
                       <div className="minilabel">Other</div>
                       <div className="answers">
                         {Object.entries(answers)
-                          .filter(([k]) => !fieldsById.has(k))
+                          .filter(([k]) => !fieldsById.has(k) && !isSignature(k))
                           .map(([k, v]) => (
                             <div key={k} className="answer">
                               <span className="q">{titleCase(k)}</span>
@@ -664,6 +672,8 @@ export default function JobDetail() {
         <RejectInspection
           coveragePct={serverPct}
           gapCount={current.uncovered_ranges.length}
+          inspectionId={current.id}
+          review={current.ai_review}
           busy={busy}
           onCancel={() => setRejecting(false)}
           onSubmit={(d) => review('rejected', d.reason)}
