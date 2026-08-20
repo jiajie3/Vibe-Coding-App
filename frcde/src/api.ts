@@ -344,7 +344,29 @@ export const STATUS_COLOUR: Record<string, string> = {
  * inspector's phone — the same reason the server borrows CFPI's coverage engine
  * rather than keeping its own copy.
  */
+import { dueLabel } from '../../cfpi/src/core/due.ts';
 export { dueLabel, DUE_COLOUR, FLAG_WITHIN_DAYS } from '../../cfpi/src/core/due.ts';
+
+/** The statuses that mean a drain is out with an inspector. */
+export const DISPATCHED = ['available', 'accepted', 'in_progress', 'submitted'];
+
+/**
+ * How loudly a drain's deadline should read.
+ *
+ * Being in the queue is itself the signal. A supervisor who put a drain there
+ * wants it walked, so it reads as due soon whatever its date says — the date is
+ * the record of when it is owed, not a decision about whether it needs doing.
+ * Only a drain that is genuinely late escalates past that.
+ *
+ * A drain not in the queue is quiet regardless. Closed drains still carry a due
+ * date from their own cycle, and rendering one as "overdue by 3d" in red alarms
+ * about work nobody is expected to do and drowns out the queued drains that
+ * really are late.
+ */
+export function emphasis(job: { status: string; due_at: string }): 'overdue' | 'soon' | 'later' {
+  if (!DISPATCHED.includes(job.status)) return 'later';
+  return dueLabel(job.due_at).overdue ? 'overdue' : 'soon';
+}
 export type { Due, DueSeverity } from '../../cfpi/src/core/due.ts';
 
 export const STATUS_LABEL: Record<string, string> = {

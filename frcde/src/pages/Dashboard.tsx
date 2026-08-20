@@ -8,7 +8,9 @@ import {
   auth,
   AuthError,
   dueLabel,
+  DISPATCHED,
   DUE_COLOUR,
+  emphasis,
   jobStatusColour,
   jobStatusLabel,
   STATUS_COLOUR,
@@ -16,19 +18,6 @@ import {
 import type { JobRecord, Overview } from '../api.ts';
 import { toast } from '../toast.ts';
 import Confirm from '../components/Confirm.tsx';
-
-const DISPATCHED = ['available', 'accepted', 'in_progress', 'submitted'];
-
-/**
- * How loudly a drain's deadline should read.
- *
- * The date decides the level, but only for drains actually in the queue. A
- * closed drain still carries a due date and would otherwise render as "overdue
- * by 3d" in red — alarming about work nobody is expected to do, and drowning out
- * the queued drains that genuinely are late.
- */
-const emphasis = (j: JobRecord) =>
-  DISPATCHED.includes(j.status) ? dueLabel(j.due_at).severity : 'later';
 
 const esc = (s: string) =>
   s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
@@ -285,7 +274,7 @@ export default function Dashboard() {
 
   const s = data.stats;
   const overdue = dispatched.filter((j) => dueLabel(j.due_at).overdue).length;
-  const dueSoon = dispatched.filter((j) => dueLabel(j.due_at).severity === 'soon').length;
+  const dueSoon = dispatched.filter((j) => emphasis(j) === 'soon').length;
 
   return (
     <div className="page">

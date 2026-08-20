@@ -8,7 +8,7 @@ import AutoReview from '../components/AutoReview.tsx';
 import RouteFollowUp from '../components/RouteFollowUp.tsx';
 import type { FollowUpDraft } from '../components/RouteFollowUp.tsx';
 import SiteNotes from '../components/SiteNotes.tsx';
-import { api, dueLabel, jobStatusColour, jobStatusLabel } from '../api.ts';
+import { api, DISPATCHED, dueLabel, emphasis, jobStatusColour, jobStatusLabel } from '../api.ts';
 import { toast } from '../toast.ts';
 
 import type {
@@ -197,7 +197,7 @@ export default function JobDetail() {
   const serverPct = current?.server_coverage_pct ?? 0;
   const clientPct = current?.client_coverage?.client_computed_pct ?? null;
   const mismatch = clientPct != null && Math.abs(clientPct - serverPct) > 5;
-  const inQueue = ['available', 'accepted', 'in_progress', 'submitted'].includes(job.status);
+  const inQueue = DISPATCHED.includes(job.status);
 
   const answers = current?.checklist?.answers ?? {};
   const fieldsById = new Map(template?.fields.map((f) => [f.id, f]) ?? []);
@@ -241,7 +241,7 @@ export default function JobDetail() {
               when it is due — what a reviewer scans for — and the physical
               facts live in the card that is about the drain. */}
           <div className="facts">
-            <span className={`due-${inQueue ? dueLabel(job.due_at).severity : 'later'}`}>
+            <span className={`due-${emphasis(job)}`}>
               {dueLabel(job.due_at).text}
             </span>{' '}
             ({new Date(job.due_at).toLocaleDateString()})

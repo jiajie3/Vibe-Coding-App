@@ -93,9 +93,16 @@ spread across priorities with one already overdue. Add or remove entries to chan
 
 Queuing a drain by hand does **not** reschedule it. The queue is who has been sent
 out; the due date is when the drain needs walking, and the two are separate. Pushing
-a drain due in three weeks into the queue leaves it due in three weeks — it simply
-reads as "not due" on the map until it is. Pass `due_in_days` to the dispatch
-endpoint to set a deadline deliberately.
+a drain due in three weeks into the queue leaves it due in three weeks. Pass
+`due_in_days` to the dispatch endpoint to set a deadline deliberately.
+
+How loudly it reads is a separate question, and the answer is in `emphasis()` in
+`src/api.ts`: **being in the queue is itself the signal.** A supervisor who put a
+drain there wants it walked, so it colours as due soon whatever its date says, and
+escalates to overdue only when it genuinely is. The date stays the record of when it
+is owed rather than a decision about whether it needs doing. Drains not in the queue
+stay quiet regardless — a closed drain rendering as "overdue by 3d" alarms about
+work nobody is expected to do.
 
 Every request is logged with its status, so a failing call from the phone is visible in
 the terminal rather than having to be guessed at.
