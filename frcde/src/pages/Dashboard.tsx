@@ -288,14 +288,19 @@ export default function Dashboard() {
   return (
     <div className="page">
       {/*
-        * Three numbers, not seven.
+        * Four numbers, not seven.
         *
         * Every figure used to be the same size, so "Drains: 40" shouted as loudly
         * as "Overdue: 1" — and a dashboard where everything is emphasised has
-        * nothing emphasised. These three are the ones a supervisor can act on
-        * this morning; the rest is context and reads as a sentence below.
+        * nothing emphasised. The total leads because it is what the other three
+        * are counted out of, and it is left uncoloured so the ones that need
+        * acting on are still the ones that catch the eye.
         */}
       <div className="kpis">
+        <div className="kpi">
+          <div className="v">{s.total}</div>
+          <div className="k">Drains</div>
+        </div>
         <div className="kpi warn">
           <div className="v">{overdue}</div>
           <div className="k">Overdue</div>
@@ -310,10 +315,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <p className="context">
-        {s.total} drains · {dispatched.length} in the queue · {s.in_progress} being
-        walked · {s.approved} closed
-      </p>
 
       {resetting && (
         <Confirm
@@ -355,7 +356,7 @@ export default function Dashboard() {
             <span><i style={{ background: '#f59e0b' }} />Due within {FLAG_WITHIN_DAYS}d</span>
             <span><i style={{ background: '#475569' }} />Queued, due later</span>
             {filter === 'all' && (
-              <span><i style={{ background: '#7c8da3' }} />Not queued — click to add</span>
+              <span><i style={{ background: '#7c8da3' }} />Not queued</span>
             )}
           </div>
         </div>

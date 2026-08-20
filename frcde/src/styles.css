@@ -54,11 +54,9 @@ a { color: inherit; text-decoration: none; }
 
 /* Three cards, sized to their content rather than stretched across the monitor.
    Seven equal cards made every number shout; these are the ones worth acting on. */
-.kpis { display: grid; grid-template-columns: repeat(3, minmax(150px, 230px)); gap: 12px; margin-bottom: 10px; }
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(150px, 230px)); gap: 12px; margin-bottom: 16px; }
 @media (max-width: 640px) { .kpis { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); } }
 
-/* The rest of the numbers, as a sentence. Present, not competing. */
-.context { margin: 0 0 16px; color: var(--muted); font-size: 15.5px; font-weight: 500; }
 .kpi { background: var(--panel); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); }
 .kpi .v { font-size: 37px; font-weight: 800; letter-spacing: -1px; line-height: 1.1; }
 .kpi .k { font-size: 14.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.7px; font-weight: 700; margin-top: 2px; }
@@ -76,7 +74,11 @@ a { color: inherit; text-decoration: none; }
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 16px;
-  align-items: start;
+  /* Stretch, not start: the queue should end level with the map rather than
+     stopping wherever its content happens to run out. The map sets the height
+     — it is the one with a fixed aspect worth preserving — and the queue fills
+     whatever that comes to. */
+  align-items: stretch;
 }
 @media (max-width: 1200px) { .split { grid-template-columns: minmax(0, 1fr); } }
 
@@ -101,8 +103,11 @@ a { color: inherit; text-decoration: none; }
 
 /* ------------------------------------------------------------------ queue */
 
-/* Matched to the map so the two panels stay level. */
-.queue { max-height: clamp(460px, 72vh, 980px); overflow-y: auto; }
+/* Fills whatever height the map panel settled on, and scrolls inside it.
+   `min-height: 0` is load-bearing: without it a grid child refuses to shrink
+   below its content and the panel grows past the map instead of scrolling. */
+.split > .panel { display: flex; flex-direction: column; }
+.queue { flex: 1; min-height: 0; overflow-y: auto; }
 .jobrow { display: block; padding: 12px 16px; border-bottom: 1px solid var(--line); }
 .jobrow:hover { background: #f8fafc; }
 .toolbar {
