@@ -223,7 +223,7 @@ export default function JobDetail() {
   }
 
   return (
-    <div className="page">
+    <div className="page detailpage">
       {/* A button, not a link in body text. Leaving a record is the second
           most common thing done on this page and it was a line of small blue
           text competing with a 32px drain name directly beneath it. */}
@@ -484,9 +484,10 @@ export default function JobDetail() {
                 </>
               )}
             </div>
-          </div>
 
-          {/* --------------------------------------------------- first pass */}
+          {/* What the model made of it, and what the inspector recorded, both
+              read as part of the result rather than as separate cards
+              competing with it. */}
           {current && current.status !== 'in_progress' && (
             <AutoReview
               inspectionId={current.id}
@@ -495,15 +496,14 @@ export default function JobDetail() {
             />
           )}
 
-          {/* --------------------------------------------------- checklist */}
           {current?.checklist && (
-            <div className="panel">
-              <header>
-                <h2>Checklist</h2>
-                <span style={{ fontSize: 11, color: 'var(--muted)' }}>
+            <div className="subsection">
+              <div className="subhead">
+                <h3>Checklist</h3>
+                <span style={{ fontSize: 12, color: 'var(--muted)' }}>
                   {current.checklist.template_id} v{current.checklist.template_version}
                 </span>
-              </header>
+              </div>
               <div className="body">
                 {(sections.length ? sections : [{ id: '_', title: '' }]).map((sec) => {
                   const entries = Object.entries(answers).filter(([k]) =>
@@ -570,6 +570,8 @@ export default function JobDetail() {
               </div>
             </div>
           )}
+
+          </div>
 
           {/* ------------------------------------------------------ photos */}
           {/* Only what could not be filed against a question — general

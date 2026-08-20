@@ -46,9 +46,25 @@ a { color: inherit; text-decoration: none; }
 .topbar nav a:hover { background: #1e293b; color: #fff; }
 .topbar nav a.active { background: #334155; color: #fff; }
 
+/*
+ * One scroll region, not two.
+ *
+ * The window scrolled and the review page's columns scrolled inside it, so a
+ * reader had two scrollbars and had to guess which one moved what. The shell is
+ * a fixed-height column now: the topbar never moves, and each page scrolls in
+ * the space beneath it.
+ */
+html, body { height: 100%; }
+#root { height: 100%; display: flex; flex-direction: column; }
+.topbar { flex: none; }
+
 /* Fluid rather than capped. A wide monitor should buy a wider map and a taller
    queue, not two columns of whitespace. */
-.page { padding: 20px 24px 40px; }
+.page { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 24px 40px; }
+
+/* The review page does not scroll at all — its two columns do. */
+.detailpage { display: flex; flex-direction: column; overflow: hidden; padding-bottom: 20px; }
+.detailpage .split { flex: 1; min-height: 0; }
 
 /* ------------------------------------------------------------------- kpis */
 
@@ -112,12 +128,13 @@ a { color: inherit; text-decoration: none; }
 .dashsplit .maprow { flex: 1; min-height: 0; }
 
 /* Review page: a fixed map, and columns that scroll rather than run down the page. */
-.detailsplit { --colh: clamp(560px, calc(100vh - 230px), 1120px); }
 .detailsplit > .col {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  height: var(--colh);
+  /* Fills the height the page hands it, rather than guessing at one. */
+  height: 100%;
+  min-height: 0;
   /* Each column carries its own scrollbar, so a long inspection no longer
      stretches the page past a map that has nothing under it. */
   overflow-y: auto;
@@ -128,7 +145,9 @@ a { color: inherit; text-decoration: none; }
 .detailsplit .maprow { height: clamp(380px, 44vh, 620px); }
 
 @media (max-width: 1200px) {
-  /* One column: two independent scroll areas stacked is worse than a long page. */
+  /* One column: two independent scroll areas stacked is worse than a long page,
+     so the page takes the scrolling back. */
+  .detailpage { overflow-y: auto; }
   .detailsplit > .col { height: auto; overflow: visible; }
 }
 .maprow .maplibregl-map { border-radius: var(--radius); }
@@ -529,4 +548,19 @@ a { color: inherit; text-decoration: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .toast { animation: none; }
+}
+
+/* --------------------------------------------------------- subsections */
+/* A section of a panel rather than a panel of its own. Used for the AI check
+   and the checklist, which are part of reading a result — separate cards put
+   them in competition with the evidence instead of alongside it. */
+.subsection { border-top: 1px solid var(--line); }
+.subhead {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 11px 16px;
+  background: #f8fafc;
+}
+.subhead h3 {
+  margin: 0; font-size: 12.5px; font-weight: 700;
+  letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted);
 }

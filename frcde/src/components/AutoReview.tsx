@@ -54,13 +54,16 @@ export default function AutoReview({
   const photos = review?.photo_notes ?? [];
 
   return (
-    <div className="panel">
-      <header>
-        <h2>First pass</h2>
+    /* A section of the Result panel, not a panel of its own. What the model
+       thinks is part of reading the result — a separate card put it in
+       competition with the evidence rather than alongside it. */
+    <div className="subsection">
+      <div className="subhead">
+        <h3>Let AI check for you</h3>
         <button className="btn tiny" onClick={rerun} disabled={busy}>
-          {busy ? 'Reading…' : 'Run again'}
+          {busy ? 'Reading…' : 'Run the check'}
         </button>
-      </header>
+      </div>
 
       <div className="autoreview">
         <div className={`verdict ${v.tone}`}>{v.label}</div>
