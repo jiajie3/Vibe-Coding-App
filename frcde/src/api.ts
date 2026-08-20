@@ -120,27 +120,11 @@ export interface SuggestResponse {
   slack_configured: boolean;
 }
 
-export interface AiConcern {
-  source: 'rule' | 'model';
-  kind: string;
-  detail: string;
-  field?: string;
-}
-
-export interface AiPhotoNote {
-  attachment_id: string;
-  shows_drain: boolean;
-  quality: 'usable' | 'poor';
-  matches_description: boolean | null;
-  note: string;
-}
-
 export interface AiReview {
   verdict: 'looks_sound' | 'needs_a_look' | 'likely_reject' | 'skipped';
   confidence: 'low' | 'medium' | 'high';
-  summary: string;
-  concerns: AiConcern[];
-  photo_notes: AiPhotoNote[];
+  /** The whole answer in prose: what to do about this inspection, and why. */
+  explanation: string;
   /** Kept with the verdict so an old review can still be explained. */
   model: string;
   prompt_version: number;

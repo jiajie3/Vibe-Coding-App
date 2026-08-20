@@ -111,7 +111,7 @@ test('hidden required fields are not demanded', () => {
 });
 
 test('a triggered photo requirement blocks submission until satisfied', () => {
-  const answers = { ...VALID, blockage_present: true, silt_depth_mm: 120 };
+  const answers = { ...VALID, blockage_present: true, blockage_type: ['silt'] };
 
   const blocked = validate(tpl, answers, VALID_PHOTOS);
   assert.ok(blocked.some((e) => e.field_id === 'blockage_present' && e.code === 'photo_required'));
@@ -143,12 +143,19 @@ test('a photo minimum is still enforced when a template sets one', () => {
 });
 
 test('out-of-range numbers are rejected', () => {
+  // Severity is the numeric field now, the silt depth this used to check having
+  // been dropped from the template. It only appears for a poor structural
+  // condition, which also demands a photograph — so both are set, or the field
+  // is invisible and never validated at all.
   const errs = validate(
     tpl,
-    { ...VALID, blockage_present: true, silt_depth_mm: 9999 },
-    { ...VALID_PHOTOS, blockage_present: 1 },
+    { ...VALID, structural_condition: 'poor', defect_types: ['cracking'], defect_severity: 9 },
+    { ...VALID_PHOTOS, structural_condition: 1 },
   );
-  assert.ok(errs.some((e) => e.field_id === 'silt_depth_mm' && e.code === 'out_of_range'));
+  assert.ok(
+    errs.some((e) => e.field_id === 'defect_severity' && e.code === 'out_of_range'),
+    `expected an out_of_range error, got ${JSON.stringify(errs)}`,
+  );
 });
 
 // ----------------------------------------------------- pruning answers
@@ -159,14 +166,12 @@ test('answers orphaned by a changed trigger are pruned', () => {
     ...VALID,
     blockage_present: true,
     blockage_type: ['silt'],
-    silt_depth_mm: 300,
   };
   assert.ok('blockage_type' in prune(tpl, answers));
 
   const reverted = { ...answers, blockage_present: false };
   const pruned = prune(tpl, reverted);
   assert.ok(!('blockage_type' in pruned), 'orphaned answer must not be submitted');
-  assert.ok(!('silt_depth_mm' in pruned));
 });
 
 test('completeness tracks required visible fields', () => {

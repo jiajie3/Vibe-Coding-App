@@ -36,7 +36,7 @@ const API = 'https://api.openai.com/v1/chat/completions';
  * past reviews meant and there is no way to tell which ones were produced by
  * which instructions.
  */
-export const PROMPT_VERSION = 2;
+export const PROMPT_VERSION = 3;
 
 export const apiKey = () => process.env.OPENAI_API_KEY ?? '';
 export const isConfigured = () => apiKey().length > 0;
@@ -70,22 +70,19 @@ export interface Concern {
   field?: string;
 }
 
-export interface PhotoNote {
-  attachment_id: string;
-  /** False is a strong signal — a photograph of a car park evidences nothing. */
-  shows_drain: boolean;
-  quality: 'usable' | 'poor';
-  /** Null when the inspection claimed no defect to match against. */
-  matches_description: boolean | null;
-  note: string;
-}
-
 export interface AiReview {
   verdict: Verdict;
   confidence: 'low' | 'medium' | 'high';
-  summary: string;
-  concerns: Concern[];
-  photo_notes: PhotoNote[];
+  /**
+   * The whole answer, in prose.
+   *
+   * This used to arrive as a taxonomy — concerns split from photo notes, rule
+   * findings tagged separately from the model's — and a reviewer had to
+   * assemble the meaning from four lists. What they want is the same thing a
+   * colleague would say: here is what I would do, and here is why. Rule
+   * findings lead it, because they are certain.
+   */
+  explanation: string;
   model: string;
   prompt_version: number;
   generated_at: string;
@@ -165,15 +162,6 @@ export function ruleConcerns(input: ReviewInput): Concern[] {
   }
 
   const blockage = answerOf(c, 'blockage_present');
-  const silt = answerOf(c, 'silt_depth_mm');
-  if (blockage === true && typeof silt === 'number' && silt === 0) {
-    out.push({
-      source: 'rule',
-      kind: 'contradiction',
-      field: 'silt_depth_mm',
-      detail: 'A blockage was reported with a silt depth of zero.',
-    });
-  }
   if (blockage === true && answerOf(c, 'flow_condition') === 'free') {
     out.push({
       source: 'rule',
@@ -281,9 +269,11 @@ Rules you must follow:
    itself. Never dispute, recompute or estimate them.
 2. Concerns already found by rules are listed for you. Do not repeat them. Say
    something new or say nothing.
-3. Judge the writing. Does the prose actually describe something, or does it
+3. Answer in prose, as a colleague would: what you would do, and why. Do not
+   produce lists, headings or categories.
+4. Judge the writing. Does the prose actually describe something, or does it
    occupy the field without saying anything?
-4. Check every photograph against EVERY recorded condition, not only against a
+5. Check every photograph against EVERY recorded condition, not only against a
    claimed defect. In particular:
      - flow condition. A drain recorded as surcharged or overtopping should not
        photograph as dry or empty. A drain recorded as dry should not photograph
@@ -292,13 +282,11 @@ Rules you must follow:
        vegetation obstructing the channel.
      - structural condition. "Good, no visible defects" should not photograph
        with cracking, spalling or a collapsed wall.
-   Set matches_description to false whenever a photograph contradicts ANY
-   recorded condition, and say which one in the note. A contradiction between a
-   photograph and the form is always worth reporting, however tidy the rest of
-   the report looks.
-5. Be specific. "Remarks are vague" is useless; "remarks say 'ok' for a severity
+   Say so plainly when a photograph contradicts a recorded condition. That is
+   always worth reporting, however tidy the rest of the report looks.
+6. Be specific. "Remarks are vague" is useless; "remarks say 'ok' for a severity
    4 structural defect" is actionable.
-6. If genuinely nothing is wrong, say so plainly and return no concerns. Do not
+7. If genuinely nothing is wrong, say so plainly and return no concerns. Do not
    invent concerns to seem thorough — but do not withhold a real one because the
    report is otherwise neat.
 
@@ -310,45 +298,15 @@ Verdicts:
 const SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['verdict', 'confidence', 'summary', 'concerns', 'photo_notes'],
+  required: ['verdict', 'confidence', 'explanation'],
   properties: {
     verdict: { type: 'string', enum: ['looks_sound', 'needs_a_look', 'likely_reject'] },
     confidence: { type: 'string', enum: ['low', 'medium', 'high'] },
-    summary: { type: 'string', description: 'One sentence a supervisor can read at a glance.' },
-    concerns: {
-      type: 'array',
-      maxItems: 4,
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        required: ['kind', 'detail', 'field'],
-        properties: {
-          kind: { type: 'string' },
-          detail: { type: 'string' },
-          field: { type: ['string', 'null'], description: 'Checklist field id, or null.' },
-        },
-      },
-    },
-    photo_notes: {
-      type: 'array',
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        required: [
-          'attachment_id',
-          'shows_drain',
-          'quality',
-          'matches_description',
-          'note',
-        ],
-        properties: {
-          attachment_id: { type: 'string' },
-          shows_drain: { type: 'boolean' },
-          quality: { type: 'string', enum: ['usable', 'poor'] },
-          matches_description: { type: ['boolean', 'null'] },
-          note: { type: 'string' },
-        },
-      },
+    explanation: {
+      type: 'string',
+      description:
+        'Two or three sentences of plain prose: what a supervisor should do about '
+        + 'this inspection and why. No lists, no headings, no categories.',
     },
   },
 } as const;
@@ -407,12 +365,14 @@ function describe(input: ReviewInput, rules: Concern[]): string {
 
 /* --------------------------------------------------------------- call */
 
+/** Rule findings as prose, so they can lead an explanation rather than sit in a list. */
+const sentences = (rules: Concern[]) =>
+  rules.length === 0 ? 'The checks found nothing.' : rules.map((r) => r.detail).join(' ');
+
 const skipped = (reason: string): AiReview => ({
   verdict: 'skipped',
   confidence: 'low',
-  summary: reason,
-  concerns: [],
-  photo_notes: [],
+  explanation: reason,
   model: 'none',
   prompt_version: PROMPT_VERSION,
   generated_at: new Date().toISOString(),
@@ -429,10 +389,9 @@ export async function reviewInspection(input: ReviewInput): Promise<AiReview> {
   const rules = ruleConcerns(input);
 
   if (!isConfigured()) {
-    return {
-      ...skipped('No OPENAI_API_KEY is set, so only the rule checks ran.'),
-      concerns: rules,
-    };
+    return skipped(
+      'No OPENAI_API_KEY is set, so nothing was read. ' + sentences(rules),
+    );
   }
 
   const content: unknown[] = [{ type: 'text', text: describe(input, rules) }];
@@ -481,8 +440,7 @@ export async function reviewInspection(input: ReviewInput): Promise<AiReview> {
     if (!res.ok) {
       const body = await res.text();
       return {
-        ...skipped(`Review failed: ${res.status} ${body.slice(0, 200)}`),
-        concerns: rules,
+        ...skipped(`Could not reach the model (${res.status}). ${sentences(rules)}`),
         error: `${res.status}`,
       };
     }
@@ -491,39 +449,32 @@ export async function reviewInspection(input: ReviewInput): Promise<AiReview> {
       choices?: { message?: { content?: string } }[];
     };
     const raw = body.choices?.[0]?.message?.content;
-    if (!raw) return { ...skipped('The model returned nothing.'), concerns: rules, error: 'empty' };
+    if (!raw) {
+      return { ...skipped(`The model returned nothing. ${sentences(rules)}`), error: 'empty' };
+    }
 
     const parsed = JSON.parse(raw) as {
       verdict: Exclude<Verdict, 'skipped'>;
       confidence: AiReview['confidence'];
-      summary: string;
-      concerns: { kind: string; detail: string; field: string | null }[];
-      photo_notes: PhotoNote[];
+      explanation: string;
     };
 
     return {
       verdict: parsed.verdict,
       confidence: parsed.confidence,
-      summary: parsed.summary,
-      // Rules first: they are certain, and the model's are judgement.
-      concerns: [
-        ...rules,
-        ...parsed.concerns.map((c) => ({
-          source: 'model' as const,
-          kind: c.kind,
-          detail: c.detail,
-          ...(c.field ? { field: c.field } : {}),
-        })),
-      ],
-      photo_notes: parsed.photo_notes ?? [],
+      // Rules lead: they are arithmetic and cannot be wrong, where what follows
+      // is judgement and occasionally is.
+      explanation:
+        rules.length > 0
+          ? `${sentences(rules)} ${parsed.explanation}`
+          : parsed.explanation,
       model: model(),
       prompt_version: PROMPT_VERSION,
       generated_at: new Date().toISOString(),
     };
   } catch (e) {
     return {
-      ...skipped(`Review could not run: ${(e as Error).message}`),
-      concerns: rules,
+      ...skipped(`Could not run the check: ${(e as Error).message}. ${sentences(rules)}`),
       error: 'exception',
     };
   }

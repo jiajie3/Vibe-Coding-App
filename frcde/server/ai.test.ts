@@ -28,7 +28,6 @@ const base = (over: Partial<ReviewInput> = {}): ReviewInput => ({
       answer: 'good',
     },
     { id: 'blockage_present', label: 'Blockage present', type: 'boolean', answer: false },
-    { id: 'silt_depth_mm', label: 'Silt depth', type: 'number', answer: 20 },
     { id: 'flow_condition', label: 'Flow', type: 'single_select', answer: 'free' },
     { id: 'defect_severity', label: 'Severity', type: 'severity', answer: 1 },
     { id: 'defect_types', label: 'Defects', type: 'multi_select', answer: [] },
@@ -78,11 +77,9 @@ test('every coverage flag is turned into a sentence, not a slug', () => {
   }
 });
 
-test('a blockage with no silt and free flow is contradictory twice over', () => {
-  let i = answer(base(), 'blockage_present', true);
-  i = answer(i, 'silt_depth_mm', 0);
-  const k = kinds(i);
-  assert.equal(k.filter((x) => x === 'contradiction').length, 2);
+test('a blockage alongside free flow is a contradiction', () => {
+  const i = answer(base(), 'blockage_present', true);
+  assert.ok(kinds(i).includes('contradiction'));
 });
 
 test('a severe defect with no type and no photo is caught', () => {
@@ -120,7 +117,7 @@ test('real remarks are left alone, however short', () => {
 
 /* -------------------------------------------------------- degradation */
 
-test('with no API key it returns the rules and says why, rather than failing', async () => {
+test('with no API key it says so, and still reports what the rules found', async () => {
   const saved = process.env.OPENAI_API_KEY;
   delete process.env.OPENAI_API_KEY;
   try {
@@ -129,10 +126,9 @@ test('with no API key it returns the rules and says why, rather than failing', a
       base({ coverage: { server_pct: 60, client_pct: 100, flags: [], uncovered_ranges: [] } }),
     );
     assert.equal(r.verdict, 'skipped');
-    assert.match(r.summary, /OPENAI_API_KEY/);
-    // The rules still ran: an unconfigured server is not a silent one.
-    assert.equal(r.concerns.length, 1);
-    assert.equal(r.concerns[0].source, 'rule');
+    assert.match(r.explanation, /OPENAI_API_KEY/);
+    // An unconfigured server is not a silent one: the rule finding still shows.
+    assert.match(r.explanation, /60\.0% is under the 90%/);
     assert.equal(r.prompt_version, PROMPT_VERSION);
   } finally {
     if (saved) process.env.OPENAI_API_KEY = saved;
@@ -143,7 +139,6 @@ test('a failed call degrades to skipped rather than to an opinion', async () => 
   const saved = process.env.OPENAI_API_KEY;
   const savedFetch = globalThis.fetch;
   process.env.OPENAI_API_KEY = 'sk-test';
-  // Replacing fetch for the duration of the test.
   globalThis.fetch = async () => {
     throw new Error('network unreachable');
   };
@@ -152,7 +147,7 @@ test('a failed call degrades to skipped rather than to an opinion', async () => 
     // The dangerous failure is returning `looks_sound` when nothing was read.
     assert.equal(r.verdict, 'skipped');
     assert.equal(r.error, 'exception');
-    assert.match(r.summary, /network unreachable/);
+    assert.match(r.explanation, /network unreachable/);
   } finally {
     globalThis.fetch = savedFetch;
     if (saved) process.env.OPENAI_API_KEY = saved;
@@ -164,14 +159,12 @@ test('an HTTP error from OpenAI is reported, not swallowed', async () => {
   const saved = process.env.OPENAI_API_KEY;
   const savedFetch = globalThis.fetch;
   process.env.OPENAI_API_KEY = 'sk-test';
-  // Replacing fetch for the duration of the test.
-  globalThis.fetch = async () =>
-    new Response('insufficient_quota', { status: 429 });
+  globalThis.fetch = async () => new Response('insufficient_quota', { status: 429 });
   try {
     const r = await reviewInspection(base());
     assert.equal(r.verdict, 'skipped');
     assert.equal(r.error, '429');
-    assert.match(r.summary, /insufficient_quota/);
+    assert.match(r.explanation, /429/);
   } finally {
     globalThis.fetch = savedFetch;
     if (saved) process.env.OPENAI_API_KEY = saved;
@@ -179,11 +172,10 @@ test('an HTTP error from OpenAI is reported, not swallowed', async () => {
   }
 });
 
-test('a well-formed reply is merged with the rules, rules first', async () => {
+test('rule findings lead the explanation, and the model follows', async () => {
   const saved = process.env.OPENAI_API_KEY;
   const savedFetch = globalThis.fetch;
   process.env.OPENAI_API_KEY = 'sk-test';
-  // Replacing fetch for the duration of the test.
   globalThis.fetch = async () =>
     new Response(
       JSON.stringify({
@@ -193,19 +185,7 @@ test('a well-formed reply is merged with the rules, rules first', async () => {
               content: JSON.stringify({
                 verdict: 'needs_a_look',
                 confidence: 'medium',
-                summary: 'Photograph does not show the reported defect.',
-                concerns: [
-                  { kind: 'photo_mismatch', detail: 'The photo shows a grass verge.', field: null },
-                ],
-                photo_notes: [
-                  {
-                    attachment_id: 'a1',
-                    shows_drain: false,
-                    quality: 'usable',
-                    matches_description: false,
-                    note: 'No drain visible.',
-                  },
-                ],
+                explanation: 'The photograph shows a grass verge, not the drain.',
               }),
             },
           },
@@ -218,13 +198,43 @@ test('a well-formed reply is merged with the rules, rules first', async () => {
       base({ coverage: { server_pct: 60, client_pct: 100, flags: [], uncovered_ranges: [] } }),
     );
     assert.equal(r.verdict, 'needs_a_look');
-    assert.equal(r.concerns.length, 2);
-    assert.equal(r.concerns[0].source, 'rule', 'certain findings should come first');
-    assert.equal(r.concerns[1].source, 'model');
-    // A null field must not become the string "null" in the console.
-    assert.equal(r.concerns[1].field, undefined);
-    assert.equal(r.photo_notes[0].shows_drain, false);
+    // Certain first, judgement second.
+    assert.ok(
+      r.explanation.indexOf('under the 90%') < r.explanation.indexOf('grass verge'),
+      `rules should lead: ${r.explanation}`,
+    );
     assert.equal(r.model, 'gpt-4.1-mini');
+  } finally {
+    globalThis.fetch = savedFetch;
+    if (saved) process.env.OPENAI_API_KEY = saved;
+    else delete process.env.OPENAI_API_KEY;
+  }
+});
+
+test('with nothing wrong, the explanation is the model alone', async () => {
+  const saved = process.env.OPENAI_API_KEY;
+  const savedFetch = globalThis.fetch;
+  process.env.OPENAI_API_KEY = 'sk-test';
+  globalThis.fetch = async () =>
+    new Response(
+      JSON.stringify({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                verdict: 'looks_sound',
+                confidence: 'high',
+                explanation: 'Full coverage and the photographs match the record.',
+              }),
+            },
+          },
+        ],
+      }),
+      { status: 200 },
+    );
+  try {
+    const r = await reviewInspection(base());
+    assert.equal(r.explanation, 'Full coverage and the photographs match the record.');
   } finally {
     globalThis.fetch = savedFetch;
     if (saved) process.env.OPENAI_API_KEY = saved;
@@ -264,7 +274,6 @@ test('restricted flow is surfaced too', () => {
 test('surcharging with a cause recorded is noted but not contradictory', () => {
   let i = answer(base(), 'flow_condition', 'surcharged');
   i = answer(i, 'blockage_present', true);
-  i = answer(i, 'silt_depth_mm', 180);
   const c = ruleConcerns(i);
   assert.ok(c.some((x) => x.kind === 'significant_condition'), 'still worth surfacing');
   assert.ok(

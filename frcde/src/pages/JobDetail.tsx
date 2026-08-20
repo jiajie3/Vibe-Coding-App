@@ -93,12 +93,11 @@ export default function JobDetail() {
     const at = photo?.chainage_m != null ? ` at chainage ${photo.chainage_m.toFixed(0)} m` : '';
 
     if (a.blockage_present === true) {
-      const depth = typeof a.silt_depth_mm === 'number' ? `, approx ${a.silt_depth_mm} mm silt` : '';
       const kinds = Array.isArray(a.blockage_type)
         ? ` (${(a.blockage_type as string[]).join(', ').replace(/_/g, ' ')})`
         : '';
       return {
-        detail: `Clear blockage${at}${depth}${kinds}. Reported during inspection.`,
+        detail: `Clear blockage${at}${kinds}. Reported during inspection.`,
         chainage_m: photo?.chainage_m ?? null,
       };
     }
@@ -571,15 +570,15 @@ export default function JobDetail() {
             </div>
           )}
 
-          </div>
-
           {/* ------------------------------------------------------ photos */}
           {/* Only what could not be filed against a question — general
               condition shots and override evidence. Everything else appears
               inside the checklist, next to the answer it supports. */}
           {current && looseShots.length > 0 && (
-            <div className="panel">
-              <header><h2>Other photographs ({looseShots.length})</h2></header>
+            <div className="subsection">
+              <div className="subhead">
+                <h3>Other photographs ({looseShots.length})</h3>
+              </div>
               <div className="body">
                 <div className="photos">
                   {looseShots.map((a) => (
@@ -602,9 +601,9 @@ export default function JobDetail() {
           )}
 
           {/* -------------------------------------------------- work orders */}
-          <div className="panel">
-            <header>
-              <h2>Follow-ups</h2>
+          <div className="subsection">
+            <div className="subhead">
+              <h3>Follow-ups</h3>
               {current && (
                 <button
                   className="btn tiny primary"
@@ -614,7 +613,7 @@ export default function JobDetail() {
                   Route to officer
                 </button>
               )}
-            </header>
+            </div>
             <div className="body">
               {orders.length === 0 && (
                 <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>
@@ -646,6 +645,7 @@ export default function JobDetail() {
                 ))}
               </div>
             </div>
+          </div>
           </div>
         </div>
       </div>

@@ -1,7 +1,11 @@
 # Automatic first pass
 
-Every submitted inspection is read once, automatically, and the result sits
-beside the evidence on the review page. It never decides anything.
+A second opinion on a submitted inspection, **when a supervisor asks for one**.
+It never decides anything.
+
+It used to run automatically on every submission. That spent money on
+inspections nobody had opened, and put a verdict in front of a reviewer before
+they had formed their own — the wrong order for something that is only advice.
 
 ## Why it does not decide
 
@@ -32,7 +36,7 @@ The rules, in [`server/ai.ts`](../frcde/server/ai.ts):
 | --- | --- |
 | `coverage_below_gate` | Server coverage is under `min_coverage_pct` |
 | `coverage_flag` | Any of `mock_location`, `implausible_speed`, `large_gap_bridged`, `override_used` |
-| `contradiction` | Blockage with zero silt; blockage with free flow; severity ≥ 3 with no defect type; site recorded inaccessible yet more than half the drain walked; surcharged or restricted flow with nothing on the form to explain it |
+| `contradiction` | Blockage with free flow; severity ≥ 3 with no defect type; site recorded inaccessible yet more than half the drain walked; surcharged or restricted flow with nothing on the form to explain it |
 | `significant_condition` | Flow recorded as surcharged/overtopping or restricted |
 | `missing_evidence` | Severity ≥ 3 with no photographs |
 | `thin_remarks` | Remarks that are only "nil", "ok", "n/a", "-" and similar |
@@ -72,9 +76,14 @@ Two things rules cannot reach:
 - **Prose that says nothing.** `remarks: "cleared"` against a severity-4
   structural defect. Whether writing is substantive is a language question.
 - **Photographs.** Does the image show a drain at all? Is it too dark or too
-  close to evidence anything? Does it show the defect that was claimed? Each
-  photograph comes back with `shows_drain`, `quality`, `matches_description`
-  and a note.
+  close to evidence anything? Does it show what was recorded — a drain reported
+  as surcharged should not photograph as dry.
+
+The answer comes back as a recommendation and a paragraph of prose, not a
+taxonomy. It used to arrive as concerns split from photograph notes, each tagged
+by origin, and a reader had to assemble the meaning out of four lists. Rule
+findings lead the paragraph, because they are certain; the model's judgement
+follows.
 
 Up to four photographs per inspection, sent as base64 data rather than as URLs —
 OpenAI would otherwise have to fetch them itself, which fails on a laptop and

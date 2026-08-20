@@ -5,24 +5,27 @@ import type { AiReview } from '../api.ts';
 import { toast } from '../toast.ts';
 
 /**
- * The automated first pass, shown beside the evidence rather than instead of it.
+ * A second opinion, when a supervisor asks for one.
  *
- * It is styled as a briefing, not a decision. There are no buttons here that
- * approve or reject anything — the supervisor's own controls stay where they
- * were, above. A panel that offered "accept the AI's verdict" would turn a
- * reviewer into a clicker, which is the failure mode worth designing against:
- * the point of a first pass is to aim attention, not to replace it.
+ * It does not run on submission any more. Reviewing everything automatically
+ * spent money on inspections nobody had opened, and put a verdict in front of a
+ * reviewer before they had formed their own — the wrong order for something
+ * that is only ever advice.
  *
- * Rule findings and model findings are labelled differently on purpose. One is
- * arithmetic and cannot be wrong; the other is judgement and occasionally is. A
- * reviewer who cannot tell them apart learns to distrust both.
+ * The output is a recommendation and a reason, in prose. It used to arrive as a
+ * taxonomy — checks, then photograph notes, each tagged by where it came from —
+ * and a reader had to assemble the meaning out of four lists. What is wanted is
+ * what a colleague would say: here is what I would do, and here is why.
+ *
+ * There is still no button here that approves or rejects anything. The
+ * supervisor's own controls stay in the page header.
  */
 
 const VERDICT: Record<AiReview['verdict'], { label: string; tone: string }> = {
-  looks_sound: { label: 'Looks sound', tone: 'ok' },
+  looks_sound: { label: 'Looks approvable', tone: 'ok' },
   needs_a_look: { label: 'Worth a look', tone: 'warn' },
-  likely_reject: { label: 'Does not support approval', tone: 'bad' },
-  skipped: { label: 'Not reviewed', tone: 'muted' },
+  likely_reject: { label: 'Would send back', tone: 'bad' },
+  skipped: { label: 'Not checked', tone: 'muted' },
 };
 
 export default function AutoReview({
@@ -36,114 +39,51 @@ export default function AutoReview({
 }) {
   const [busy, setBusy] = useState(false);
 
-  const rerun = async () => {
+  const run = async () => {
     setBusy(true);
     try {
       await api.rerunAiReview(inspectionId);
       onRefreshed();
     } catch (e) {
-      toast.error(e, 'Could not run the review');
+      toast.error(e, 'Could not run the check');
     } finally {
       setBusy(false);
     }
   };
 
-  const v = VERDICT[review?.verdict ?? 'skipped'];
-  const rules = review?.concerns.filter((c) => c.source === 'rule') ?? [];
-  const model = review?.concerns.filter((c) => c.source === 'model') ?? [];
-  const photos = review?.photo_notes ?? [];
+  const v = review ? VERDICT[review.verdict] : null;
 
   return (
-    /* A section of the Result panel, not a panel of its own. What the model
-       thinks is part of reading the result — a separate card put it in
-       competition with the evidence rather than alongside it. */
-    <div className="subsection">
+    <div className={`subsection ai${busy ? ' thinking' : ''}`}>
       <div className="subhead">
         <h3>Let AI check for you</h3>
-        <button className="btn tiny" onClick={rerun} disabled={busy}>
-          {busy ? 'Reading…' : 'Run the check'}
+        <button className="btn tiny" onClick={run} disabled={busy}>
+          {busy ? 'Reading…' : review ? 'Check again' : 'Run the check'}
         </button>
       </div>
 
-      <div className="autoreview">
-        <div className={`verdict ${v.tone}`}>{v.label}</div>
-
-        {review ? (
+      <div className="body">
+        {busy ? (
+          <p className="aiwait">Reading the coverage, the answers and the photographs…</p>
+        ) : review ? (
           <>
-            <p className="summary">{review.summary}</p>
-
-            {rules.length > 0 && (
-              <>
-                <p className="grouphead">Checks</p>
-                <ul className="concerns">
-                  {rules.map((c, i) => (
-                    <li key={`r${i}`}>
-                      <span className="tag rule">rule</span>
-                      {c.detail}
-                    </li>
-                  ))}
-                </ul>
-              </>
+            {v && <span className={`verdict ${v.tone}`}>{v.label}</span>}
+            <p className="aitext">{review.explanation}</p>
+            {/* Which model, under which instructions. Without it a verdict from
+                six months ago cannot be explained or reproduced. */}
+            {review.verdict !== 'skipped' && (
+              <p className="provenance">
+                {review.model} · prompt v{review.prompt_version} ·{' '}
+                {new Date(review.generated_at).toLocaleString()}
+              </p>
             )}
-
-            {model.length > 0 && (
-              <>
-                <p className="grouphead">Worth checking</p>
-                <ul className="concerns">
-                  {model.map((c, i) => (
-                    <li key={`m${i}`}>
-                      <span className="tag model">read</span>
-                      {c.detail}
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-
-            {photos.length > 0 && (
-              <>
-                <p className="grouphead">Photographs</p>
-                <ul className="concerns">
-                  {photos.map((p) => (
-                    <li key={p.attachment_id}>
-                      <span className={`tag ${p.shows_drain ? 'model' : 'bad'}`}>
-                        {p.shows_drain ? 'drain' : 'not a drain'}
-                      </span>
-                      {p.note}
-                      {p.matches_description === false && (
-                        <strong> Does not match what was described.</strong>
-                      )}
-                      {p.quality === 'poor' && <em> Poor quality.</em>}
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-
-            {rules.length === 0 && model.length === 0 && review.verdict !== 'skipped' && (
-              <p className="summary muted">Nothing flagged.</p>
-            )}
-
-            {/* Which model, and under which instructions. Without it a verdict
-                from six months ago cannot be explained or reproduced. */}
-            <p className="provenance">
-              {review.verdict === 'skipped'
-                ? 'Rule checks only.'
-                : `${review.model} · prompt v${review.prompt_version} · ${new Date(
-                    review.generated_at,
-                  ).toLocaleString()}`}
-            </p>
           </>
         ) : (
-          <p className="summary muted">
-            This inspection was submitted before automatic review existed. Run it
-            now if it is worth a second opinion.
+          <p className="aiwait">
+            Nothing checked yet. Run it for a second opinion on the coverage, the
+            answers and the photographs.
           </p>
         )}
-
-        <p className="provenance">
-          Advisory only — approving or sending back is still your call, above.
-        </p>
       </div>
     </div>
   );

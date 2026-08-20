@@ -1,16 +1,26 @@
 {
   "id": "tpl_open_drain",
-  "version": 7,
-  "title": "Open Concrete Drain — Routine Inspection",
+  "version": 8,
+  "title": "Open Concrete Drain \u2014 Routine Inspection",
   "published_at": "2026-07-02T08:00:00.000Z",
-
   "sections": [
-    { "id": "sec_access",     "title": "Site & Access" },
-    { "id": "sec_structural", "title": "Structural Condition" },
-    { "id": "sec_flow",       "title": "Flow & Blockage" },
-    { "id": "sec_signoff",    "title": "Sign-off" }
+    {
+      "id": "sec_access",
+      "title": "Site & Access"
+    },
+    {
+      "id": "sec_structural",
+      "title": "Structural Condition"
+    },
+    {
+      "id": "sec_flow",
+      "title": "Flow & Blockage"
+    },
+    {
+      "id": "sec_signoff",
+      "title": "Sign-off"
+    }
   ],
-
   "fields": [
     {
       "id": "site_accessible",
@@ -26,9 +36,11 @@
       "label": "Describe the obstruction",
       "help_text": "State the approximate chainage and the nature of the obstruction.",
       "required": true,
-      "visible_if": { "field": "site_accessible", "equals": false }
+      "visible_if": {
+        "field": "site_accessible",
+        "equals": false
+      }
     },
-
     {
       "id": "structural_condition",
       "section_id": "sec_structural",
@@ -36,25 +48,60 @@
       "label": "Overall structural condition",
       "required": true,
       "options": [
-        { "value": "good",     "label": "Good — no visible defects" },
-        { "value": "fair",     "label": "Fair — minor cracking / spalling" },
-        { "value": "poor",     "label": "Poor — significant deterioration" },
-        { "value": "critical", "label": "Critical — structural failure risk" }
+        {
+          "value": "good",
+          "label": "Good \u2014 no visible defects"
+        },
+        {
+          "value": "fair",
+          "label": "Fair \u2014 minor cracking / spalling"
+        },
+        {
+          "value": "poor",
+          "label": "Poor \u2014 significant deterioration"
+        },
+        {
+          "value": "critical",
+          "label": "Critical \u2014 structural failure risk"
+        }
       ],
-      "requires_photo_when": { "in": ["poor", "critical"] }
+      "requires_photo_when": {
+        "in": [
+          "poor",
+          "critical"
+        ]
+      }
     },
     {
       "id": "defect_types",
       "section_id": "sec_structural",
       "type": "multi_select",
       "label": "Defects observed",
-      "visible_if": { "field": "structural_condition", "equals": "poor" },
+      "visible_if": {
+        "field": "structural_condition",
+        "equals": "poor"
+      },
       "options": [
-        { "value": "cracking",     "label": "Cracking" },
-        { "value": "spalling",     "label": "Spalling / exposed rebar" },
-        { "value": "joint_failure","label": "Joint failure" },
-        { "value": "undermining",  "label": "Undermining / scour" },
-        { "value": "wall_collapse","label": "Wall collapse" }
+        {
+          "value": "cracking",
+          "label": "Cracking"
+        },
+        {
+          "value": "spalling",
+          "label": "Spalling / exposed rebar"
+        },
+        {
+          "value": "joint_failure",
+          "label": "Joint failure"
+        },
+        {
+          "value": "undermining",
+          "label": "Undermining / scour"
+        },
+        {
+          "value": "wall_collapse",
+          "label": "Wall collapse"
+        }
       ]
     },
     {
@@ -65,40 +112,52 @@
       "help_text": "1 = cosmetic, 5 = immediate intervention required.",
       "min": 1,
       "max": 5,
-      "visible_if": { "field": "structural_condition", "equals": "poor" }
+      "visible_if": {
+        "field": "structural_condition",
+        "equals": "poor"
+      }
     },
-
     {
       "id": "blockage_present",
       "section_id": "sec_flow",
       "type": "boolean",
       "label": "Blockage or restriction present?",
       "required": true,
-      "requires_photo_when": { "equals": true }
+      "requires_photo_when": {
+        "equals": true
+      }
     },
     {
       "id": "blockage_type",
       "section_id": "sec_flow",
       "type": "multi_select",
       "label": "Blockage composition",
-      "visible_if": { "field": "blockage_present", "equals": true },
+      "visible_if": {
+        "field": "blockage_present",
+        "equals": true
+      },
       "options": [
-        { "value": "silt",       "label": "Silt / sediment" },
-        { "value": "vegetation", "label": "Vegetation" },
-        { "value": "refuse",     "label": "Refuse / litter" },
-        { "value": "debris",     "label": "Construction debris" },
-        { "value": "fallen_tree","label": "Fallen tree / large object" }
+        {
+          "value": "silt",
+          "label": "Silt / sediment"
+        },
+        {
+          "value": "vegetation",
+          "label": "Vegetation"
+        },
+        {
+          "value": "refuse",
+          "label": "Refuse / litter"
+        },
+        {
+          "value": "debris",
+          "label": "Construction debris"
+        },
+        {
+          "value": "fallen_tree",
+          "label": "Fallen tree / large object"
+        }
       ]
-    },
-    {
-      "id": "silt_depth_mm",
-      "section_id": "sec_flow",
-      "type": "number",
-      "label": "Maximum silt depth",
-      "unit": "mm",
-      "min": 0,
-      "max": 3000,
-      "visible_if": { "field": "blockage_present", "equals": true }
     },
     {
       "id": "flow_condition",
@@ -107,15 +166,33 @@
       "label": "Flow condition at time of inspection",
       "required": true,
       "options": [
-        { "value": "dry",        "label": "Dry" },
-        { "value": "free",       "label": "Free flowing" },
-        { "value": "restricted", "label": "Restricted" },
-        { "value": "standing",   "label": "Standing water" },
-        { "value": "surcharged", "label": "Surcharged / overtopping" }
+        {
+          "value": "dry",
+          "label": "Dry"
+        },
+        {
+          "value": "free",
+          "label": "Free flowing"
+        },
+        {
+          "value": "restricted",
+          "label": "Restricted"
+        },
+        {
+          "value": "standing",
+          "label": "Standing water"
+        },
+        {
+          "value": "surcharged",
+          "label": "Surcharged / overtopping"
+        }
       ],
-      "requires_photo_when": { "in": ["surcharged"] }
+      "requires_photo_when": {
+        "in": [
+          "surcharged"
+        ]
+      }
     },
-
     {
       "id": "general_photos",
       "section_id": "sec_signoff",

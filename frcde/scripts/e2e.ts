@@ -417,7 +417,7 @@ const overridden = await j(`/inspections/${ovId}/complete`, {
   body: JSON.stringify({
     ended_at: new Date().toISOString(),
     coverage: { client_computed_pct: 34, covered_segments: 0, total_segments: 0, uncovered_ranges_m: [] },
-    checklist: { template_id: 'tpl_open_drain', template_version: 7, answers: { blockage_present: true, silt_depth_mm: 260 } },
+    checklist: { template_id: 'tpl_open_drain', template_version: 8, answers: { blockage_present: true, blockage_type: ['silt'] } },
     override: {
       reason_code: 'access_blocked',
       notes: 'Gate padlocked at ch. 210; no key at the depot.',

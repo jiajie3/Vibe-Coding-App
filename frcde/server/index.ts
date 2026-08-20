@@ -452,9 +452,6 @@ app.post('/v1/inspections/:id/complete', (req, res) => {
   store.saveInspection(insp);
   store.updateJob(job.id, { status: 'submitted', heartbeat: null });
 
-  // Started, not awaited — see runAiReview.
-  void runAiReview(insp.id);
-
   res.json({
     inspection_id: insp.id,
     job_status: 'submitted',
@@ -634,12 +631,15 @@ function reviewInputFor(insp: InspectionRecord): ai.ReviewInput | null {
 }
 
 /**
- * Run the first pass and keep it.
+ * Run the check and keep the result.
  *
- * Deliberately not awaited by the endpoint that triggers it: a handset waiting
- * on an OpenAI round trip to learn its submission succeeded is a handset that
- * times out in a culvert. The console fetches the result when the supervisor
- * opens the job.
+ * Only ever on request. Reviewing every submission automatically spent money on
+ * inspections nobody had opened yet, and put a verdict in front of a supervisor
+ * before they had formed their own — which is the wrong order for something
+ * advisory. A reviewer asks for it when they want a second opinion.
+ *
+ * Stored rather than recomputed, so it costs one call and can still be
+ * explained later by the model and prompt version recorded with it.
  */
 async function runAiReview(inspectionId: string): Promise<void> {
   const insp = store.inspection(inspectionId);
@@ -652,7 +652,7 @@ async function runAiReview(inspectionId: string): Promise<void> {
     if (!fresh) return;
     fresh.ai_review = review;
     store.saveInspection(fresh);
-    console.log(`[ai] ${input.reference}: ${review.verdict} (${review.concerns.length} concerns)`);
+    console.log(`[ai] ${input.reference}: ${review.verdict}`);
   } catch (e) {
     console.warn('[ai] review failed outright:', (e as Error).message);
   }
