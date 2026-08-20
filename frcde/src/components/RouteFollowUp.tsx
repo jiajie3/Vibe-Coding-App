@@ -145,33 +145,6 @@ export default function RouteFollowUp({
           </select>
         </label>
 
-        {chosen !== '' && routing && (
-          <div className="modal-note">
-            Recorded as routed to <strong>{routing.labels[chosen] ?? chosen}</strong>.
-            They acknowledge in Slack, then close it or say why they cannot.
-            {!routing.slack_configured && (
-              <>
-                {' '}
-                No workspace is connected, so this will be logged rather than
-                actually posted.
-              </>
-            )}
-          </div>
-        )}
-
-        {chosen === '' && (
-          <div className="modal-note">
-            The follow-up is recorded here, and nobody outside FRCDE is told about it.
-          </div>
-        )}
-
-        {suggestion?.chainage_m != null && (
-          <div className="modal-note">
-            Located at chainage {suggestion.chainage_m.toFixed(0)} m, taken from the
-            inspection's own photograph.
-          </div>
-        )}
-
         {error && <div className="signin-error">{error}</div>}
 
         <div className="btnrow">

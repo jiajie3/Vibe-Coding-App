@@ -1308,13 +1308,6 @@ app.post('/v1/console/slack/suggest', (req, res) => {
       asset_name: job?.asset.name,
     }),
     channels: knownChannels(),
-    // The name each channel will be recorded under. Sent so the console shows
-    // the same words the work order will store, rather than deriving something
-    // similar from the channel handle and quietly disagreeing with it.
-    labels: Object.fromEntries(
-      knownChannels().map((c) => [c, partyForChannel(c) ?? c.replace(/^#/, '')]),
-    ),
-    slack_configured: slack.isConfigured(),
   });
 });
 
