@@ -12,7 +12,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
 import { CoverageTracker } from '../core/coverage.ts';
-import { chainageToLatLon, sliceAlignment } from '../core/geo.ts';
+import { chainageToLatLon, project, sliceAlignment } from '../core/geo.ts';
 import type { CoverageFlag, Fix, Job, TrackPoint } from '../core/types.ts';
 import { uuidv7 } from '../core/uuid.ts';
 import {
@@ -361,6 +361,12 @@ export function useInspection(job: Job) {
         flushTrack,
         pause,
         isRunning: () => statusRef.current === 'running',
+        chainageAt: (lat, lon) => {
+          const p = project(tracker.align, lat, lon);
+          // Outside the corridor the projection is meaningless — a photograph
+          // taken in the depot car park should not be filed at chainage 0.
+          return p.offset_m <= tracker.rules.corridor_tolerance_m ? p.chainage_m : null;
+        },
       }),
     [flushTrack, pause, tracker],
   );

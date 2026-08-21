@@ -284,8 +284,12 @@ export default function InspectionScreen({
       {/* ---------------------------------------------------------- HUD */}
       <SafeAreaView edges={['top']} pointerEvents="box-none">
         <View style={styles.hud}>
+          {/* A pill, not blue text. Over a map, plain text competes with road
+              labels and street names for the eye — and this is the only way
+              out of a full-screen map. */}
           <Pressable onPress={() => navigation.goBack()} hitSlop={14} style={styles.backRow}>
-            <Text style={styles.back}>‹ All jobs</Text>
+            <Text style={styles.backChevron}>‹</Text>
+            <Text style={styles.back}>All jobs</Text>
           </Pressable>
 
           <View style={styles.titleRow}>
@@ -411,10 +415,10 @@ export default function InspectionScreen({
                 the distance along the drain are recorded with it — which is
                 only true if the camera is one tap from the map. */}
             <Pressable
-              style={styles.photoBtn}
+              style={({ pressed }) => [styles.photoBtn, pressed && styles.photoBtnDown]}
               onPress={() => navigation.navigate('Camera', { fieldId: photoField })}
             >
-              <Text style={styles.photoIcon}>📷</Text>
+              <Text style={styles.photoIcon}>📸</Text>
               <Text style={styles.photoText}>Take a photo</Text>
               {session.photos.length > 0 && (
                 <View style={styles.photoCount}>
@@ -496,8 +500,24 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
   },
-  backRow: { alignSelf: 'flex-start', marginBottom: 6 },
-  back: { fontSize: 15, color: '#2563EB', fontWeight: '600' },
+  backRow: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 8,
+    paddingLeft: 10,
+    paddingRight: 14,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    // Enough to read as a control against a light map tile, not so much that it
+    // looks like an alert.
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  backChevron: { fontSize: 19, color: '#2563EB', fontWeight: '800', marginTop: -2 },
+  back: { fontSize: 15, color: '#2563EB', fontWeight: '700' },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   hudRef: { fontSize: 11, fontWeight: '700', color: '#94A3B8', letterSpacing: 0.6 },
   pausedPill: {
@@ -563,26 +583,36 @@ const styles = StyleSheet.create({
   gapChipText: { fontSize: 12, color: '#FFFFFF', fontWeight: '700' },
 
   actionRow: { flexDirection: 'row', gap: 10, alignItems: 'stretch' },
+  /* Solid blue against the white checklist card beside it. Photographs are
+     the thing this screen most wants you to do, and a second white button says
+     the opposite — that the two are alternatives of equal weight. */
   photoBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
-    backgroundColor: 'rgba(255,255,255,0.96)',
-    borderRadius: 14,
-    paddingHorizontal: 14,
+    gap: 8,
+    backgroundColor: '#2563EB',
+    borderRadius: 16,
+    paddingLeft: 15,
+    paddingRight: 16,
     paddingVertical: 13,
+    shadowColor: '#1E3A8A',
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
   },
-  photoIcon: { fontSize: 16 },
-  photoText: { fontSize: 15, fontWeight: '700', color: '#0F172A' },
+  photoBtnDown: { backgroundColor: '#1D4ED8', transform: [{ scale: 0.97 }] },
+  photoIcon: { fontSize: 18 },
+  photoText: { fontSize: 15.5, fontWeight: '800', color: '#fff' },
   photoCount: {
-    minWidth: 20,
-    paddingHorizontal: 5,
+    minWidth: 21,
+    paddingHorizontal: 6,
     paddingVertical: 1,
     borderRadius: 999,
-    backgroundColor: '#0F172A',
+    backgroundColor: 'rgba(255,255,255,0.24)',
     alignItems: 'center',
   },
-  photoCountText: { color: '#fff', fontSize: 11.5, fontWeight: '800' },
+  photoCountText: { color: '#fff', fontSize: 12, fontWeight: '800' },
 
   checklistBtn: {
     // Takes the rest of the row, so the photo button keeps its natural width.

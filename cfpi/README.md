@@ -12,7 +12,7 @@ the drain while CFPI verifies coverage by GPS, complete a checklist, and sync re
 ## Run it
 
 ```bash
-npm run test:core     # coverage, checklist and uuid engines — 39 tests, no device
+npm run test:core     # coverage, checklist and uuid engines — 47 tests, no device
 npm run typecheck
 npm start             # Metro, in Expo Go mode
 ```
@@ -142,11 +142,14 @@ the album proves nothing about where or when it was taken, so everyone downstrea
 reviewer, the automated check, the contractor sent to the spot — had to carry the doubt.
 Removing the option is what makes a photograph here evidence rather than an image.
 
-The checklist no longer takes photographs of its own. Answering "surcharged", "critical"
-or "blockage present" still **requires** one, but it is satisfied from the general
-photographs: a surcharged drain is a condition of the whole stretch, not of the dropdown
-that asked about it, and asking for the same picture three times is how an inspector
-learns to game a form.
+**At least one photograph is required to submit** — whatever the drain looked like.
+Blocked or clear, dry or surcharged, gate open or padlocked. It used to be demanded only
+by particular answers, which meant the one record nobody could check was the one claiming
+nothing was wrong; and a drain that was blocked *and* surcharged *and* cracked was asked
+for the same picture three times, which is how an inspector learns to game a form.
+
+The checklist takes no photographs of its own. Each thumbnail carries a **✕** to delete
+it, confirmed — it used to be a long press and a guess.
 
 ## Offline behaviour
 

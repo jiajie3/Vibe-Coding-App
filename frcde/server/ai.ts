@@ -189,20 +189,29 @@ export function ruleConcerns(input: ReviewInput): Concern[] {
     });
   }
 
-  const severity = answerOf(c, 'defect_severity');
-  if (typeof severity === 'number' && severity >= 3 && isBlank(answerOf(c, 'defect_types'))) {
+  /**
+   * Serious deterioration, described only by the word for it.
+   *
+   * Keyed on the condition rather than the severity grade, which CFPI has
+   * dropped — it asked an inspector to score 1-5 what they had just named in
+   * words, and the two disagreed as often as they agreed. "Poor" and "critical"
+   * carry the same meaning without the arithmetic.
+   */
+  const condition = String(answerOf(c, 'structural_condition') ?? '');
+  const serious = condition === 'poor' || condition === 'critical';
+  if (serious && isBlank(answerOf(c, 'defect_types'))) {
     out.push({
       source: 'rule',
       kind: 'contradiction',
       field: 'defect_types',
-      detail: `Severity ${severity} recorded with no defect type selected.`,
+      detail: `Structural condition recorded as ${condition} with no defect type selected.`,
     });
   }
-  if (typeof severity === 'number' && severity >= 3 && input.photos.length === 0) {
+  if (serious && input.photos.length === 0) {
     out.push({
       source: 'rule',
       kind: 'missing_evidence',
-      detail: `Severity ${severity} recorded with no photographs attached.`,
+      detail: `Structural condition recorded as ${condition} with no photographs attached.`,
     });
   }
 

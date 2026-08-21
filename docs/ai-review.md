@@ -36,9 +36,9 @@ The rules, in [`server/ai.ts`](../frcde/server/ai.ts):
 | --- | --- |
 | `coverage_below_gate` | Server coverage is under `min_coverage_pct` |
 | `coverage_flag` | Any of `mock_location`, `implausible_speed`, `large_gap_bridged`, `override_used` |
-| `contradiction` | Blockage with free flow; severity ≥ 3 with no defect type; site recorded inaccessible yet more than half the drain walked; surcharged or restricted flow with nothing on the form to explain it |
+| `contradiction` | Blockage with free flow; poor or critical structure with no defect type; site recorded inaccessible yet more than half the drain walked; surcharged or restricted flow with nothing on the form to explain it |
 | `significant_condition` | Flow recorded as surcharged/overtopping or restricted |
-| `missing_evidence` | Severity ≥ 3 with no photographs |
+| `missing_evidence` | Poor or critical structure with no photographs |
 | `thin_remarks` | Remarks that are only "nil", "ok", "n/a", "-" and similar |
 
 These are instant, free, and cannot hallucinate. The console labels them
@@ -114,7 +114,7 @@ supervisor's own buttons are untouched.
 
 Two things rules cannot reach:
 
-- **Prose that says nothing.** `remarks: "cleared"` against a severity-4
+- **Prose that says nothing.** `remarks: "cleared"` against a critical
   structural defect. Whether writing is substantive is a language question.
 - **Photographs.** Does the image show a drain at all? Is it too dark or too
   close to evidence anything? Does it show what was recorded — a drain reported

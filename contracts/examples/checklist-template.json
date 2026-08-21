@@ -1,6 +1,6 @@
 {
   "id": "tpl_open_drain",
-  "version": 10,
+  "version": 12,
   "title": "Open Concrete Drain — Routine Inspection",
   "published_at": "2026-07-02T08:00:00.000Z",
   "sections": [
@@ -31,8 +31,9 @@
       "section_id": "sec_photos",
       "type": "photo",
       "label": "General condition photographs",
-      "help_text": "Taken with the Take a photo button on the map screen, which records the distance along the drain for each one. Required if you report critical or poor structural condition, a blockage, or surcharged flow.",
-      "required": false
+      "help_text": "At least one is required, whatever you found. Taken with the Take a photo button on the map screen, which records the distance along the drain for each one.",
+      "required": true,
+      "min": 1
     },
     {
       "id": "site_accessible",
@@ -42,15 +43,56 @@
       "required": true
     },
     {
-      "id": "access_obstruction",
+      "id": "access_reason",
       "section_id": "sec_access",
-      "type": "text",
-      "label": "Describe the obstruction",
-      "help_text": "State the approximate chainage and the nature of the obstruction.",
+      "type": "single_select",
+      "label": "What stopped you?",
       "required": true,
       "visible_if": {
         "field": "site_accessible",
         "equals": false
+      },
+      "options": [
+        {
+          "value": "locked",
+          "label": "Locked gate or hoarding"
+        },
+        {
+          "value": "vegetation",
+          "label": "Dense vegetation"
+        },
+        {
+          "value": "water",
+          "label": "Water too deep to walk"
+        },
+        {
+          "value": "works",
+          "label": "Construction works in the way"
+        },
+        {
+          "value": "unsafe",
+          "label": "Unsafe footing or structure"
+        },
+        {
+          "value": "private",
+          "label": "Private land, no access granted"
+        },
+        {
+          "value": "other",
+          "label": "Other"
+        }
+      ]
+    },
+    {
+      "id": "access_other",
+      "section_id": "sec_access",
+      "type": "text",
+      "label": "Describe what stopped you",
+      "help_text": "State the approximate distance along the drain and what you found.",
+      "required": true,
+      "visible_if": {
+        "field": "access_reason",
+        "equals": "other"
       }
     },
     {
@@ -76,13 +118,7 @@
           "value": "critical",
           "label": "Critical — structural failure risk"
         }
-      ],
-      "requires_photo_when": {
-        "in": [
-          "poor",
-          "critical"
-        ]
-      }
+      ]
     },
     {
       "id": "defect_types",
@@ -91,7 +127,11 @@
       "label": "Defects observed",
       "visible_if": {
         "field": "structural_condition",
-        "equals": "poor"
+        "in": [
+          "fair",
+          "poor",
+          "critical"
+        ]
       },
       "options": [
         {
@@ -113,20 +153,25 @@
         {
           "value": "wall_collapse",
           "label": "Wall collapse"
+        },
+        {
+          "value": "other",
+          "label": "Other"
         }
-      ]
+      ],
+      "required": true
     },
     {
-      "id": "defect_severity",
+      "id": "defect_other",
       "section_id": "sec_structural",
-      "type": "severity",
-      "label": "Severity grade",
-      "help_text": "1 = cosmetic, 5 = immediate intervention required.",
-      "min": 1,
-      "max": 5,
+      "type": "text",
+      "label": "Describe the defect",
+      "required": true,
       "visible_if": {
-        "field": "structural_condition",
-        "equals": "poor"
+        "field": "defect_types",
+        "in": [
+          "other"
+        ]
       }
     },
     {
@@ -134,10 +179,7 @@
       "section_id": "sec_flow",
       "type": "boolean",
       "label": "Blockage or restriction present?",
-      "required": true,
-      "requires_photo_when": {
-        "equals": true
-      }
+      "required": true
     },
     {
       "id": "blockage_type",
@@ -168,8 +210,26 @@
         {
           "value": "fallen_tree",
           "label": "Fallen tree / large object"
+        },
+        {
+          "value": "other",
+          "label": "Other"
         }
-      ]
+      ],
+      "required": true
+    },
+    {
+      "id": "blockage_other",
+      "section_id": "sec_flow",
+      "type": "text",
+      "label": "Describe the blockage",
+      "required": true,
+      "visible_if": {
+        "field": "blockage_type",
+        "in": [
+          "other"
+        ]
+      }
     },
     {
       "id": "flow_condition",
@@ -198,12 +258,7 @@
           "value": "surcharged",
           "label": "Surcharged / overtopping"
         }
-      ],
-      "requires_photo_when": {
-        "in": [
-          "surcharged"
-        ]
-      }
+      ]
     },
     {
       "id": "remarks",

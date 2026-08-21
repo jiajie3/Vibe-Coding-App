@@ -51,8 +51,19 @@ export interface SessionState {
   flags: CoverageFlag[];
   answers: Answers;
   photos: PhotoRecord[];
-  /** Last accepted position, so photos can be tagged without re-projecting. */
-  last_position: { lat: number; lon: number; chainage_m: number | null } | null;
+  /**
+   * The last accepted position, and when it was accepted.
+   *
+   * The timestamp matters: a photograph inherits this only as a fallback, and a
+   * fix from four minutes ago could be two hundred metres away. Without knowing
+   * its age there is no way to tell a good fallback from a confident lie.
+   */
+  last_position: {
+    lat: number;
+    lon: number;
+    chainage_m: number | null;
+    at: string;
+  } | null;
 }
 
 const EMPTY: SessionState = {
@@ -156,7 +167,7 @@ export function hydrateSession(
 }
 
 export function setPosition(lat: number, lon: number, chainage_m: number | null) {
-  set({ last_position: { lat, lon, chainage_m } });
+  set({ last_position: { lat, lon, chainage_m, at: new Date().toISOString() } });
 }
 
 export function setAnswer(fieldId: string, value: Answers[string]) {

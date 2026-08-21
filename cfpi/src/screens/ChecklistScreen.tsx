@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
+  Alert,
   Image,
   Pressable,
   ScrollView,
@@ -349,23 +350,41 @@ export default function ChecklistScreen({
           <View style={styles.photoBlock}>
             {photos.length === 0 && (
               <Text style={styles.photoEmpty}>
-                Nothing yet. Take a photo on the map screen and it appears here,
-                tagged with how far along the drain you were.
+                At least one is needed, whatever you found. Take a photo on the
+                map screen and it appears here, tagged with the distance along
+                the drain.
               </Text>
             )}
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={styles.photoRow}>
                 {photos.map((p) => (
-                  <Pressable
-                    key={p.id}
-                    style={styles.thumb}
-                    onLongPress={() => removePhoto(p.id)}
-                  >
+                  <View key={p.id} style={styles.thumb}>
                     <Image source={{ uri: p.uri }} style={styles.thumbImg} />
                     {p.chainage_m != null && (
                       <Text style={styles.thumbTag}>{p.chainage_m.toFixed(0)}m</Text>
                     )}
-                  </Pressable>
+                    {/* A visible control, not a long press. Deleting a
+                        photograph was discoverable only by holding one down
+                        and hoping — which is no way to remove the blurred
+                        shot you have just noticed. Confirmed, because the
+                        photograph cannot be taken again from here. */}
+                    <Pressable
+                      style={styles.thumbDelete}
+                      hitSlop={8}
+                      onPress={() =>
+                        Alert.alert('Delete this photograph?', 'This cannot be undone.', [
+                          { text: 'Keep', style: 'cancel' },
+                          {
+                            text: 'Delete',
+                            style: 'destructive',
+                            onPress: () => removePhoto(p.id),
+                          },
+                        ])
+                      }
+                    >
+                      <Text style={styles.thumbDeleteText}>✕</Text>
+                    </Pressable>
+                  </View>
                 ))}
                 <Pressable style={styles.addPhoto} onPress={() => openCamera(field.id)}>
                   <Text style={styles.addPhotoPlus}>＋</Text>
@@ -384,8 +403,11 @@ export default function ChecklistScreen({
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
       <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={12}>
-          <Text style={styles.back}>‹ Map</Text>
+        {/* The same pill as All jobs on the map screen. Two ways back that
+            look like two different kinds of control is one to learn twice. */}
+        <Pressable onPress={() => navigation.goBack()} hitSlop={12} style={styles.backRow}>
+          <Text style={styles.backChevron}>‹</Text>
+          <Text style={styles.back}>Map</Text>
         </Pressable>
         <Text style={styles.title}>{template.title}</Text>
         <Text style={styles.sub}>{job.reference} · {job.asset.name}</Text>
@@ -480,7 +502,22 @@ export default function ChecklistScreen({
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#F1F5F9' },
   header: { paddingHorizontal: 20, paddingBottom: 14, gap: 4 },
-  back: { fontSize: 16, color: '#2563EB', fontWeight: '600', marginBottom: 4 },
+  backRow: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 8,
+    paddingLeft: 10,
+    paddingRight: 14,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  backChevron: { fontSize: 19, color: '#2563EB', fontWeight: '800', marginTop: -2 },
+  back: { fontSize: 15, color: '#2563EB', fontWeight: '700' },
   title: { fontSize: 24, fontWeight: '700', color: '#0F172A', letterSpacing: -0.4 },
   sub: { fontSize: 13, color: '#64748B' },
   progressTrack: {
@@ -594,6 +631,18 @@ const styles = StyleSheet.create({
   photoEmpty: { fontSize: 12.5, color: '#64748B', lineHeight: 17 },
   photoRow: { flexDirection: 'row', gap: 8, paddingVertical: 2 },
   thumb: { width: 72, height: 72, borderRadius: 10, overflow: 'hidden', backgroundColor: '#E2E8F0' },
+  thumbDelete: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(15,23,42,0.72)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  thumbDeleteText: { color: '#fff', fontSize: 11, fontWeight: '800', lineHeight: 13 },
   thumbImg: { width: '100%', height: '100%' },
   thumbTag: {
     position: 'absolute',

@@ -16,6 +16,14 @@ export interface InspectionController {
   /** Stop GPS, flush, persist. Safe to call when already paused. */
   pause: () => Promise<void>;
   isRunning: () => boolean;
+  /**
+   * Distance along the drain for a coordinate, or null outside the corridor.
+   *
+   * Used when a photograph is taken: the fix is measured at the shutter rather
+   * than inherited from whenever the walk last accepted one, so it has to be
+   * projected onto the alignment there and then.
+   */
+  chainageAt: (lat: number, lon: number) => number | null;
 }
 
 let controller: InspectionController | null = null;

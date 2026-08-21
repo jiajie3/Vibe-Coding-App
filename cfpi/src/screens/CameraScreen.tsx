@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { processCapture } from '../services/photos.ts';
+import { processCapture, STALE_FIX_MS } from '../services/photos.ts';
 import { useSession } from '../state/session.ts';
 
 export default function CameraScreen({ navigation, route }: { navigation: any; route: any }) {
@@ -21,6 +21,16 @@ export default function CameraScreen({ navigation, route }: { navigation: any; r
   const cameraRef = useRef<CameraView>(null);
   const [busy, setBusy] = useState(false);
   const session = useSession();
+
+  /**
+   * Is there a position worth attaching?
+   *
+   * The same window the capture itself uses, so what the overlay says and what
+   * lands on the photograph cannot disagree.
+   */
+  const fix = session.last_position;
+  const located = fix != null && Date.now() - Date.parse(fix.at) <= STALE_FIX_MS;
+  const distance = located ? fix.chainage_m : null;
 
   const forField = session.photos.filter((p) => p.field_id === fieldId);
   const takenForField = forField.length;
@@ -97,11 +107,18 @@ export default function CameraScreen({ navigation, route }: { navigation: any; r
             </ScrollView>
           )}
 
-          {session.last_position?.chainage_m != null && (
-            <Text style={styles.chainage}>
-              chainage {session.last_position.chainage_m.toFixed(0)} m
-            </Text>
-          )}
+          {/* Said before the shutter, not discovered afterwards. A photograph
+              with no position is legitimate — the phone may not have a fix —
+              but an inspector who is told can walk two steps and wait, and one
+              who is not finds out weeks later when a reviewer asks where it
+              was taken. */}
+          <Text style={[styles.place, !located && styles.placeMissing]}>
+            {!located
+              ? 'No GPS fix — this photo will have no location'
+              : distance != null
+                ? `distance ${distance.toFixed(0)} m along the drain`
+                : 'Off the drain — no distance will be recorded'}
+          </Text>
           {/* A full-screen modal has no swipe-to-dismiss, so Done is the only
               way out. It used to sit at the top of the overlay, where the
               status bar covered it — safe-area insets report 0 inside a modal
@@ -190,7 +207,8 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.9)',
   },
-  chainage: {
+  placeMissing: { color: '#FCA5A5' },
+  place: {
     color: '#fff',
     fontSize: 12,
     fontWeight: '600',

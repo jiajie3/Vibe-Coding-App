@@ -41,7 +41,6 @@ const base = (over: Partial<ReviewInput> = {}): ReviewInput => ({
     },
     { id: 'blockage_present', label: 'Blockage present', type: 'boolean', answer: false },
     { id: 'flow_condition', label: 'Flow', type: 'single_select', answer: 'free' },
-    { id: 'defect_severity', label: 'Severity', type: 'severity', answer: 1 },
     { id: 'defect_types', label: 'Defects', type: 'multi_select', answer: [] },
     { id: 'remarks', label: 'Remarks', type: 'text', answer: 'Clear throughout, no silt at the outfall.' },
   ],
@@ -94,15 +93,18 @@ test('a blockage alongside free flow is a contradiction', () => {
   assert.ok(kinds(i).includes('contradiction'));
 });
 
-test('a severe defect with no type and no photo is caught', () => {
-  const i = answer(base(), 'defect_severity', 4);
+test('serious deterioration with no type and no photo is caught', () => {
+  // Read off the condition, not a severity grade: CFPI stopped asking for a
+  // number, and a rule keyed on one it no longer receives is a rule that never
+  // fires — silently, on exactly the reports that most need it.
+  const i = answer(base(), 'structural_condition', 'critical');
   const k = kinds(i);
   assert.ok(k.includes('contradiction'), 'no defect type selected');
   assert.ok(k.includes('missing_evidence'), 'no photographs attached');
 });
 
-test('a severe defect with a type and a photo is not', () => {
-  let i = answer(base(), 'defect_severity', 4);
+test('serious deterioration with a type and a photo is not', () => {
+  let i = answer(base(), 'structural_condition', 'poor');
   i = answer(i, 'defect_types', ['siltation']);
   i = { ...i, photos: [{ id: 'a1', chainage_m: 120, path: 'nowhere.jpg' }] };
   assert.deepEqual(ruleConcerns(i), []);

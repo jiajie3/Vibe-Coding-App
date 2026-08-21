@@ -14,13 +14,61 @@ import { Directory, File, Paths } from 'expo-file-system';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 
 import { uuidv7 } from '../core/uuid.ts';
-import { addPhoto, getSession } from '../state/session.ts';
+import { getController } from '../state/activeInspection.ts';
+import { addPhoto, getSession, setPosition } from '../state/session.ts';
+import { getCurrentLocation } from './locationTask.ts';
 import type { PhotoRecord } from '../state/session.ts';
 import { enqueue } from './outbox.ts';
 
 const MAX_EDGE = 1600;
 const QUALITY = 0.8;
 const DIR_NAME = 'inspection-photos';
+
+/**
+ * How old the walk's last fix may be before it stops standing in for a photo's
+ * own position.
+ *
+ * Thirty seconds of walking is perhaps forty metres. Beyond that the fallback
+ * stops being an approximation and starts being a different place.
+ */
+export const STALE_FIX_MS = 30_000;
+
+/**
+ * Where the photograph is being taken, measured now.
+ *
+ * The position used to be whatever the walk last accepted, which produced the
+ * bug this replaces: two photographs at two places, one of them with no
+ * position at all. A fix is only *accepted* by the coverage tracker when it is
+ * inside the corridor and accurate enough, so between two accepted fixes there
+ * is no position to inherit — and before the first one there is nothing at all.
+ *
+ * So the shutter asks for its own fix. The walk's last one is the fallback, and
+ * only while it is recent enough to still describe where the inspector is
+ * standing; otherwise the photograph is filed with no position, which is honest
+ * and visibly missing rather than quietly wrong.
+ */
+async function positionNow(): Promise<{
+  lat: number;
+  lon: number;
+  chainage_m: number | null;
+} | null> {
+  const fix = await getCurrentLocation();
+  if (fix) {
+    const at = {
+      lat: fix.lat,
+      lon: fix.lon,
+      chainage_m: getController()?.chainageAt(fix.lat, fix.lon) ?? null,
+    };
+    // The map and the camera overlay both read this, so a photograph taken
+    // while the walk was between fixes still moves the displayed distance.
+    setPosition(at.lat, at.lon, at.chainage_m);
+    return at;
+  }
+
+  const last = getSession().last_position;
+  if (last && Date.now() - Date.parse(last.at) <= STALE_FIX_MS) return last;
+  return null;
+}
 
 function photoDir(): Directory {
   const dir = new Directory(Paths.document, DIR_NAME);
@@ -79,10 +127,10 @@ export async function processCapture(
     base64,
   );
 
-  // Here and now, from the walk itself. Null when the phone has no fix yet,
-  // never borrowed from somewhere else: a coordinate that was guessed is worse
-  // than one that is missing, because nothing downstream can tell them apart.
-  const pos = getSession().last_position;
+  // Here and now. Null when the phone has no fix, never borrowed from
+  // somewhere else: a coordinate that was guessed is worse than one that is
+  // missing, because nothing downstream can tell the two apart.
+  const pos = await positionNow();
   const lat = pos?.lat ?? null;
   const lon = pos?.lon ?? null;
   const chainage = pos?.chainage_m ?? null;

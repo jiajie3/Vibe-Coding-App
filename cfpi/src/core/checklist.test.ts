@@ -35,8 +35,14 @@ const VALID: Answers = {
   blockage_present: false,
   flow_condition: 'free',
 };
-/** General photographs are optional, so the baseline attaches none. */
-const VALID_PHOTOS: Record<string, number> = {};
+/**
+ * One photograph, because every inspection needs one.
+ *
+ * Not conditional on what was found. A drain reported as sound with nothing
+ * attached is the one record a reviewer cannot check at all, and "nothing was
+ * wrong" is exactly the claim worth being able to see.
+ */
+const VALID_PHOTOS: Record<string, number> = { general_photos: 1 };
 
 test('template loads with the expected shape', () => {
   assert.equal(tpl.id, 'tpl_open_drain');
@@ -47,9 +53,33 @@ test('template loads with the expected shape', () => {
 // ------------------------------------------------------------ visibility
 
 test('conditional fields are hidden until their trigger is answered', () => {
-  assert.equal(isVisible(field('access_obstruction'), {}), false);
-  assert.equal(isVisible(field('access_obstruction'), { site_accessible: true }), false);
-  assert.equal(isVisible(field('access_obstruction'), { site_accessible: false }), true);
+  assert.equal(isVisible(field('access_reason'), {}), false);
+  assert.equal(isVisible(field('access_reason'), { site_accessible: true }), false);
+  assert.equal(isVisible(field('access_reason'), { site_accessible: false }), true);
+});
+
+test('"other" opens a box to describe it, and only "other"', () => {
+  // Every category list ends in Other, and picking it has to lead somewhere.
+  // A category nobody can describe collects the answers that matter least.
+  assert.equal(isVisible(field('access_other'), { access_reason: 'locked' }), false);
+  assert.equal(isVisible(field('access_other'), { access_reason: 'other' }), true);
+
+  // Multi-selects too: the box opens when Other is among the choices, not only
+  // when it is the sole one.
+  assert.equal(isVisible(field('defect_other'), { defect_types: ['cracking'] }), false);
+  assert.equal(isVisible(field('defect_other'), { defect_types: ['cracking', 'other'] }), true);
+  assert.equal(isVisible(field('blockage_other'), { blockage_type: ['silt'] }), false);
+  assert.equal(isVisible(field('blockage_other'), { blockage_type: ['other'] }), true);
+});
+
+test('defects are asked for at fair, poor and critical', () => {
+  // Critical used to skip the question that poor asked: the worse answer
+  // collected less detail than the one below it.
+  const f = field('defect_types');
+  assert.equal(isVisible(f, { structural_condition: 'good' }), false);
+  assert.equal(isVisible(f, { structural_condition: 'fair' }), true);
+  assert.equal(isVisible(f, { structural_condition: 'poor' }), true);
+  assert.equal(isVisible(f, { structural_condition: 'critical' }), true);
 });
 
 test('unconditional fields are always visible', () => {
@@ -68,23 +98,39 @@ test('visibleFields grows as answers unlock follow-ups', () => {
 
 // -------------------------------------------------------- photo gating
 
-test('answering "blockage present: yes" makes a photo mandatory', () => {
-  assert.equal(requiresPhoto(field('blockage_present'), { blockage_present: false }), false);
-  assert.equal(requiresPhoto(field('blockage_present'), { blockage_present: true }), true);
-});
+test('requires_photo_when still works, for a template that uses it', () => {
+  // Not the open-drain template any more: a photograph is required of every
+  // inspection there, so a conditional demand could only ever fire alongside
+  // the unconditional one. The mechanism stays because the checklist is served
+  // by FRCDE, which can publish a form that needs it tomorrow.
+  const conditional: ChecklistTemplate = {
+    id: 'tpl_conditional',
+    version: 1,
+    title: 'Conditional',
+    fields: [
+      {
+        id: 'condition',
+        type: 'single_select',
+        label: 'Condition',
+        requires_photo_when: { in: ['poor', 'critical'] },
+      },
+      { id: 'shots', type: 'photo', label: 'Photographs' },
+    ],
+  };
+  const f = conditional.fields[0];
+  assert.equal(requiresPhoto(f, { condition: 'good' }), false);
+  assert.equal(requiresPhoto(f, { condition: 'poor' }), true);
+  assert.equal(requiresPhoto(f, { condition: 'critical' }), true);
 
-test('an "in" condition triggers on any listed value', () => {
-  const f = field('structural_condition');
-  assert.equal(requiresPhoto(f, { structural_condition: 'good' }), false);
-  assert.equal(requiresPhoto(f, { structural_condition: 'fair' }), false);
-  assert.equal(requiresPhoto(f, { structural_condition: 'poor' }), true);
-  assert.equal(requiresPhoto(f, { structural_condition: 'critical' }), true);
+  // And it is satisfied from the photo field, not from the question itself.
+  assert.ok(validate(conditional, { condition: 'poor' }, {}).some((e) => e.code === 'photo_required'));
+  assert.deepEqual(validate(conditional, { condition: 'poor' }, { shots: 1 }), []);
 });
 
 test('a hidden field never demands a photo', () => {
-  // defect_severity only shows when condition is 'poor'.
-  assert.equal(isVisible(field('defect_severity'), { structural_condition: 'good' }), false);
-  assert.equal(requiresPhoto(field('defect_severity'), { structural_condition: 'good' }), false);
+  // blockage_type only shows once a blockage is reported.
+  assert.equal(isVisible(field('blockage_type'), { blockage_present: false }), false);
+  assert.equal(requiresPhoto(field('blockage_type'), { blockage_present: false }), false);
 });
 
 // --------------------------------------------------------- validation
@@ -102,60 +148,45 @@ test('missing required answers are reported', () => {
 });
 
 test('hidden required fields are not demanded', () => {
-  // access_obstruction is required, but only when site_accessible is false.
+  // access_reason is required, but only when site_accessible is false.
   const errs = validate(tpl, VALID, VALID_PHOTOS);
-  assert.ok(!errs.some((e) => e.field_id === 'access_obstruction'));
+  assert.ok(!errs.some((e) => e.field_id === 'access_reason'));
 
   const errs2 = validate(tpl, { ...VALID, site_accessible: false }, VALID_PHOTOS);
-  assert.ok(errs2.some((e) => e.field_id === 'access_obstruction' && e.code === 'required'));
+  assert.ok(errs2.some((e) => e.field_id === 'access_reason' && e.code === 'required'));
 });
 
-test('a triggered photo requirement blocks submission until satisfied', () => {
-  const answers = { ...VALID, blockage_present: true, blockage_type: ['silt'] };
-
-  const blocked = validate(tpl, answers, VALID_PHOTOS);
-  assert.ok(blocked.some((e) => e.field_id === 'blockage_present' && e.code === 'photo_required'));
-
-  // Satisfied from the general photographs, which is the only place photographs
-  // go now. The requirement is unchanged; where the evidence lives has moved.
-  const cleared = validate(tpl, answers, { ...VALID_PHOTOS, general_photos: 1 });
-  assert.ok(!cleared.some((e) => e.field_id === 'blockage_present'));
+test('a photograph filed against a question does not stand in for the section', () => {
+  // Photographs used to attach to whichever question demanded one. A count left
+  // over on such a field must not clear the requirement, or a record passes
+  // with no photograph anybody can find under Photographs.
+  const errs = validate(tpl, VALID, { blockage_present: 3 });
+  assert.ok(errs.some((e) => e.field_id === 'general_photos' && e.code === 'photo_required'));
 });
 
-test('a photograph filed against the question itself does not satisfy it', () => {
-  // Guarding the move rather than assuming it. Photographs used to attach to
-  // whichever question demanded one; a count left over on that field must not
-  // quietly clear the requirement, or the rule passes for records that have no
-  // photograph a reviewer can actually find.
-  const answers = { ...VALID, blockage_present: true, blockage_type: ['silt'] };
-  const errs = validate(tpl, answers, { ...VALID_PHOTOS, blockage_present: 3 });
-  assert.ok(errs.some((e) => e.field_id === 'blockage_present' && e.code === 'photo_required'));
-});
-
-test('one general photograph clears every triggered requirement at once', () => {
-  // Three answers demanding evidence, one photograph of the drain. Asking for
-  // the same picture three times is how an inspector learns to game the form.
+test('the worst drain on the list needs one photograph, not five', () => {
+  // Every answer that used to demand its own picture, at once. Asking for the
+  // same photograph of the same drain five times is how an inspector learns to
+  // game a form.
   const answers = {
     ...VALID,
     structural_condition: 'critical',
+    defect_types: ['wall_collapse'],
     blockage_present: true,
     blockage_type: ['silt'],
     flow_condition: 'surcharged',
   };
-  assert.ok(validate(tpl, answers, VALID_PHOTOS).length >= 3);
-  assert.deepEqual(validate(tpl, answers, { ...VALID_PHOTOS, general_photos: 1 }), []);
+  assert.deepEqual(validate(tpl, answers, { general_photos: 1 }), []);
 });
 
-test('the demand names where the photograph goes', () => {
-  // "requires a photograph" beside a dropdown with no camera on it is a dead
-  // end. The message has to say which section to put it in.
-  const answers = { ...VALID, flow_condition: 'surcharged' };
-  const err = validate(tpl, answers, VALID_PHOTOS).find((e) => e.code === 'photo_required');
-  assert.match(err?.message ?? '', /General condition photographs/);
-});
-
-test('general photographs are optional — no photo blocks submission', () => {
-  assert.deepEqual(validate(tpl, VALID, {}), []);
+test('an inspection with no photograph cannot be submitted', () => {
+  // Whatever the drain looked like. Blocked or clear, dry or surcharged, the
+  // record has to carry something a reviewer can look at.
+  const errs = validate(tpl, VALID, {});
+  assert.ok(
+    errs.some((e) => e.field_id === 'general_photos' && e.code === 'photo_required'),
+    `expected a photograph to be demanded, got ${JSON.stringify(errs)}`,
+  );
   assert.deepEqual(validate(tpl, VALID, { general_photos: 1 }), []);
 });
 
@@ -196,19 +227,18 @@ test('a photo minimum is still enforced when a template sets one', () => {
 });
 
 test('out-of-range numbers are rejected', () => {
-  // Severity is the numeric field now, the silt depth this used to check having
-  // been dropped from the template. It only appears for a poor structural
-  // condition, which also demands a photograph — so both are set, or the field
-  // is invisible and never validated at all.
-  const errs = validate(
-    tpl,
-    { ...VALID, structural_condition: 'poor', defect_types: ['cracking'], defect_severity: 9 },
-    { ...VALID_PHOTOS, general_photos: 1 },
-  );
-  assert.ok(
-    errs.some((e) => e.field_id === 'defect_severity' && e.code === 'out_of_range'),
-    `expected an out_of_range error, got ${JSON.stringify(errs)}`,
-  );
+  // Against a fixture, not the open-drain template: the severity grade was its
+  // last numeric field and has been dropped — it asked an inspector to score
+  // 1-5 what they had just named in words. The engine still enforces ranges, so
+  // FRCDE can publish a numeric question without an app release.
+  const gauged: ChecklistTemplate = {
+    id: 'tpl_gauged',
+    version: 1,
+    title: 'Gauged',
+    fields: [{ id: 'depth_mm', type: 'number', label: 'Depth', min: 0, max: 500 }],
+  };
+  assert.ok(validate(gauged, { depth_mm: 900 }, {}).some((e) => e.code === 'out_of_range'));
+  assert.deepEqual(validate(gauged, { depth_mm: 120 }, {}), []);
 });
 
 // ----------------------------------------------------- pruning answers
