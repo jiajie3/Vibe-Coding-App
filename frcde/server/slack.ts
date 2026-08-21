@@ -395,21 +395,36 @@ export async function userName(id: string): Promise<string | null> {
   if (!id || !isConfigured()) return null;
   const cached = names.get(id);
   if (cached) return cached;
-  try {
-    const r = await call<{ user?: { profile?: { display_name?: string; real_name?: string }; name?: string } }>(
-      'users.info',
-      { user: id },
-    );
-    const n =
-      r.user?.profile?.display_name?.trim() ||
-      r.user?.profile?.real_name?.trim() ||
-      r.user?.name?.trim() ||
-      null;
-    if (n) names.set(id, n);
-    return n;
-  } catch {
+
+  // GET with query parameters, not a JSON body. `users.info` is one of the
+  // older form-encoded methods and answers `invalid_arguments` to JSON — which
+  // looks exactly like a missing scope from the outside, and is not.
+  const res = await fetch(`${API}/users.info?${new URLSearchParams({ user: id })}`, {
+    headers: { authorization: `Bearer ${botToken()}` },
+  }).then(
+    (r) =>
+      r.json() as Promise<{
+        ok: boolean;
+        error?: string;
+        user?: { profile?: { display_name?: string; real_name?: string }; name?: string };
+      }>,
+  ).catch(() => null);
+
+  if (!res?.ok) {
+    // Said once per name rather than swallowed: `missing_scope` here is a
+    // one-line fix in the Slack app, and invisible otherwise — the console just
+    // keeps showing the organisation instead of the person.
+    console.warn(`[slack] could not resolve ${id}: ${res?.error ?? 'request failed'}`);
     return null;
   }
+
+  const n =
+    res.user?.profile?.display_name?.trim() ||
+    res.user?.profile?.real_name?.trim() ||
+    res.user?.name?.trim() ||
+    null;
+  if (n) names.set(id, n);
+  return n;
 }
 
 export async function selfUserId(): Promise<string | null> {
