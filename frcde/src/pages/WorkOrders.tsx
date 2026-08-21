@@ -42,8 +42,49 @@ export default function WorkOrders() {
     () => api.overview().then(setData).catch(() => {}),
     [],
   );
+
+  /**
+   * Follow what Slack sends back, without being asked to refresh.
+   *
+   * Acknowledgements and completions arrive from outside this browser — a
+   * contractor presses a button in a channel and nothing here would know. A
+   * supervisor watching the list should see it move.
+   *
+   * Polled rather than streamed. A server-sent stream would be a truer "live",
+   * but it holds a connection open, and on the free plan an always-open
+   * connection is an instance that never sleeps and bills for hours nobody is
+   * using.
+   *
+   * Only while the tab is actually being looked at, for the same reason: a
+   * console left open on a spare monitor overnight should not keep the service
+   * awake. Hidden and back again refreshes immediately, so nothing is stale by
+   * the time it is read.
+   */
   useEffect(() => {
     void pull();
+    let timer: ReturnType<typeof setInterval> | null = null;
+
+    const start = () => {
+      if (timer) return;
+      timer = setInterval(() => void pull(), 8000);
+    };
+    const stop = () => {
+      if (!timer) return;
+      clearInterval(timer);
+      timer = null;
+    };
+    const onVisibility = () => {
+      if (document.hidden) return stop();
+      void pull();
+      start();
+    };
+
+    onVisibility();
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      stop();
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, [pull]);
 
   const jobsById = useMemo(
@@ -166,6 +207,69 @@ export default function WorkOrders() {
                   </li>
                 )}
               </ol>
+
+              {/* What was sent, and what came back. A supervisor reading a case
+                  should not have to open Slack to see the evidence on either
+                  side of it.
+
+                  A missing file hides itself: Render wipes the disk on every
+                  deploy, so a photograph from before the last one is gone, and a
+                  row of broken-image icons is worse than a row without them. */}
+              {(w.attachment_ids?.length || w.completion_attachment_ids?.length) && (
+                <div className="casephotos">
+                  {w.attachment_ids?.length > 0 && (
+                    <div className="photoset">
+                      <span className="minilabel">Sent with the case</span>
+                      <div className="photos">
+                        {w.attachment_ids.map((id) => (
+                          <a
+                            key={id}
+                            className="photo"
+                            href={`/uploads/${id}.jpg`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            <img
+                              src={`/uploads/${id}.jpg`}
+                              alt="From the inspection"
+                              onError={(e) => {
+                                (e.currentTarget.closest('.photo') as HTMLElement).style.display =
+                                  'none';
+                              }}
+                            />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {(w.completion_attachment_ids?.length ?? 0) > 0 && (
+                    <div className="photoset">
+                      <span className="minilabel">Returned as done</span>
+                      <div className="photos">
+                        {w.completion_attachment_ids!.map((id) => (
+                          <a
+                            key={id}
+                            className="photo"
+                            href={`/uploads/${id}.jpg`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            <img
+                              src={`/uploads/${id}.jpg`}
+                              alt="Work reported complete"
+                              onError={(e) => {
+                                (e.currentTarget.closest('.photo') as HTMLElement).style.display =
+                                  'none';
+                              }}
+                            />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {(w.completion_attachment_ids?.length ?? 0) > 0 && (
                 <div className="photos" style={{ marginTop: 8 }}>

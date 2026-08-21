@@ -647,3 +647,11 @@ html, body { height: 100%; }
 }
 .photos.pickable .drop:hover { background: rgb(15 23 42 / 0.9); }
 .labelrow .hint { font-size: 14px; font-weight: 500; color: var(--muted); }
+
+/* What was sent with a case, and what came back. Two small sets rather than one
+   grid, because "we sent these" and "they returned these" are different claims
+   and running them together loses which is which. */
+.casephotos { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 10px; }
+.casephotos .photoset { flex: 1 1 220px; min-width: 0; }
+.casephotos .minilabel { display: block; margin-bottom: 5px; }
+.casephotos .photos { grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 6px; }
