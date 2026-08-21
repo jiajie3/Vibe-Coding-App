@@ -14,9 +14,8 @@ import { Directory, File, Paths } from 'expo-file-system';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 
 import { uuidv7 } from '../core/uuid.ts';
-import { getController } from '../state/activeInspection.ts';
 import { addPhoto, getSession } from '../state/session.ts';
-import type { PhotoRecord, PhotoSource } from '../state/session.ts';
+import type { PhotoRecord } from '../state/session.ts';
 import { enqueue } from './outbox.ts';
 
 const MAX_EDGE = 1600;
@@ -30,57 +29,26 @@ function photoDir(): Directory {
 }
 
 /**
- * EXIF varies by platform and camera; read defensively.
- *
- * `DateTimeOriginal` is "YYYY:MM:DD HH:MM:SS", which Date cannot parse — the
- * colons in the date part have to become dashes first.
- */
-function exifTaken(exif: Record<string, unknown> | undefined): string | null {
-  const raw = exif?.DateTimeOriginal ?? exif?.DateTime;
-  if (typeof raw !== 'string') return null;
-  const iso = raw.replace(/^(\d{4}):(\d{2}):(\d{2})/, '$1-$2-$3').replace(' ', 'T');
-  const t = Date.parse(iso);
-  return Number.isFinite(t) ? new Date(t).toISOString() : null;
-}
-
-function exifLocation(
-  exif: Record<string, unknown> | undefined,
-): { lat: number; lon: number } | null {
-  const lat = Number(exif?.GPSLatitude);
-  const lon = Number(exif?.GPSLongitude);
-  if (!Number.isFinite(lat) || !Number.isFinite(lon) || (lat === 0 && lon === 0)) return null;
-  // Hemisphere refs are separate tags; without applying them a photo in the
-  // southern hemisphere lands in the northern one.
-  const latRef = String(exif?.GPSLatitudeRef ?? 'N').toUpperCase();
-  const lonRef = String(exif?.GPSLongitudeRef ?? 'E').toUpperCase();
-  return {
-    lat: latRef === 'S' ? -Math.abs(lat) : Math.abs(lat),
-    lon: lonRef === 'W' ? -Math.abs(lon) : Math.abs(lon),
-  };
-}
-
-/**
  * Process a photo and attach it to the current session.
  *
- * `fieldId` links the photo to the checklist question that demanded it, so
- * validation can tell "blockage present: yes" has its mandatory evidence.
+ * `fieldId` is the checklist section the photograph belongs to — the template's
+ * photo field.
  *
- * A live capture is placed at the inspector's current position. A photo from the
- * album was taken somewhere else at some other time, so its own EXIF is used —
- * and if it has none, the position is left null rather than inventing one from
- * wherever the phone happens to be standing.
+ * Every photograph is a live capture, placed at the inspector's current position
+ * and at their distance along the drain. Picking one from the camera roll used
+ * to be allowed and no longer is: such a picture proves nothing about where or
+ * when it was taken, and everyone downstream — the reviewer, the automated
+ * check, the contractor sent to the spot — had to carry that doubt. Removing
+ * the option is what makes a photograph here evidence rather than an image.
  */
 export async function processCapture(
   rawUri: string,
   opts: {
     fieldId?: string | null;
     caption?: string;
-    source?: PhotoSource;
-    exif?: Record<string, unknown>;
   } = {},
 ): Promise<PhotoRecord> {
   const id = uuidv7();
-  const source: PhotoSource = opts.source ?? 'camera';
 
   // Resize. `height: null` preserves aspect ratio.
   const ctx = ImageManipulator.manipulate(rawUri);
@@ -111,30 +79,19 @@ export async function processCapture(
     base64,
   );
 
+  // Here and now, from the walk itself. Null when the phone has no fix yet,
+  // never borrowed from somewhere else: a coordinate that was guessed is worse
+  // than one that is missing, because nothing downstream can tell them apart.
   const pos = getSession().last_position;
-  const fromLibrary = source === 'library';
-
-  // A live capture is here and now. A library photo speaks for itself or not at
-  // all — borrowing the inspector's current position would file it at a place it
-  // was never taken, which is exactly the kind of quiet inaccuracy that makes an
-  // evidence record worthless.
-  const exifPos = fromLibrary ? exifLocation(opts.exif) : null;
-  const lat = fromLibrary ? (exifPos?.lat ?? null) : (pos?.lat ?? null);
-  const lon = fromLibrary ? (exifPos?.lon ?? null) : (pos?.lon ?? null);
-
-  const chainage = fromLibrary
-    ? exifPos
-      ? getController()?.chainageAt(exifPos.lat, exifPos.lon) ?? null
-      : null
-    : (pos?.chainage_m ?? null);
+  const lat = pos?.lat ?? null;
+  const lon = pos?.lon ?? null;
+  const chainage = pos?.chainage_m ?? null;
 
   const record: PhotoRecord = {
     id,
     uri: file.uri,
-    source,
     field_id: opts.fieldId ?? null,
-    captured_at:
-      (fromLibrary ? exifTaken(opts.exif) : null) ?? new Date().toISOString(),
+    captured_at: new Date().toISOString(),
     lat,
     lon,
     chainage_m: chainage,
@@ -158,7 +115,9 @@ export async function processCapture(
       sha256: record.sha256,
       meta: {
         kind: opts.fieldId ? 'defect' : 'context',
-        source: record.source,
+        // Always, now. FRCDE keeps the field for records made before the
+        // camera roll was taken away.
+        source: 'camera',
         captured_at: record.captured_at,
         location:
           record.lat != null && record.lon != null

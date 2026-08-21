@@ -124,11 +124,11 @@ Two things rules cannot reach:
   to "was the full stretch accessible? No" is judged on whether it shows
   something blocking access. A perfectly good photograph of a drain that does
   not evidence the answer it is filed under is still worth reporting.
-- **Where a photograph came from.** Each is marked as taken on the walk or
-  chosen from the phone's album. An album photograph is explicitly **not** a
-  reason to recommend sending an inspection back — it is normal and often
-  unavoidable. The model mentions it and suggests confirming with the inspector
-  when and where it was taken.
+The model is **not** asked where a photograph came from. It used to be, back
+when CFPI could attach one from the phone's album; the app no longer can, so
+every photograph was taken on the walk at a recorded position and there is
+nothing left to weigh. The prompt says so explicitly and tells the model not to
+speculate — invite a model to assess provenance and it will produce some.
 
 The answer comes back as a recommendation and a paragraph of prose, not a
 taxonomy. It used to arrive as concerns split from photograph notes, each tagged

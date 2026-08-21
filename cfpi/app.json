@@ -19,7 +19,6 @@
     "updates": {
       "url": "https://u.expo.dev/d431590f-d51d-478d-abdd-18de7bbdcde2"
     },
-
     "//runtimeVersion": [
       "The string Expo Go matches on. Publish with `npm run publish:demo`, which",
       "pins eas-cli to 16.12.0 — do not publish with a newer one.",
@@ -51,7 +50,6 @@
         "NSLocationWhenInUseUsageDescription": "CFPI records your route along the drain to confirm the full stretch was inspected.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "CFPI keeps recording your route while the screen is off or you are using another app, so an inspection is never lost mid-walk.",
         "NSCameraUsageDescription": "CFPI attaches photographs of defects to the inspection record.",
-        "NSPhotoLibraryAddUsageDescription": "CFPI saves inspection photographs to your device.",
         "UIBackgroundModes": [
           "location"
         ]
@@ -102,7 +100,6 @@
         }
       ],
       "expo-secure-store"
-    ],
-    "runtimeVersion": "exposdk:54.0.0"
+    ]
   }
 }

@@ -131,7 +131,7 @@ plus a model reading the remarks and the photographs, advisory only
 acknowledges and closes it there, and the outcome comes back
 ([docs/slack.md](docs/slack.md)); authentication with roles; job dispatch and lifecycle; GPS coverage
 verification with server-side recomputation; pause and resume across days; server-driven
-checklists; photo capture, album import and upload; an offline outbox with retry and
+checklists; geotagged photo capture and upload; an offline outbox with retry and
 dead-lettering; coverage override with a recorded reason and evidence; review, approval
 and re-inspection; remediation work orders; automatic scheduling from per-asset
 inspection cycles.

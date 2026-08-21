@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   completeness,
   prune,
+  photoFieldId,
   requiresPhoto,
   validate,
   visibleFields,
@@ -187,6 +188,16 @@ export default function ChecklistScreen({
   const override = route.params?.override ?? null;
   const coverageMet = coveragePct >= gate || override !== null;
 
+  /**
+   * Every photograph on the inspection, and the one field they belong to.
+   *
+   * Answers that demand evidence are satisfied from here rather than from a
+   * picture filed against the question itself — a surcharged drain is a
+   * condition of the stretch, not of the dropdown that asked about it.
+   */
+  const generalId = photoFieldId(template);
+  const generalPhotos = session.photos.filter((p) => p.field_id === generalId);
+
   const errorFor = (id: string) => errors.find((e) => e.field_id === id);
 
   const openCamera = (fieldId: string) =>
@@ -323,12 +334,23 @@ export default function ChecklistScreen({
           </Pressable>
         )}
 
-        {/* Photo fields, plus any field whose current answer demands evidence. */}
-        {(field.type === 'photo' || photoDemanded) && (
+        {/* An answer that demands evidence says so, and says where it goes.
+            It cannot be photographed from here: a picture taken while standing
+            over the checklist is a picture of wherever the inspector happened
+            to stop, filed as though it were the defect. */}
+        {photoDemanded && field.type !== 'photo' && generalPhotos.length === 0 && (
+          <Text style={styles.photoDemand}>
+            Needs a photograph — use Take a photo on the map screen
+          </Text>
+        )}
+
+        {/* The photographs themselves, in the one section that holds them. */}
+        {field.type === 'photo' && (
           <View style={styles.photoBlock}>
-            {photoDemanded && photos.length === 0 && (
-              <Text style={styles.photoDemand}>
-                This answer requires a photograph
+            {photos.length === 0 && (
+              <Text style={styles.photoEmpty}>
+                Nothing yet. Take a photo on the map screen and it appears here,
+                tagged with how far along the drain you were.
               </Text>
             )}
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -569,6 +591,7 @@ const styles = StyleSheet.create({
 
   photoBlock: { gap: 8 },
   photoDemand: { fontSize: 12, color: '#B45309', fontWeight: '700' },
+  photoEmpty: { fontSize: 12.5, color: '#64748B', lineHeight: 17 },
   photoRow: { flexDirection: 'row', gap: 8, paddingVertical: 2 },
   thumb: { width: 72, height: 72, borderRadius: 10, overflow: 'hidden', backgroundColor: '#E2E8F0' },
   thumbImg: { width: '100%', height: '100%' },

@@ -60,10 +60,24 @@ export function visibleFields(
 }
 
 /**
+ * The field every photograph belongs to.
+ *
+ * There is one place evidence lives now: the template's photo field. Photographs
+ * used to be attachable to whichever question demanded one, which scattered the
+ * same three pictures of the same blockage across three answers and left a
+ * reviewer assembling them by hand. An inspector photographs the drain; the
+ * checklist says what they found. Those are different jobs.
+ */
+export function photoFieldId(template: ChecklistTemplate): string | null {
+  return template.fields.find((f) => f.type === 'photo')?.id ?? null;
+}
+
+/**
  * Does this field's current answer make a photo mandatory?
  *
  * This is the mechanism that stops "blockage present: yes" being submitted with
  * no evidence — the single most common way inspection data becomes unusable.
+ * The requirement is unchanged; only where the photograph has to be has moved.
  */
 export function requiresPhoto(field: ChecklistField, answers: Answers): boolean {
   if (!field.requires_photo_when) return false;
@@ -85,13 +99,20 @@ export function validate(
 ): ValidationError[] {
   const errors: ValidationError[] = [];
 
+  // Answers that demand evidence are satisfied from the general photographs,
+  // wherever along the drain they were taken. A surcharged drain is a condition
+  // of the whole stretch, not of the question that asked about it.
+  const generalId = photoFieldId(template);
+  const generalField = template.fields.find((f) => f.id === generalId);
+  const generalCount = generalId ? (photoCounts[generalId] ?? 0) : 0;
+
   for (const field of template.fields) {
     if (!isVisible(field, answers)) continue;
 
     const value = answers[field.id];
-    const photos = photoCounts[field.id] ?? 0;
 
     if (field.type === 'photo') {
+      const photos = photoCounts[field.id] ?? 0;
       const need = field.min ?? (field.required ? 1 : 0);
       if (photos < need) {
         errors.push({
@@ -136,12 +157,17 @@ export function validate(
       }
     }
 
-    if (requiresPhoto(field, answers) && photos < 1) {
+    if (requiresPhoto(field, answers) && generalCount < 1) {
       errors.push({
         field_id: field.id,
         label: field.label,
         code: 'photo_required',
-        message: `${field.label}: this answer requires a photograph`,
+        // Named, because the field that demands the photograph is no longer the
+        // field it goes on, and "requires a photograph" beside a dropdown with
+        // no camera button on it is a dead end.
+        message: `${field.label}: this answer needs a photograph under ${
+          generalField?.label ?? 'the photographs section'
+        }`,
       });
     }
   }

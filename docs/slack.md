@@ -344,12 +344,10 @@ maps and get driving directions" card sitting under the case, taller than the
 case itself. `unfurl_links: false` and `unfurl_media: false` on every
 `chat.postMessage`. The coordinates already are the link.
 
-A photograph with no coordinates gets no pin. A live capture carries the
-inspector's position at the moment of the shutter; one picked out of the phone's
-album carries whatever EXIF came with it, which is usually nothing. There is no
-honest coordinate to invent for it — CFPI deliberately refuses to borrow the
-inspector's current position for an album photo, and this refuses to paper over
-the gap. A missing pin beats a confident wrong one.
+A photograph with no coordinates gets no pin. Every photograph is taken during
+the walk now, so it carries the inspector's position at the moment of the
+shutter — but the phone may not have had a fix yet, and there is no honest
+coordinate to invent when it did not. A missing pin beats a confident wrong one.
 
 Where no chainage was recorded, the drain's **midpoint** is used and the distance
 is left off the label. Somebody sent to a named canal they have never visited

@@ -1,5 +1,4 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import * as ImagePicker from 'expo-image-picker';
 import { useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -34,45 +33,11 @@ export default function CameraScreen({ navigation, route }: { navigation: any; r
       // exif: true keeps the GPS tags. Normally you strip these for privacy —
       // here they are part of the evidence chain.
       const photo = await cameraRef.current?.takePictureAsync({ quality: 1, exif: true });
-      if (photo?.uri) await processCapture(photo.uri, { fieldId, source: 'camera' });
+      if (photo?.uri) await processCapture(photo.uri, { fieldId });
     } catch (e) {
       // Without this a failure became an unhandled rejection: the photo silently
       // never appeared and the screen looked frozen.
       Alert.alert('Could not save photo', e instanceof Error ? e.message : 'Unknown error');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  /**
-   * Choose an existing photograph.
-   *
-   * Legitimately needed — an inspector may have shot a defect on a proper camera,
-   * or the app may have died mid-inspection with the evidence already on the
-   * phone. The picked file's own EXIF supplies the time and place; the record
-   * notes it came from the album so a reviewer can weigh it accordingly.
-   */
-  const pickFromAlbum = async () => {
-    if (busy) return;
-    setBusy(true);
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsMultipleSelection: true,
-        selectionLimit: 10,
-        exif: true,
-        quality: 1,
-      });
-      if (result.canceled) return;
-      for (const asset of result.assets ?? []) {
-        await processCapture(asset.uri, {
-          fieldId,
-          source: 'library',
-          exif: (asset.exif ?? undefined) as Record<string, unknown> | undefined,
-        });
-      }
-    } catch (e) {
-      Alert.alert('Could not add photo', e instanceof Error ? e.message : 'Unknown error');
     } finally {
       setBusy(false);
     }
@@ -91,14 +56,11 @@ export default function CameraScreen({ navigation, route }: { navigation: any; r
       <SafeAreaView style={styles.centre}>
         <Text style={styles.permTitle}>Camera access needed</Text>
         <Text style={styles.permBody}>
-          Photographs are the evidence attached to this inspection. You can still
-          choose one from your album.
+          Photographs are the evidence attached to this inspection, and they have
+          to be taken here — there is no way to add one from your album.
         </Text>
         <Pressable style={styles.permBtn} onPress={requestPermission}>
           <Text style={styles.permBtnText}>Grant access</Text>
-        </Pressable>
-        <Pressable style={styles.permAlt} onPress={pickFromAlbum}>
-          <Text style={styles.permAltText}>Choose from album</Text>
         </Pressable>
         {/* Without this the permission screen was a dead end — denying camera
             access trapped the inspector with no way back to the checklist. */}
@@ -147,10 +109,9 @@ export default function CameraScreen({ navigation, route }: { navigation: any; r
               icon. Putting it beside the shutter makes it both reachable by
               thumb and immune to inset reporting. */}
           <View style={styles.shutterRow}>
-            <Pressable style={styles.sideBtn} onPress={pickFromAlbum} disabled={busy}>
-              <Text style={styles.albumIcon}>🖼</Text>
-              <Text style={styles.sideText}>Album</Text>
-            </Pressable>
+            {/* Balances the Done pill on the right, so the shutter stays under
+                the thumb rather than sliding to the middle of the screen. */}
+            <View style={styles.sideBtn} />
 
             <Pressable
               style={[styles.shutter, busy && styles.shutterBusy]}
@@ -246,8 +207,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 34,
   },
   sideBtn: { width: 78, alignItems: 'center', gap: 2 },
-  albumIcon: { fontSize: 26 },
-  sideText: { color: '#fff', fontSize: 11, fontWeight: '700' },
   shutter: {
     width: 74,
     height: 74,

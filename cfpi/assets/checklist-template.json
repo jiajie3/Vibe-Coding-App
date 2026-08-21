@@ -1,9 +1,13 @@
 {
   "id": "tpl_open_drain",
-  "version": 9,
-  "title": "Open Concrete Drain \u2014 Routine Inspection",
+  "version": 10,
+  "title": "Open Concrete Drain — Routine Inspection",
   "published_at": "2026-07-02T08:00:00.000Z",
   "sections": [
+    {
+      "id": "sec_photos",
+      "title": "Photographs"
+    },
     {
       "id": "sec_access",
       "title": "Site & Access"
@@ -17,11 +21,19 @@
       "title": "Flow & Blockage"
     },
     {
-      "id": "sec_photos",
-      "title": "Photographs"
+      "id": "sec_remarks",
+      "title": "Remarks"
     }
   ],
   "fields": [
+    {
+      "id": "general_photos",
+      "section_id": "sec_photos",
+      "type": "photo",
+      "label": "General condition photographs",
+      "help_text": "Taken with the Take a photo button on the map screen, which records the distance along the drain for each one. Required if you report critical or poor structural condition, a blockage, or surcharged flow.",
+      "required": false
+    },
     {
       "id": "site_accessible",
       "section_id": "sec_access",
@@ -50,19 +62,19 @@
       "options": [
         {
           "value": "good",
-          "label": "Good \u2014 no visible defects"
+          "label": "Good — no visible defects"
         },
         {
           "value": "fair",
-          "label": "Fair \u2014 minor cracking / spalling"
+          "label": "Fair — minor cracking / spalling"
         },
         {
           "value": "poor",
-          "label": "Poor \u2014 significant deterioration"
+          "label": "Poor — significant deterioration"
         },
         {
           "value": "critical",
-          "label": "Critical \u2014 structural failure risk"
+          "label": "Critical — structural failure risk"
         }
       ],
       "requires_photo_when": {
@@ -194,16 +206,8 @@
       }
     },
     {
-      "id": "general_photos",
-      "section_id": "sec_photos",
-      "type": "photo",
-      "label": "General condition photographs",
-      "help_text": "Optional. One at each end of the stretch is good practice.",
-      "required": false
-    },
-    {
       "id": "remarks",
-      "section_id": "sec_photos",
+      "section_id": "sec_remarks",
       "type": "text",
       "label": "Additional remarks"
     }

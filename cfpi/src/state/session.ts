@@ -20,23 +20,17 @@ import type {
   Job,
 } from '../core/types.ts';
 
-export type PhotoSource = 'camera' | 'library';
-
 export interface PhotoRecord {
   id: string;
   /** Local file URI. Uploaded to object storage via presigned URL (contract §7). */
   uri: string;
   /**
-   * Where the image came from.
+   * Which checklist field the photograph belongs to.
    *
-   * A live capture is taken here, now, by this inspector. One chosen from the
-   * album is a photograph of something, somewhere, at some point — possibly
-   * exactly what was needed, possibly last year's. Both are allowed; only one
-   * carries its own proof, so the difference travels with the record instead of
-   * being quietly lost.
+   * In practice the template's photo field, always. Kept as a field rather than
+   * assumed, because the checklist is served by FRCDE and a future template can
+   * name that section whatever it likes.
    */
-  source: PhotoSource;
-  /** Checklist field this photo satisfies, if it was captured against one. */
   field_id: string | null;
   captured_at: string;
   lat: number | null;

@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 
-import { completeness } from '../core/checklist.ts';
+import { completeness, photoFieldId } from '../core/checklist.ts';
 import { toLatLng } from '../core/geo.ts';
 import { getJob } from '../data/jobs.ts';
 import { getTemplate } from '../data/templates.ts';
@@ -53,6 +53,10 @@ export default function InspectionScreen({
     () => getTemplate(job.checklist_template.id, job.checklist_template.version),
     [job],
   );
+
+  // The one section photographs belong to. Read from the template rather than
+  // named here: the checklist is served by FRCDE and can rename it.
+  const photoField = useMemo(() => photoFieldId(template), [template]);
 
   const alignment = useMemo(() => toLatLng(job.asset.geometry.coordinates), [job]);
 
@@ -401,23 +405,41 @@ export default function InspectionScreen({
             Defects are recorded where they are seen — asking an inspector to
             remember six of them until the end guarantees losing some. */}
         {started && (
-          <Pressable
-            style={styles.checklistBtn}
-            onPress={() => navigation.navigate('Checklist')}
-          >
-            <View style={styles.checklistLeft}>
-              <Text style={styles.checklistTitle}>Checklist &amp; submit</Text>
-              <Text style={styles.checklistSub}>
-                {Math.round(formProgress * 100)}% filled · {session.photos.length}{' '}
-                {session.photos.length === 1 ? 'photo' : 'photos'}
-              </Text>
-            </View>
-            <View style={[styles.readyPill, insp.canSubmit && styles.readyPillOk]}>
-              <Text style={[styles.readyText, insp.canSubmit && styles.readyTextOk]}>
-                {insp.canSubmit ? 'Ready' : `${(gate - pct).toFixed(0)}% short`}
-              </Text>
-            </View>
-          </Pressable>
+          <View style={styles.actionRow}>
+            {/* Beside the checklist, not inside it. A photograph is taken
+                standing at the thing being photographed, and the position and
+                the distance along the drain are recorded with it — which is
+                only true if the camera is one tap from the map. */}
+            <Pressable
+              style={styles.photoBtn}
+              onPress={() => navigation.navigate('Camera', { fieldId: photoField })}
+            >
+              <Text style={styles.photoIcon}>📷</Text>
+              <Text style={styles.photoText}>Take a photo</Text>
+              {session.photos.length > 0 && (
+                <View style={styles.photoCount}>
+                  <Text style={styles.photoCountText}>{session.photos.length}</Text>
+                </View>
+              )}
+            </Pressable>
+
+            <Pressable
+              style={styles.checklistBtn}
+              onPress={() => navigation.navigate('Checklist')}
+            >
+              <View style={styles.checklistLeft}>
+                <Text style={styles.checklistTitle}>Checklist &amp; submit</Text>
+                <Text style={styles.checklistSub}>
+                  {Math.round(formProgress * 100)}% filled
+                </Text>
+              </View>
+              <View style={[styles.readyPill, insp.canSubmit && styles.readyPillOk]}>
+                <Text style={[styles.readyText, insp.canSubmit && styles.readyTextOk]}>
+                  {insp.canSubmit ? 'Ready' : `${(gate - pct).toFixed(0)}% short`}
+                </Text>
+              </View>
+            </Pressable>
+          </View>
         )}
 
         <View style={styles.buttonRow}>
@@ -540,7 +562,31 @@ const styles = StyleSheet.create({
   },
   gapChipText: { fontSize: 12, color: '#FFFFFF', fontWeight: '700' },
 
+  actionRow: { flexDirection: 'row', gap: 10, alignItems: 'stretch' },
+  photoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+  },
+  photoIcon: { fontSize: 16 },
+  photoText: { fontSize: 15, fontWeight: '700', color: '#0F172A' },
+  photoCount: {
+    minWidth: 20,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 999,
+    backgroundColor: '#0F172A',
+    alignItems: 'center',
+  },
+  photoCountText: { color: '#fff', fontSize: 11.5, fontWeight: '800' },
+
   checklistBtn: {
+    // Takes the rest of the row, so the photo button keeps its natural width.
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

@@ -16,15 +16,6 @@ export interface InspectionController {
   /** Stop GPS, flush, persist. Safe to call when already paused. */
   pause: () => Promise<void>;
   isRunning: () => boolean;
-  /**
-   * Distance along the drain for an arbitrary coordinate, or null if it falls
-   * outside the corridor.
-   *
-   * Needed for photographs chosen from the album: those were taken somewhere
-   * else, at some other time, so the inspector's *current* position is the wrong
-   * answer. If the file carries GPS EXIF we can place it properly instead.
-   */
-  chainageAt: (lat: number, lon: number) => number | null;
 }
 
 let controller: InspectionController | null = null;

@@ -363,7 +363,7 @@ test('select answers reach the model as labels, not as codes', async () => {
 
 /* ------------------------------------------------- photographs in context */
 
-test('a photograph reaches the model with its question, answer and origin', async () => {
+test('a photograph reaches the model with its question and the answer given', async () => {
   const saved = process.env.OPENAI_API_KEY;
   const savedFetch = globalThis.fetch;
   process.env.OPENAI_API_KEY = 'sk-test';
@@ -393,7 +393,6 @@ test('a photograph reaches the model with its question, answer and origin', asyn
             // A real file: an unreadable one is skipped entirely, image and
             // context together, so it would prove nothing here.
             path: resolve(here, 'routing.fixture.json'),
-            source: 'library',
             field_label: 'Was the full stretch accessible?',
             field_answer: 'No',
           },
@@ -404,9 +403,15 @@ test('a photograph reaches the model with its question, answer and origin', asyn
     // point; without these the model sees an unlabelled picture of a drain.
     assert.match(sent, /Filed under \\"Was the full stretch accessible\?\\"/);
     assert.match(sent, /answered \\"No\\"/);
-    assert.match(sent, /Chosen from the album/);
-    // And an album photograph is never on its own a reason to send work back.
-    assert.match(sent, /NOT a reason to recommend sending the/);
+    // Where a photograph came from is no longer a question worth asking: CFPI
+    // has no album picker, so every photograph was taken on the walk. The
+    // per-photograph provenance line is gone, and the model is told plainly not
+    // to speculate — invite a model to weigh provenance and it will.
+    assert.ok(
+      !/Chosen from the album/.test(sent),
+      'no photograph should be labelled with where it came from',
+    );
+    assert.match(sent, /Do not speculate about/);
   } finally {
     globalThis.fetch = savedFetch;
     if (saved) process.env.OPENAI_API_KEY = saved;

@@ -210,24 +210,6 @@ no Google account, no store. Android only.
 
 ---
 
-## 3. Demo mode
-
-The sign-in screen offers **"Try the demo — no account needed"**. It runs on the
-40 bundled Singapore drains with the Simulate button, and syncs nothing.
-
-It exists for three real situations: a colleague opening a link before they have
-an account, the free-tier server still waking up, and — if CFPI is ever
-submitted to the App Store — an Apple reviewer, who under
-[guideline 2.1(a)](https://developer.apple.com/app-store/review/guidelines/)
-must be able to reach the app's functionality without credentials you cannot
-hand out.
-
-The outbox is deliberately held shut in demo mode. Queuing work against a server
-that was never signed into would strand it in a dead-letter queue nobody is
-watching.
-
----
-
 ## What this does not cover
 
 **iPhone outside Expo Go** needs the $99/year Apple Developer Program. With it,

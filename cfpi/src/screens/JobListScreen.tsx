@@ -13,7 +13,6 @@ import { actionableJobs, getJobs, isUsingBundledData, syncJobs } from '../data/j
 import { DUE_COLOUR, dueLabel } from '../core/due.ts';
 import type { Job } from '../core/types.ts';
 import { listInspections } from '../services/persistence.ts';
-import { isDemoMode } from '../services/auth.ts';
 import { isConfigured } from '../services/config.ts';
 import { drain, onOutboxChange, stats } from '../services/outbox.ts';
 
@@ -115,8 +114,7 @@ export default function JobListScreen({ navigation }: { navigation: any }) {
 
       // Opportunistic sync: pull the latest jobs and push anything queued.
       // Failure is silent — being out of range is the normal state, not an error.
-      // Demo mode has no server behind it, so there is nothing to reach for.
-      if (isConfigured() && !isDemoMode()) {
+      if (isConfigured()) {
         void syncJobs().then((r) => r.ok && setTick((t) => t + 1));
         void drain();
       }
@@ -171,16 +169,8 @@ export default function JobListScreen({ navigation }: { navigation: any }) {
         </Text>
 
         {/* Being offline is normal and not worth flagging. Never having
-            connected at all means the inspector is looking at demo data. */}
-        {isDemoMode() && (
-          <View style={styles.demoBanner}>
-            <Text style={styles.demoText}>
-              Demo mode — bundled Singapore drains, nothing is sent anywhere. Sign out
-              to connect to FRCDE.
-            </Text>
-          </View>
-        )}
-        {!isDemoMode() && !isConfigured() && (
+            connected at all means the inspector is looking at bundled data. */}
+        {!isConfigured() && (
           <Pressable
             style={styles.setupBanner}
             onPress={() => navigation.navigate('Settings')}
@@ -190,7 +180,7 @@ export default function JobListScreen({ navigation }: { navigation: any }) {
             </Text>
           </Pressable>
         )}
-        {!isDemoMode() && isConfigured() && isUsingBundledData() && (
+        {isConfigured() && isUsingBundledData() && (
           <Pressable
             style={styles.setupBanner}
             onPress={() => navigation.navigate('Settings')}
@@ -245,8 +235,6 @@ const styles = StyleSheet.create({
     padding: 11,
   },
   setupText: { fontSize: 12.5, color: '#1D4ED8', fontWeight: '600' },
-  demoBanner: { marginTop: 12, backgroundColor: '#FEF3C7', borderRadius: 10, padding: 11 },
-  demoText: { fontSize: 12.5, color: '#92400E', fontWeight: '600' },
   title: { fontSize: 30, fontWeight: '700', color: '#0F172A', letterSpacing: -0.5 },
   brandline: { fontSize: 11, color: '#94A3B8', fontWeight: '700', marginTop: -2 },
   subtitle: { fontSize: 14, color: '#64748B', marginTop: 4 },

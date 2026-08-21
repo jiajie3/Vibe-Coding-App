@@ -14,6 +14,7 @@ import {
   completeness,
   isVisible,
   prune,
+  photoFieldId,
   requiresPhoto,
   validate,
   visibleFields,
@@ -115,14 +116,67 @@ test('a triggered photo requirement blocks submission until satisfied', () => {
   const blocked = validate(tpl, answers, VALID_PHOTOS);
   assert.ok(blocked.some((e) => e.field_id === 'blockage_present' && e.code === 'photo_required'));
 
-  const cleared = validate(tpl, answers, { ...VALID_PHOTOS, blockage_present: 1 });
+  // Satisfied from the general photographs, which is the only place photographs
+  // go now. The requirement is unchanged; where the evidence lives has moved.
+  const cleared = validate(tpl, answers, { ...VALID_PHOTOS, general_photos: 1 });
   assert.ok(!cleared.some((e) => e.field_id === 'blockage_present'));
+});
+
+test('a photograph filed against the question itself does not satisfy it', () => {
+  // Guarding the move rather than assuming it. Photographs used to attach to
+  // whichever question demanded one; a count left over on that field must not
+  // quietly clear the requirement, or the rule passes for records that have no
+  // photograph a reviewer can actually find.
+  const answers = { ...VALID, blockage_present: true, blockage_type: ['silt'] };
+  const errs = validate(tpl, answers, { ...VALID_PHOTOS, blockage_present: 3 });
+  assert.ok(errs.some((e) => e.field_id === 'blockage_present' && e.code === 'photo_required'));
+});
+
+test('one general photograph clears every triggered requirement at once', () => {
+  // Three answers demanding evidence, one photograph of the drain. Asking for
+  // the same picture three times is how an inspector learns to game the form.
+  const answers = {
+    ...VALID,
+    structural_condition: 'critical',
+    blockage_present: true,
+    blockage_type: ['silt'],
+    flow_condition: 'surcharged',
+  };
+  assert.ok(validate(tpl, answers, VALID_PHOTOS).length >= 3);
+  assert.deepEqual(validate(tpl, answers, { ...VALID_PHOTOS, general_photos: 1 }), []);
+});
+
+test('the demand names where the photograph goes', () => {
+  // "requires a photograph" beside a dropdown with no camera on it is a dead
+  // end. The message has to say which section to put it in.
+  const answers = { ...VALID, flow_condition: 'surcharged' };
+  const err = validate(tpl, answers, VALID_PHOTOS).find((e) => e.code === 'photo_required');
+  assert.match(err?.message ?? '', /General condition photographs/);
 });
 
 test('general photographs are optional — no photo blocks submission', () => {
   assert.deepEqual(validate(tpl, VALID, {}), []);
   assert.deepEqual(validate(tpl, VALID, { general_photos: 1 }), []);
 });
+
+test('photographs come first in the form', () => {
+  // Where the evidence goes is the first thing an inspector should see, not
+  // something they scroll past four sections of questions to reach. The photo
+  // field is also what every triggered requirement is satisfied from, so a form
+  // that hides it produces errors pointing at a section nobody has found yet.
+  assert.equal(tpl.sections?.[0]?.id, photoFieldSection());
+  assert.equal(tpl.fields[0].type, 'photo');
+
+  // And remarks stay at the end. Closing comments before any question is asked
+  // is the wrong order to think in.
+  assert.equal(tpl.fields[tpl.fields.length - 1].id, 'remarks');
+});
+
+/** The section holding the template's photo field. */
+function photoFieldSection(): string | undefined {
+  const id = photoFieldId(tpl);
+  return tpl.fields.find((f) => f.id === id)?.section_id;
+}
 
 test('a photo minimum is still enforced when a template sets one', () => {
   // The engine keeps supporting `min` even though the open-drain template no
@@ -149,7 +203,7 @@ test('out-of-range numbers are rejected', () => {
   const errs = validate(
     tpl,
     { ...VALID, structural_condition: 'poor', defect_types: ['cracking'], defect_severity: 9 },
-    { ...VALID_PHOTOS, structural_condition: 1 },
+    { ...VALID_PHOTOS, general_photos: 1 },
   );
   assert.ok(
     errs.some((e) => e.field_id === 'defect_severity' && e.code === 'out_of_range'),

@@ -36,7 +36,7 @@ const API = 'https://api.openai.com/v1/chat/completions';
  * past reviews meant and there is no way to tell which ones were produced by
  * which instructions.
  */
-export const PROMPT_VERSION = 4;
+export const PROMPT_VERSION = 5;
 
 export const apiKey = () => process.env.OPENAI_API_KEY ?? '';
 export const isConfigured = () => apiKey().length > 0;
@@ -116,13 +116,12 @@ export interface ReviewInput {
     chainage_m: number | null;
     path: string;
     /**
-     * Taken during the inspection, or chosen from the phone's album.
+     * How the photograph was taken. Only ever `camera` on anything recent.
      *
-     * Both are legitimate evidence and neither is grounds for rejection on its
-     * own. They are not equally self-proving, though: a camera shot was taken
-     * on the walk, where a library one carries only whatever EXIF it came with
-     * and could be from anywhere, any day. Worth a word to the reviewer, not a
-     * verdict.
+     * CFPI no longer offers the phone's album, so there is nothing left to
+     * weigh: every photograph was taken on the walk, at a recorded position.
+     * The field survives for records made when the album was still an option,
+     * and the review no longer reasons about it either way.
      */
     source?: 'camera' | 'library';
     /** The checklist question this was attached to, if any. */
@@ -309,11 +308,9 @@ Rules you must follow:
    obstructing access; one attached to "blockage present? Yes" should show the
    blockage. A photograph that does not evidence the answer it is filed under is
    worth reporting even when it is a perfectly good photograph of a drain.
-7. Photographs are marked as taken on the walk or chosen from the phone's
-   album. An album photograph is NOT a reason to recommend sending the
-   inspection back — it is normal and often unavoidable. Mention it, and suggest
-   the reviewer confirm with the inspector when and where it was taken. Only
-   raise it further if something else about the evidence is already wrong.
+7. Every photograph was taken during the walk, at a recorded position — the
+   app has no way to attach one from the phone's album. Do not speculate about
+   where a photograph came from.
 8. Be specific. "Remarks are vague" is useless; "remarks say 'ok' for a severity
    4 structural defect" is actionable.
 9. If genuinely nothing is wrong, say so plainly and return no concerns. Do not
@@ -383,8 +380,8 @@ function describe(input: ReviewInput, rules: Concern[]): string {
     '',
     input.photos.length
       ? `PHOTOGRAPHS: ${input.photos.length} attached below, each labelled with ` +
-        'the checklist question it was filed under, the answer given, and whether ' +
-        'it was taken on the walk or chosen from the album.'
+        'the checklist question it was filed under, the answer given, and where ' +
+        'along the drain it was taken.'
       : 'PHOTOGRAPHS: none attached.',
   ]
     .filter(Boolean)
@@ -692,16 +689,11 @@ export async function reviewInspection(input: ReviewInput): Promise<AiReview> {
       const filed = p.field_label
         ? `Filed under "${p.field_label}", answered "${p.field_answer ?? 'not answered'}".`
         : 'Not filed under any checklist question.';
-      const origin =
-        p.source === 'library'
-          ? 'Chosen from the album, not taken during the walk.'
-          : 'Taken during the walk.';
       content.push({
         type: 'text',
         text: [
           `Photograph ${p.id}.`,
           filed,
-          origin,
           p.caption ? `Caption: "${p.caption}".` : '',
           p.chainage_m != null ? `${Math.round(p.chainage_m)} m along the drain.` : '',
         ]

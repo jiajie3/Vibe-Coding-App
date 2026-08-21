@@ -132,14 +132,21 @@ the padlock.
 
 ## Photographs
 
-Take them with the camera, or add existing ones with **🖼 Album**. Both go through the
-same pipeline — resized to 1600 px, hashed, queued for upload.
+**Take a photo** sits beside Checklist & submit on the map screen. Every photograph is
+taken there and then, resized to 1600 px, hashed and queued for upload — and placed at
+your position on the drain, with the distance along it recorded. They appear in the
+checklist under **General condition photographs**, tagged with that distance.
 
-They are not treated as equal evidence, and the difference travels with the record. A
-live capture is placed at your current position on the drain. One from the album is
-placed using its own EXIF, and if it has no GPS the position is left empty rather than
-borrowed from wherever you happen to be standing. The console marks album photos so a
-reviewer can weigh them accordingly.
+There is no way to add one from the camera roll, and that is the point. A picture from
+the album proves nothing about where or when it was taken, so everyone downstream — the
+reviewer, the automated check, the contractor sent to the spot — had to carry the doubt.
+Removing the option is what makes a photograph here evidence rather than an image.
+
+The checklist no longer takes photographs of its own. Answering "surcharged", "critical"
+or "blockage present" still **requires** one, but it is satisfied from the general
+photographs: a surcharged drain is a condition of the whole stretch, not of the dropdown
+that asked about it, and asking for the same picture three times is how an inspector
+learns to game a form.
 
 ## Offline behaviour
 
