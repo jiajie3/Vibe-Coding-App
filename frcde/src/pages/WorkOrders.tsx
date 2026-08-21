@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import CompleteFollowUp from '../components/CompleteFollowUp.tsx';
-import { api, dueLabel } from '../api.ts';
-import type { JobRecord, Overview, WorkOrder, WorkOrderStatus } from '../api.ts';
+import { api } from '../api.ts';
+import type { JobRecord, Overview, WorkOrderStatus } from '../api.ts';
 import { toast } from '../toast.ts';
 
 const STATUS_LABEL: Record<WorkOrderStatus, string> = {
@@ -38,8 +37,6 @@ const shortDate = (iso: string) =>
 export default function WorkOrders() {
   const [data, setData] = useState<Overview | null>(null);
   const [showClosed, setShowClosed] = useState(false);
-  const [busy, setBusy] = useState<string | null>(null);
-  const [closing, setClosing] = useState<WorkOrder | null>(null);
 
   const pull = useCallback(
     () => api.overview().then(setData).catch(() => {}),
@@ -74,17 +71,6 @@ export default function WorkOrders() {
     });
   }, [data, showClosed]);
 
-  const advance = async (w: WorkOrder, status: WorkOrderStatus, note?: string) => {
-    setBusy(w.id);
-    try {
-      await api.updateWorkOrder(w.id, { status, closing_note: note });
-      setClosing(null);
-      await pull();
-    } finally {
-      setBusy(null);
-    }
-  };
-
   if (!data) return <div className="page"><div className="empty">Loading…</div></div>;
 
   const open = (data.work_orders ?? []).filter((w) => w.status === 'open').length;
@@ -94,7 +80,7 @@ export default function WorkOrders() {
   return (
     <div className="page">
       <div className="kpis">
-        <div className="kpi warn"><div className="v">{open}</div><div className="k">Awaiting action</div></div>
+        <div className="kpi warn"><div className="v">{open}</div><div className="k">Awaiting acknowledgement</div></div>
         <div className="kpi active"><div className="v">{wip}</div><div className="k">In progress</div></div>
         <div className="kpi"><div className="v">{done}</div><div className="k">Completed</div></div>
       </div>
@@ -200,47 +186,11 @@ export default function WorkOrders() {
                 </div>
               )}
 
-              {(w.status === 'open' || w.status === 'in_progress' || w.status === 'blocked') && (
-                <div className="rowactions">
-                  {w.status === 'open' && (
-                    <button
-                      className="btn tiny"
-                      disabled={busy === w.id}
-                      onClick={() => advance(w, 'in_progress')}
-                    >
-                      Start work
-                    </button>
-                  )}
-                  <button
-                    className="btn tiny primary"
-                    disabled={busy === w.id}
-                    onClick={() => setClosing(w)}
-                  >
-                    Mark done
-                  </button>
-                  <button
-                    className="btn tiny"
-                    disabled={busy === w.id}
-                    onClick={() => advance(w, 'cancelled')}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              )}
             </div>
           );
         })}
       </div>
 
-      {closing && (
-        <CompleteFollowUp
-          order={closing}
-          jobName={jobsById.get(closing.job_id)?.asset.name}
-          busy={busy === closing.id}
-          onCancel={() => setClosing(null)}
-          onSubmit={(note) => advance(closing, 'done', note)}
-        />
-      )}
     </div>
   );
 }

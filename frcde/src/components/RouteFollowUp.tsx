@@ -23,11 +23,14 @@ export interface FollowUpDraft {
   /** Empty string means: record it, but do not open a case in Slack. */
   slack_channel: string;
   chainage_m: number | null;
+  /** The photographs to send with the case. */
+  attachment_ids: string[];
 }
 
 export default function RouteFollowUp({
   jobId,
   inspectionId,
+  photos,
   suggestion,
   busy,
   onCancel,
@@ -35,12 +38,23 @@ export default function RouteFollowUp({
 }: {
   jobId: string;
   inspectionId: string | null;
+  /** Every stored photograph from the inspection, offered for forwarding. */
+  photos: { id: string; caption?: string }[];
   suggestion: { detail: string; chainage_m: number | null } | null;
   busy: boolean;
   onCancel: () => void;
   onSubmit: (draft: FollowUpDraft) => void;
 }) {
   const [detail, setDetail] = useState(suggestion?.detail ?? '');
+  /**
+   * Every photograph, until the supervisor drops one.
+   *
+   * Included by default because the contractor is being asked to fix something
+   * they have not seen, and the inspector already photographed it. Removable
+   * because not every shot belongs in a channel a contractor reads — one may
+   * show a neighbouring property, or simply not be about the work.
+   */
+  const [chosen, setChosen] = useState<string[]>(photos.map((p) => p.id));
   const [drafting, setDrafting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -65,7 +79,7 @@ export default function RouteFollowUp({
       .catch(() => setRouting(null));
   }, [jobId]);
 
-  const chosen = channel ?? '';
+  const channelChoice = channel ?? '';
 
   /**
    * Fill in what needs doing, and where the case opens.
@@ -97,8 +111,9 @@ export default function RouteFollowUp({
     if (!detail.trim()) return setError('Say what needs doing.');
     onSubmit({
       detail: detail.trim(),
-      slack_channel: chosen,
+      slack_channel: channelChoice,
       chainage_m: suggestion?.chainage_m ?? null,
+      attachment_ids: chosen,
     });
   };
 
@@ -133,7 +148,7 @@ export default function RouteFollowUp({
           Open the case in
           <select
             className="input"
-            value={chosen}
+            value={channelChoice}
             onChange={(e) => setChannel(e.target.value)}
           >
             <option value="">Do not open a Slack case</option>
@@ -144,6 +159,42 @@ export default function RouteFollowUp({
             ))}
           </select>
         </label>
+
+        {photos.length > 0 && (
+          <label>
+            <span className="labelrow">
+              Photographs
+              <span className="hint">
+                {chosen.length} of {photos.length} will be sent
+              </span>
+            </span>
+            {/* Removable, not addable. The inspection is the source of these —
+                a supervisor attaching something else here would be adding
+                evidence to a record they did not gather. */}
+            <div className="photos pickable">
+              {photos.map((ph) => {
+                const on = chosen.includes(ph.id);
+                return (
+                  <div key={ph.id} className={`photo${on ? '' : ' dropped'}`}>
+                    <img src={`/uploads/${ph.id}.jpg`} alt={ph.caption ?? ''} />
+                    <button
+                      type="button"
+                      className="drop"
+                      aria-label={on ? 'Do not send this photograph' : 'Send this photograph'}
+                      onClick={() =>
+                        setChosen((c) =>
+                          on ? c.filter((x) => x !== ph.id) : [...c, ph.id],
+                        )
+                      }
+                    >
+                      {on ? '×' : '+'}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </label>
+        )}
 
         {error && <div className="signin-error">{error}</div>}
 

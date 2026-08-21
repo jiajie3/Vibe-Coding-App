@@ -233,6 +233,12 @@ The inspector's own photographs are posted into the case thread when the case
 opens. A contractor is being asked to fix something they never saw, and "approx
 260 mm silt" is much less use than the picture of it.
 
+They are offered in the route dialog and removable there — every one included by
+default, since the inspector already photographed the problem, but a supervisor
+can drop any that do not belong in a channel a contractor reads. Removable and
+not addable: the inspection is their source, and attaching something else would
+be adding evidence to a record the supervisor did not gather.
+
 They are sent **by URL, not uploaded**: FRCDE already serves `/uploads`
 statically, so Slack fetches them itself and no `files:write` scope is needed.
 Two consequences worth knowing:

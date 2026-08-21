@@ -633,3 +633,17 @@ html, body { height: 100%; }
 .trail li.pending { color: var(--muted); font-style: italic; }
 .trail li.good { color: #15803d; font-weight: 600; }
 .trail li.bad { color: #6d28d9; font-weight: 600; }
+
+/* Photographs offered for forwarding: removable, not addable. The inspection is
+   their source — attaching something else here would add evidence to a record
+   the supervisor did not gather. */
+.photos.pickable .photo { position: relative; }
+.photos.pickable .photo.dropped img { filter: grayscale(1); opacity: 0.35; }
+.photos.pickable .drop {
+  position: absolute; top: 4px; right: 4px;
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 0; cursor: pointer; line-height: 1; font-size: 15px; font-weight: 700;
+  background: rgb(15 23 42 / 0.72); color: #fff;
+}
+.photos.pickable .drop:hover { background: rgb(15 23 42 / 0.9); }
+.labelrow .hint { font-size: 14px; font-weight: 500; color: var(--muted); }

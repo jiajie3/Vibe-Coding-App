@@ -124,7 +124,6 @@ export default function JobDetail() {
         job_id: job.id,
         inspection_id: current.id,
         ...draft,
-        attachment_ids: current.attachments.map((a) => a.id),
       });
       setRouting(false);
       await load();
@@ -662,6 +661,7 @@ export default function JobDetail() {
         <RouteFollowUp
           jobId={job.id}
           inspectionId={current?.id ?? null}
+          photos={(current?.attachments ?? []).filter((a) => a.stored)}
           suggestion={suggestion}
           busy={busy}
           onCancel={() => setRouting(false)}
