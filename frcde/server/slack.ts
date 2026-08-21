@@ -143,16 +143,13 @@ const dueWord = (iso: string | null) =>
 export function caseBlocks(c: CaseView): unknown[] {
   const closed = c.status === 'done' || c.status === 'cancelled';
   const blocked = c.status === 'blocked';
-  const submitted = c.status === 'awaiting_verification';
   const photos = c.completion_photos ?? 0;
 
   const status = closed
-    ? `:white_check_mark: *Verified and closed* — ${c.closing_note || 'no note given'}`
+    ? `:white_check_mark: *Closed* — ${c.closing_note || 'no note given'}`
     : blocked
       ? `:warning: *Cannot complete* — ${c.blocked_reason || 'no reason given'}`
-      : submitted
-        ? `:hourglass_flowing_sand: *With the supervisor to check* — ${c.closing_note || 'no note given'}`
-        : c.acknowledged_at
+      : c.acknowledged_at
           ? photos > 0
             ? `:camera: *Acknowledged* — ${photos} photo${photos === 1 ? '' : 's'} received, ready to close`
             : ':eyes: *Acknowledged* — post a photograph in this thread when the work is done'
@@ -187,7 +184,7 @@ export function caseBlocks(c: CaseView): unknown[] {
     { type: 'context', elements: [{ type: 'mrkdwn', text: status }] },
   ];
 
-  if (!closed && !blocked && !submitted) {
+  if (!closed && !blocked) {
     /**
      * Acknowledge first, and only then the two ways of finishing.
      *

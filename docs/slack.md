@@ -27,16 +27,8 @@ FRCDE                                     Slack
   │     downloaded and filed against the work order
   │
   │  ◀─────────────────────────────────── Completed + note
-  │     status → awaiting_verification        (refused without a photo)
-  │  ──────────────────────────────────▶  thread reply: with the supervisor
-  │
-  │  supervisor checks the photographs
-  │     status → done, verified_by
-  │  ──────────────────────────────────▶  thread reply: checked and closed
-  │
-  │  …or sends it back with a message
-  │     status → in_progress, completed_at cleared
-  │  ──────────────────────────────────▶  thread reply: sent back, and why
+  │     status → done, closed_at        (refused without a photo)
+  │  ──────────────────────────────────▶  thread reply: closed, with the count
   │
   │  ◀─────────────────────────────────── Cannot complete + reason
   │     status → blocked, stays in the follow-up list
@@ -53,23 +45,15 @@ for them. The rule is also enforced on the server, not just by hiding controls: 
 card posted earlier keeps whatever buttons it was rendered with, so a stale
 Completed still arrives and is refused.
 
-**A photograph is required, and the contractor does not close the case.** Pressing
-Completed without one is refused; pressing it with one parks the work order at
-`awaiting_verification` for a supervisor to check. A work order on public
-infrastructure signed off on the word of the party paid to do the work is not a
-record anyone can stand behind.
+**A photograph is required.** Pressing Completed without one is refused; pressing
+it with one closes the case. A supervisor confirmation used to sit between those
+two and was removed — it queued approvals in front of someone for work they had
+already delegated, and the photograph is filed against the record either way.
 
 Slack modals cannot take a file upload, so the photograph arrives as a thread
 message and is filed by the events handler — which means **this feature depends
 on Event Subscriptions being configured.** Without it no photograph is ever
 recorded, and Completed can never be pressed successfully.
-
-**Sending work back needs a reason, and the reason goes to Slack.** A rejection
-with nothing said leaves the contractor guessing, and the usual result is the
-same work reported complete a second time — so the console asks for a message and
-the server refuses the change without one. It lands in the case thread, under the
-photographs being rejected, and the case returns to them with Completed available
-again.
 
 **Every transition speaks in the thread.** The card repaints in place, which is
 easy to miss in a busy channel; a threaded reply is what actually notifies

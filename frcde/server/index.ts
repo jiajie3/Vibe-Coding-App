@@ -1143,38 +1143,13 @@ app.patch('/v1/console/work-orders/:id', (req, res) => {
   const order = store.workOrder(req.params.id);
   if (!order) return problem(res, 404, 'Work order not found');
 
-  const was = order.status;
   const status = req.body?.status as WorkOrder['status'] | undefined;
-
-  /**
-   * Rejecting a reported-complete case, as opposed to merely starting work.
-   *
-   * The same status change means two different things depending on where it
-   * came from, and only one of them is news the contractor needs.
-   */
-  const sendingBack = was === 'awaiting_verification' && status === 'in_progress';
-  const note = typeof req.body?.note === 'string' ? req.body.note.trim() : '';
-  if (sendingBack) {
-    if (!note) {
-      return problem(
-        res,
-        422,
-        'Say why',
-        'Sending work back without a reason leaves them guessing, and the usual '
-          + 'result is the same work reported complete again.',
-      );
-    }
-    order.sent_back_note = note;
-    // It is no longer complete. Leaving the timestamp would have the follow-up
-    // list claim it was finished on a date it was not.
-    order.completed_at = null;
-  }
   if (status) {
     order.status = status;
     order.closed_at =
       status === 'done' || status === 'cancelled' ? new Date().toISOString() : null;
-    // Record who signed it off. "Closed" with nobody's name against it is the
-    // kind of record that cannot answer a question a year later.
+    // Closed from the console rather than Slack. "Closed" with nobody's name
+    // against it is the kind of record that cannot answer a question a year on.
     if (status === 'done') {
       order.verified_by = (req as AuthedRequest).user?.name ?? 'the supervisor';
     }
@@ -1187,24 +1162,14 @@ app.patch('/v1/console/work-orders/:id', (req, res) => {
   void syncCase(order);
   // Tell the contractor too. Being checked and signed off — or told what was
   // wrong — is the half of the loop they otherwise never see.
-  if (order.slack) {
-    if (status === 'done') {
-      void slack
-        .replyInThread(
-          order.slack.channel,
-          order.slack.ts,
-          `Checked and closed by ${order.verified_by}. Thanks.`,
-        )
-        .catch(() => {});
-    } else if (sendingBack) {
-      void slack
-        .replyInThread(
-          order.slack.channel,
-          order.slack.ts,
-          `:leftwards_arrow_with_hook: *Sent back* — ${order.sent_back_note}`,
-        )
-        .catch(() => {});
-    }
+  if (order.slack && status === 'done') {
+    void slack
+      .replyInThread(
+        order.slack.channel,
+        order.slack.ts,
+        `Closed by ${order.verified_by}.`,
+      )
+      .catch(() => {});
   }
   res.json(order);
 });
@@ -1468,21 +1433,18 @@ app.post('/v1/slack/interactions', (req, res) => {
 
     if (i.callbackId === 'case_done_submit') {
       /**
-       * Finished, but not closed.
+       * Done means done.
        *
-       * A work order on public infrastructure closed on the word of the party
-       * paid to do the work is not a record anyone can stand behind. The
-       * contractor says they are done and sends the photographs; FRCDE holds it
-       * until a supervisor has looked.
+       * This used to park the case for a supervisor to verify. The photograph
+       * is required before the button works at all and is filed against the
+       * record whether or not anyone confirms it, so the confirmation step only
+       * queued work in front of someone who had already delegated it.
        */
-      order.status = 'awaiting_verification';
-      order.completed_at = now;
-      order.closed_at = null;
-      order.closing_note = note || `Reported complete in Slack by ${who}.`;
+      order.status = 'done';
+      order.closed_at = now;
+      order.closing_note = note || `Completed in Slack by ${who}.`;
       const n = order.completion_attachment_ids?.length ?? 0;
-      reply =
-        `Marked complete by ${who} with ${n} photograph${n === 1 ? '' : 's'}. ` +
-        'Now with the supervisor to check.';
+      reply = `Closed by ${who} with ${n} photograph${n === 1 ? '' : 's'}. Thanks.`;
     } else if (i.callbackId === 'case_blocked_submit') {
       // Not a closed case. Someone still has to act, so it stays in the console
       // follow-up list rather than quietly disappearing from it.

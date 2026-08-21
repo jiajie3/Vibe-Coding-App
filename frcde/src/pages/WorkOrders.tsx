@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import CompleteFollowUp from '../components/CompleteFollowUp.tsx';
-import SendBackFollowUp from '../components/SendBackFollowUp.tsx';
 import { api, dueLabel } from '../api.ts';
 import type { JobRecord, Overview, WorkOrder, WorkOrderStatus } from '../api.ts';
 import { toast } from '../toast.ts';
@@ -10,7 +9,6 @@ import { toast } from '../toast.ts';
 const STATUS_LABEL: Record<WorkOrderStatus, string> = {
   open: 'Open',
   in_progress: 'In progress',
-  awaiting_verification: 'Check the photos',
   done: 'Done',
   blocked: 'Cannot complete',
   cancelled: 'Cancelled',
@@ -27,21 +25,21 @@ const STATUS_LABEL: Record<WorkOrderStatus, string> = {
 const STATUS_COLOUR: Record<WorkOrderStatus, string> = {
   open: '#dc2626',
   in_progress: '#d97706',
-  // Blue: this one is waiting on *you*, not on them. It is the only status in
-  // the list that a supervisor can clear without chasing anybody.
-  awaiting_verification: '#2563eb',
   done: '#16a34a',
   blocked: '#7c3aed',
   cancelled: '#94a3b8',
 };
 
 
+/** "15 Aug" — a trail of full timestamps is unreadable at a glance. */
+const shortDate = (iso: string) =>
+  new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+
 export default function WorkOrders() {
   const [data, setData] = useState<Overview | null>(null);
   const [showClosed, setShowClosed] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [closing, setClosing] = useState<WorkOrder | null>(null);
-  const [sendingBack, setSendingBack] = useState<WorkOrder | null>(null);
 
   const pull = useCallback(
     () => api.overview().then(setData).catch(() => {}),
@@ -65,10 +63,7 @@ export default function WorkOrders() {
       ? all
       : all.filter(
           (w) =>
-            w.status === 'open' ||
-            w.status === 'in_progress' ||
-            w.status === 'awaiting_verification' ||
-            w.status === 'blocked',
+            w.status === 'open' || w.status === 'in_progress' || w.status === 'blocked',
         );
     // Soonest due first — the same rule the drain queue uses, so urgency means
     // one thing across the whole console. Undated ones sink to the bottom.
@@ -85,20 +80,6 @@ export default function WorkOrders() {
       await api.updateWorkOrder(w.id, { status, closing_note: note });
       setClosing(null);
       await pull();
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  /** Reject a reported-complete case, with a message that reaches Slack. */
-  const sendBack = async (w: WorkOrder, note: string) => {
-    setBusy(w.id);
-    try {
-      await api.updateWorkOrder(w.id, { status: 'in_progress', note });
-      setSendingBack(null);
-      await pull();
-    } catch (e) {
-      toast.error(e, 'Could not send it back');
     } finally {
       setBusy(null);
     }
@@ -137,61 +118,71 @@ export default function WorkOrders() {
           const job = jobsById.get(w.job_id);
           return (
             <div key={w.id} className="jobrow">
+              {/* Where and who, because that is what a supervisor scans a list of
+                  follow-ups for. The inspection reference told them nothing they
+                  were looking for and cost the line its subject. */}
               <div className="top">
-                <span className="ref">{job?.reference ?? w.job_id.slice(0, 8)}</span>
+                <div className="name">
+                  {job ? <Link to={`/jobs/${job.id}`}>{job.asset.name}</Link> : 'Unknown drain'}
+                  {w.assigned_to && <span className="routed"> → {w.assigned_to}</span>}
+                </div>
                 <span className="pill" style={{ background: STATUS_COLOUR[w.status] }}>
                   {STATUS_LABEL[w.status]}
                 </span>
               </div>
-              <div className="name">{w.detail || w.title}</div>
-              <div className="meta">
-                {w.assigned_to && (
-                  <>
-                    <strong>→ {w.assigned_to}</strong>
-                    <span>·</span>
-                  </>
-                )}
-                {job && <Link to={`/jobs/${job.id}`}>{job.asset.name}</Link>}
+
+              <div className="detail">
+                {w.detail || w.title}
                 {w.chainage_m != null && (
-                  <>
-                    <span>·</span>
-                    <span>chainage {w.chainage_m.toFixed(0)} m</span>
-                  </>
+                  <span className="at"> · chainage {w.chainage_m.toFixed(0)} m</span>
                 )}
-                <span>·</span>
-                {w.due_at ? (
-                  <span className={`due-${dueLabel(w.due_at).severity}`}>
-                    {dueLabel(w.due_at).text}
-                  </span>
-                ) : (
-                  <span>no due date</span>
-                )}
-                <span>·</span>
-                <span>raised {new Date(w.raised_at).toLocaleDateString()}</span>
               </div>
 
-              {(w.slack || w.acknowledged_at) && (
-                <div className="meta" style={{ marginTop: 6 }}>
-                  {w.slack && <span>opened in {w.slack.channel}</span>}
-                  {w.slack && w.acknowledged_at && <span>·</span>}
-                  {w.acknowledged_at ? (
-                    <span>
-                      acknowledged {new Date(w.acknowledged_at).toLocaleDateString()}
-                    </span>
-                  ) : (
-                    w.slack && <span>not yet acknowledged</span>
-                  )}
-                  {(w.completion_attachment_ids?.length ?? 0) > 0 && (
-                    <>
-                      <span>·</span>
-                      <span>
-                        {w.completion_attachment_ids!.length} photo
-                        {w.completion_attachment_ids!.length === 1 ? '' : 's'} returned
-                      </span>
-                    </>
-                  )}
-                </div>
-              )}
+              {/* What has happened to it, oldest first. A case is a sequence of
+                  events between two organisations, and reading it as one is the
+                  only way to see where it is stuck. */}
+              <ol className="trail">
+                <li>
+                  <span className="when">{shortDate(w.raised_at)}</span>
+                  Raised{w.slack ? ` and opened in ${w.slack.channel}` : ''}
+                </li>
+                {w.acknowledged_at ? (
+                  <li>
+                    <span className="when">{shortDate(w.acknowledged_at)}</span>
+                    Acknowledged by {w.assigned_to || 'them'}
+                  </li>
+                ) : (
+                  w.slack &&
+                  w.status !== 'cancelled' && (
+                    <li className="pending">
+                      <span className="when">—</span>
+                      Not yet acknowledged
+                    </li>
+                  )
+                )}
+                {w.status === 'blocked' && (
+                  <li className="bad">
+                    <span className="when">{shortDate(w.closed_at ?? w.raised_at)}</span>
+                    Cannot complete — {w.blocked_reason || 'no reason given'}
+                  </li>
+                )}
+                {w.status === 'done' && (
+                  <li className="good">
+                    <span className="when">{shortDate(w.closed_at ?? w.raised_at)}</span>
+                    {w.closing_note || 'Completed'}
+                    {(w.completion_attachment_ids?.length ?? 0) > 0 &&
+                      ` · ${w.completion_attachment_ids!.length} photo${
+                        w.completion_attachment_ids!.length === 1 ? '' : 's'
+                      }`}
+                  </li>
+                )}
+                {w.status === 'cancelled' && (
+                  <li>
+                    <span className="when">{shortDate(w.closed_at ?? w.raised_at)}</span>
+                    Cancelled
+                  </li>
+                )}
+              </ol>
 
               {(w.completion_attachment_ids?.length ?? 0) > 0 && (
                 <div className="photos" style={{ marginTop: 8 }}>
@@ -206,41 +197,6 @@ export default function WorkOrders() {
                       <img src={`/uploads/${id}.jpg`} alt="Work reported complete" />
                     </a>
                   ))}
-                </div>
-              )}
-
-              {w.sent_back_note && w.status !== 'done' && (
-                <div className="note" style={{ marginTop: 8 }}>
-                  <strong>Sent back:</strong> {w.sent_back_note}
-                </div>
-              )}
-
-              {w.blocked_reason && (
-                <div className="note" style={{ marginTop: 8 }}>
-                  <strong>Cannot complete:</strong> {w.blocked_reason}
-                </div>
-              )}
-
-              {w.closing_note && (
-                <div className="note" style={{ marginTop: 8 }}>{w.closing_note}</div>
-              )}
-
-              {w.status === 'awaiting_verification' && (
-                <div className="rowactions">
-                  <button
-                    className="btn tiny primary"
-                    disabled={busy === w.id}
-                    onClick={() => advance(w, 'done')}
-                  >
-                    Photos check out — close it
-                  </button>
-                  <button
-                    className="btn tiny"
-                    disabled={busy === w.id}
-                    onClick={() => setSendingBack(w)}
-                  >
-                    Send back
-                  </button>
                 </div>
               )}
 
@@ -275,16 +231,6 @@ export default function WorkOrders() {
           );
         })}
       </div>
-
-      {sendingBack && (
-        <SendBackFollowUp
-          order={sendingBack}
-          jobName={jobsById.get(sendingBack.job_id)?.asset.name}
-          busy={busy === sendingBack.id}
-          onCancel={() => setSendingBack(null)}
-          onSubmit={(note) => sendBack(sendingBack, note)}
-        />
-      )}
 
       {closing && (
         <CompleteFollowUp

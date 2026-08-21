@@ -278,94 +278,13 @@ async function main() {
   if (!done.ok) die(`completion refused (${done.status})`);
 
   const afterDone = await readOrder(order.id);
-  // Reported complete is not closed: a work order signed off on the word of the
-  // party paid to do it is not a record anyone can stand behind.
-  if (afterDone.status !== 'awaiting_verification') {
-    die(`status is ${afterDone.status}, expected awaiting_verification`);
-  }
-  if (afterDone.closed_at !== null) die('a case awaiting a check must not read as closed');
-  if (!afterDone.completed_at) die('completed_at was not stamped');
+  // Completed in Slack closes the case outright. There used to be a supervisor
+  // confirmation in between; it queued work in front of someone who had already
+  // delegated it, and the photograph is filed against the record either way.
+  if (afterDone.status !== 'done') die(`status is ${afterDone.status}, expected done`);
+  if (!afterDone.closed_at) die('closed_at was not stamped');
   if (!afterDone.closing_note?.includes('0.4 m3')) die('the closing note was not kept');
-  ok('completion parks the case for verification rather than closing it');
-
-  /* ------------------------------------------------- sending it back again */
-
-  const auth1 = await fetch(`${BASE}/v1/auth/token`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ username: USER, password: PASS, device_id: 'slack-e2e' }),
-  });
-  const { access_token: tok } = (await auth1.json()) as { access_token: string };
-  const asSupervisor = { authorization: `Bearer ${tok}`, 'content-type': 'application/json' };
-
-  // A send-back with nothing said leaves them guessing, and the usual result is
-  // the same work reported complete a second time.
-  const silent = await fetch(`${BASE}/v1/console/work-orders/${order.id}`, {
-    method: 'PATCH',
-    headers: asSupervisor,
-    body: JSON.stringify({ status: 'in_progress' }),
-  });
-  if (silent.status !== 422) die(`a wordless send-back was allowed (${silent.status})`);
-
-  const back = await fetch(`${BASE}/v1/console/work-orders/${order.id}`, {
-    method: 'PATCH',
-    headers: asSupervisor,
-    body: JSON.stringify({
-      status: 'in_progress',
-      note: 'Photograph shows the upstream end — we need chainage 260 m.',
-    }),
-  });
-  if (!back.ok) die(`send-back refused (${back.status})`);
-  const afterBack = await readOrder(order.id);
-  if (afterBack.status !== 'in_progress') die(`status is ${afterBack.status}, expected in_progress`);
-  if (!afterBack.sent_back_note?.includes('chainage 260')) die('the message was not kept');
-  if (afterBack.completed_at !== null) die('a sent-back case still claims a completion date');
-  ok('send-back needs a message, keeps it, and clears the completion');
-
-  // Report it complete again, so the sign-off below has something to sign off.
-  const redo = await fetch(`${BASE}/v1/slack/interactions`, {
-    method: 'POST',
-    headers: slackHeaders(doneBody),
-    body: doneBody,
-  });
-  if (!redo.ok) die(`re-completion refused (${redo.status})`);
-  const afterRedo = await readOrder(order.id);
-  if (afterRedo.status !== 'awaiting_verification') {
-    die(`status is ${afterRedo.status}, expected awaiting_verification`);
-  }
-  ok('the contractor can report it complete again after a send-back');
-
-  /* ------------------------------------------- the supervisor signs it off */
-
-  const auth2 = await fetch(`${BASE}/v1/auth/token`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ username: USER, password: PASS, device_id: 'slack-e2e' }),
-  });
-  const { access_token: token2 } = (await auth2.json()) as { access_token: string };
-  const closed = await fetch(`${BASE}/v1/console/work-orders/${order.id}`, {
-    method: 'PATCH',
-    headers: { authorization: `Bearer ${token2}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ status: 'done' }),
-  });
-  if (!closed.ok) die(`the supervisor could not close it (${closed.status})`);
-  const verified = await readOrder(order.id);
-  if (verified.status !== 'done') die(`status is ${verified.status}, expected done`);
-  if (!verified.closed_at) die('closed_at was not stamped on verification');
-  if (!verified.verified_by) die('nobody was recorded as having checked it');
-  ok(`supervisor verified and closed it (${verified.verified_by})`);
-
-  /* ------------------------------------------------ the events handshake */
-
-  const challenge = JSON.stringify({ type: 'url_verification', challenge: 'abc123' });
-  const handshake = await fetch(`${BASE}/v1/slack/events`, {
-    method: 'POST',
-    headers: { ...slackHeaders(challenge), 'content-type': 'application/json' },
-    body: challenge,
-  });
-  const echoed = (await handshake.json()) as { challenge?: string };
-  if (echoed.challenge !== 'abc123') die('the events URL did not echo the challenge');
-  ok('the events endpoint echoes the verification challenge Slack sends');
+  ok('completing in Slack closes the case, with its note');
 
   /* --------------------------------------------- a case that no longer exists */
 

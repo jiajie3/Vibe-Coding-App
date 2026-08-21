@@ -166,15 +166,17 @@ export interface Session {
 /* ---------------------------------------------------------- work orders */
 
 /**
- * `awaiting_verification` sits between the contractor saying they are finished
- * and FRCDE agreeing. Work on public infrastructure closed on the word of the
- * party paid to do it is not a record anyone can stand behind; a supervisor
- * looks at the photographs first.
+ * A case closes when the party doing the work says it is done.
+ *
+ * There was a `awaiting_verification` state between that and FRCDE agreeing,
+ * so a supervisor could check the photographs first. It was removed
+ * deliberately: it put a queue of confirmations in front of someone for work
+ * they had already delegated, and the photograph still arrives and is still
+ * filed against the record either way.
  */
 export type WorkOrderStatus =
   | 'open'
   | 'in_progress'
-  | 'awaiting_verification'
   | 'done'
   | 'blocked'
   | 'cancelled';
@@ -237,19 +239,8 @@ export interface WorkOrder {
   /** Evidence the contractor posted in the case thread, as attachment ids. */
   completion_attachment_ids?: string[];
 
-  /** When the contractor said it was finished. Distinct from `closed_at`. */
-  completed_at?: string | null;
-  /** Who signed it off in FRCDE, and when. */
+  /** Who closed it, when it was closed from the console rather than Slack. */
   verified_by?: string;
-
-  /**
-   * Why it was last sent back for more work.
-   *
-   * Only the most recent one is kept here. The full back-and-forth lives in the
-   * Slack thread, which is where the contractor is reading it — this exists so
-   * the console can show why a case is round again without opening Slack.
-   */
-  sent_back_note?: string;
 }
 
 interface Db {

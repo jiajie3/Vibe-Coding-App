@@ -63,7 +63,6 @@ export interface InspectionDetail {
 export type WorkOrderStatus =
   | 'open'
   | 'in_progress'
-  | 'awaiting_verification'
   | 'done'
   | 'blocked'
   | 'cancelled';
@@ -93,12 +92,8 @@ export interface WorkOrder {
   slack?: { channel: string; ts: string };
   /** Evidence posted back in the Slack case thread. */
   completion_attachment_ids?: string[];
-  /** When the contractor said it was finished — before anyone checked. */
-  completed_at?: string | null;
-  /** Who signed it off here. */
+  /** Who closed it, when it was closed from the console rather than Slack. */
   verified_by?: string;
-  /** Why it was last sent back. The full history is in the Slack thread. */
-  sent_back_note?: string;
 }
 
 export interface ChannelOption {

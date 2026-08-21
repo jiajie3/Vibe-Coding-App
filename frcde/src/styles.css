@@ -610,3 +610,26 @@ html, body { height: 100%; }
   background: #f5f3ff; border-color: #ddd6fe; color: #6d28d9; font-weight: 700;
 }
 .btn.aifill:hover:not(:disabled) { background: #ede9fe; border-color: #c4b5fd; }
+
+/* ------------------------------------------------------- follow-up rows */
+/* Where and who first — that is what a list of follow-ups is scanned for. */
+.jobrow .top .name .routed { color: var(--muted); font-weight: 600; }
+.jobrow .detail { margin-top: 6px; font-size: 16.5px; line-height: 1.45; }
+.jobrow .detail .at { color: var(--muted); }
+
+/* What has happened to the case, oldest first. A follow-up is a sequence of
+   events between two organisations, and reading it as one is the only way to
+   see where it is stuck. */
+.trail {
+  list-style: none; margin: 10px 0 0; padding: 0;
+  display: flex; flex-direction: column; gap: 4px;
+  font-size: 15.5px; color: var(--ink);
+}
+.trail li { display: flex; gap: 10px; align-items: baseline; }
+.trail .when {
+  flex: none; width: 62px; color: var(--muted);
+  font-variant-numeric: tabular-nums; font-size: 14.5px;
+}
+.trail li.pending { color: var(--muted); font-style: italic; }
+.trail li.good { color: #15803d; font-weight: 600; }
+.trail li.bad { color: #6d28d9; font-weight: 600; }

@@ -164,15 +164,19 @@ learn their findings do not matter. So a follow-up is a case with a party on the
 end of it:
 
 ```
-open → in progress → awaiting verification → done
+open → in progress → done
                   ↘ cannot complete (stays in the live list)
 ```
 
 Opened in a Slack channel chosen by the routing table, with the inspection's own
 photographs in the thread. The contractor acknowledges before anything else is offered,
 and cannot close it without posting a photograph — which comes back and is filed against
-the work order. A supervisor then checks that photograph and closes it, or sends it back
-with a message that lands in the same thread.
+the work order. Pressing Completed closes the case.
+
+There was a supervisor confirmation between those two, which was removed: it put a queue
+of approvals in front of someone for work they had already delegated, and the photograph
+arrives and is filed either way. The console shows each case as a trail — raised,
+acknowledged, completed — so where one is stuck is visible without opening Slack.
 
 Without a workspace configured all of that is logged rather than posted, and the console
 is unchanged. [docs/slack.md](../docs/slack.md).
