@@ -297,7 +297,13 @@ export async function postThreadImages(
 ): Promise<void> {
   if (images.length === 0) return;
   if (!isConfigured() || ts.startsWith('sim-')) {
-    console.log(`[slack] (simulated) would upload ${images.length} photo(s) to ${channel}/${ts}`);
+    // The heading too, not just the count. It carries the coordinates of every
+    // photograph, and a demo run with no workspace attached is the only chance
+    // to see what would have been posted.
+    console.log(
+      `[slack] (simulated) would upload ${images.length} photo(s) to ${channel}/${ts}\n` +
+        heading.replace(/^/gm, '  | '),
+    );
     return;
   }
 

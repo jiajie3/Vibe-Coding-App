@@ -82,8 +82,16 @@ out of the API rather than frozen at the moment a message arrived — so the fir
 time somebody presses a button, every message they have ever posted starts
 showing who wrote it, retrospectively, scope or no scope.
 
-Without any of the three it falls back to the party name. A missing scope should
-cost a name, not a message.
+Where none of the three answers, the message reads **Slack member** — not the
+party name. "LTA said the gate is locked" names a government agency for something
+a contractor typed, and reads as though the integration knows who they are when
+it does not. A missing scope should cost a name, not a message, and it should not
+cost the truth either.
+
+Unresolved ids are retried in the background off the back of console polls, at
+most every five minutes each. So granting `users:read` fixes the messages already
+stored, within a poll or two, without a redeploy. Messages that arrived before
+ids were stored at all cannot be recovered — there is nothing left to look up.
 
 **`GET /v1/console/slack/check`** (signed in as a supervisor) answers the
 question directly: whether the bot token works, which scopes were actually
@@ -304,15 +312,24 @@ anyone holding a URL.
 
 ## Where the drain is
 
-The card carries a **map link** directly under its heading, above the detail:
-where the drain is comes before what is wrong with it, because that is the order
-somebody reads a case in. The chainage is projected onto the drain's alignment,
-so "106 m along the drain" arrives as coordinates a crew can tap on the way out.
+Two different questions, two different answers.
 
-The photograph post in the thread carries the same line. Not a duplicate worth
-removing — a crew scrolling a thread of pictures should not have to scroll back
-up to the card for the address, and a case raised without photographs would
-otherwise carry no location at all.
+**The card** carries the **start of the drain**, directly under its heading and
+above the detail: where it is comes before what is wrong with it, because that is
+the order somebody reads a case in. Chainage zero projected onto the alignment —
+the first vertex of the geometry — because the card is the instruction to go
+somewhere and a drain is walked from its start.
+
+**The photograph post** carries one pin per photograph, at the coordinates of
+that photograph. Whereabouts along the drain the problem sits is a question the
+pictures answer, and they answer it more exactly than the case ever could.
+
+A photograph with no coordinates gets no pin. A live capture carries the
+inspector's position at the moment of the shutter; one picked out of the phone's
+album carries whatever EXIF came with it, which is usually nothing. There is no
+honest coordinate to invent for it — CFPI deliberately refuses to borrow the
+inspector's current position for an album photo, and this refuses to paper over
+the gap. A missing pin beats a confident wrong one.
 
 Where no chainage was recorded, the drain's **midpoint** is used and the distance
 is left off the label. Somebody sent to a named canal they have never visited

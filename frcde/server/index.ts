@@ -782,7 +782,7 @@ app.get('/v1/console/overview', (_req, res) => {
   res.json({
     jobs,
     users: store.users().map(publicUser),
-    work_orders: store.workOrders().map(withNames),
+    work_orders: workOrdersForConsole(),
     // Surfaced so the console can show the automation working, rather than
     // offering a button to do its job for it.
     scheduler: lastRun,
@@ -1186,8 +1186,15 @@ app.patch('/v1/console/work-orders/:id', (req, res) => {
 });
 
 app.get('/v1/console/work-orders', (_req, res) => {
-  res.json({ data: store.workOrders().map(withNames) });
+  res.json({ data: workOrdersForConsole() });
 });
+
+/** Work orders as the console should see them: named, and chasing the unnamed. */
+function workOrdersForConsole(): WorkOrder[] {
+  const orders = store.workOrders();
+  primeNames(orders);
+  return orders.map(withNames);
+}
 
 /**
  * Stored messages, with their names re-resolved from what Slack has said since.
@@ -1197,6 +1204,34 @@ app.get('/v1/console/work-orders', (_req, res) => {
  * first time anybody presses a button — which names them, scope or no scope —
  * every message they ever posted starts showing who wrote it.
  */
+const nameTried = new Map<string, number>();
+const NAME_RETRY_MS = 5 * 60 * 1000;
+
+/**
+ * Ask Slack for the names we still do not have, in the background.
+ *
+ * Messages keep the id of whoever wrote them, so granting `users:read` ought to
+ * fix the messages already stored and not only the next ones. This runs off the
+ * back of a console poll and fills the cache; the poll a few seconds later
+ * renders the names. Spaced out per id, so a workspace without the scope is
+ * asked every few minutes rather than on every poll of every open case.
+ */
+function primeNames(orders: WorkOrder[]): void {
+  const now = Date.now();
+  const wanted = new Set<string>();
+  for (const o of orders) {
+    for (const m of o.thread ?? []) {
+      if (!m.who_id || slack.cachedName(m.who_id)) continue;
+      if (now - (nameTried.get(m.who_id) ?? 0) < NAME_RETRY_MS) continue;
+      wanted.add(m.who_id);
+    }
+  }
+  for (const id of wanted) {
+    nameTried.set(id, now);
+    void slack.userName(id).catch(() => {});
+  }
+}
+
 function withNames(order: WorkOrder): WorkOrder {
   if (!order.thread?.length) return order;
   return {
@@ -1257,7 +1292,7 @@ function caseView(order: WorkOrder): slack.CaseView | null {
     acknowledged_at: order.acknowledged_at,
     closing_note: order.closing_note,
     completion_photos: order.completion_attachment_ids?.length ?? 0,
-    map: mapFor(order),
+    map: drainStart(order),
   };
 }
 
@@ -1287,6 +1322,7 @@ async function postEvidence(order: WorkOrder): Promise<void> {
               (a.chainage_m != null
                 ? `${Math.round(a.chainage_m)} m along the drain`
                 : 'From the inspection'),
+            pin: photoPin(a),
           };
         } catch {
           // The file is gone — Render wipes the disk on every deploy, so a
@@ -1307,7 +1343,7 @@ async function postEvidence(order: WorkOrder): Promise<void> {
       order.slack.ts,
       files,
       `*From the inspection* — ${files.length} photograph${files.length === 1 ? '' : 's'}.` +
-        mapSuffix(order),
+        files.map((f) => f.pin).join(''),
     );
   } catch (e) {
     // Loudly: this failed silently twice, once as an http URL Slack would not
@@ -1316,39 +1352,39 @@ async function postEvidence(order: WorkOrder): Promise<void> {
   }
 }
 
-/**
- * Where on the ground, as something a crew can tap.
- *
- * "106 m along the drain" is precise and useless to someone standing at a road
- * junction. The alignment is already here and the chainage is already recorded,
- * so the coordinates are a projection away — and a maps link is what actually
- * gets them to the spot.
- */
-function mapSuffix(order: WorkOrder): string {
-  const m = mapFor(order);
-  return m ? `\n:round_pushpin: <${m.url}|${m.label}>` : '';
-}
+const mapsUrl = (q: string) => `https://www.google.com/maps/search/?api=1&query=${q}`;
 
-function mapFor(order: WorkOrder): { url: string; label: string } | undefined {
+/**
+ * The head of the drain, as something tappable.
+ *
+ * Chainage zero, not the reported defect. The card is the crew's starting
+ * instruction and a drain is walked from its start; whereabouts along it the
+ * problem sits belongs to the photographs, which carry their own coordinates.
+ */
+function drainStart(order: WorkOrder): { url: string; label: string } | undefined {
   const job = store.job(order.job_id);
   if (!job) return undefined;
   try {
-    const align = buildAlignment(job.asset.geometry);
-    // The recorded spot when there is one, the middle of the drain otherwise:
-    // a crew sent to a drain they have never visited still has to find it.
-    const along = order.chainage_m ?? align.length_m / 2;
-    const at = chainageToLatLon(align, along);
+    const at = chainageToLatLon(buildAlignment(job.asset.geometry), 0);
     const q = `${at.lat.toFixed(6)},${at.lon.toFixed(6)}`;
-    return {
-      url: `https://www.google.com/maps/search/?api=1&query=${q}`,
-      label:
-        order.chainage_m == null
-          ? q
-          : `${q} — ${Math.round(order.chainage_m)} m along the drain`,
-    };
+    return { url: mapsUrl(q), label: `${q} — start of the drain` };
   } catch {
     return undefined;
   }
+}
+
+/**
+ * Where each photograph was taken, from the photograph itself.
+ *
+ * A live capture carries the inspector's position at the moment of the shutter.
+ * One picked out of the phone's album carries whatever EXIF came with it, which
+ * is usually nothing — and there is no honest coordinate to invent for it, so it
+ * gets no link. A missing pin beats a confident wrong one.
+ */
+function photoPin(a: AttachmentRecord): string {
+  if (a.lat == null || a.lon == null) return '';
+  const q = `${a.lat.toFixed(6)},${a.lon.toFixed(6)}`;
+  return `\n:round_pushpin: <${mapsUrl(q)}|${q}>`;
 }
 
 /**
@@ -1711,11 +1747,10 @@ async function ingestThreadEvent(
   // The name their colleagues see in the channel, not the organisation the case
   // was routed to. A person wrote this, and "NEA said" is not who they are.
   const whoId = String(event.user ?? '');
-  const who =
-    slack.learnFromEvent(event) ??
-    (await slack.userName(whoId)) ??
-    order.assigned_to ??
-    'Them';
+  // Not the party name. "LTA said the gate is locked" names a government
+  // agency for something a contractor typed, and reads as though the
+  // integration knows who they are when it does not.
+  const who = slack.learnFromEvent(event) ?? (await slack.userName(whoId)) ?? 'Slack member';
 
   seen.add(msgKey);
   appendToThread(order, 'them', who, said, photos, whoId);

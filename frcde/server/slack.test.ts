@@ -250,13 +250,13 @@ test('the card says where the drain is, as something tappable', () => {
       view({
         map: {
           url: 'https://www.google.com/maps/search/?api=1&query=1.320145,103.856210',
-          label: '1.320145,103.856210 \u2014 261 m along the drain',
+          label: '1.320145,103.856210 — start of the drain',
         },
       }),
     ),
   );
   assert.match(b, /<https:\/\/www\.google\.com\/maps\/search[^|]*\|1\.320145,103\.856210/);
-  assert.match(b, /261 m along the drain/);
+  assert.match(b, /start of the drain/);
 
   // Directly under the heading and above the detail. Where a case is comes
   // before what is wrong with it: that is the order it gets read in, and it is
