@@ -24,7 +24,7 @@ import {
  * nothing there.
  */
 
-export const KEYBOARD_ACCESSORY_ID = 'cfpi-keyboard-done';
+const KEYBOARD_ACCESSORY_ID = 'cfpi-keyboard-done';
 
 /** For numeric / single-line inputs: adds a Done bar above the keyboard. */
 export const keyboardDoneProps =

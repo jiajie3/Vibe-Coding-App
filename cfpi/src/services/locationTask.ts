@@ -17,7 +17,7 @@ import { Platform } from 'react-native';
 
 import type { Fix } from '../core/types.ts';
 
-export const LOCATION_TASK = 'cfpi-inspection-location';
+const LOCATION_TASK = 'cfpi-inspection-location';
 
 /**
  * Expo Go cannot run background location — no foreground service on Android, and
@@ -155,7 +155,7 @@ export async function getCurrentLocation(): Promise<{ lat: number; lon: number }
   }
 }
 
-export async function isTracking(): Promise<boolean> {
+async function isTracking(): Promise<boolean> {
   if (IS_EXPO_GO) return watchSub !== null;
   return Location.hasStartedLocationUpdatesAsync(LOCATION_TASK);
 }

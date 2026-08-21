@@ -21,8 +21,8 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 
 const API = 'https://slack.com/api';
 
-export const botToken = () => process.env.SLACK_BOT_TOKEN ?? '';
-export const signingSecret = () => process.env.SLACK_SIGNING_SECRET ?? '';
+const botToken = () => process.env.SLACK_BOT_TOKEN ?? '';
+const signingSecret = () => process.env.SLACK_SIGNING_SECRET ?? '';
 
 /** True when Slack can actually be reached. False means everything is simulated. */
 export const isConfigured = () => botToken().length > 0 && signingSecret().length > 0;

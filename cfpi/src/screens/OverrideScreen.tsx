@@ -28,13 +28,46 @@ import { getJob } from '../data/jobs.ts';
  * review either way.
  */
 
-const REASONS: { code: string; label: string; hint: string }[] = [
-  { code: 'access_blocked', label: 'Access blocked', hint: 'Locked gate, fencing, private land' },
-  { code: 'flooded', label: 'Flooded', hint: 'Water level too high to walk safely' },
-  { code: 'unsafe_conditions', label: 'Unsafe conditions', hint: 'Weather, traffic, structural risk' },
-  { code: 'obstruction', label: 'Obstruction on site', hint: 'Works, vehicles, vegetation' },
-  { code: 'equipment_failure', label: 'Equipment failure', hint: 'Phone, torch or PPE fault' },
-  { code: 'other', label: 'Other', hint: 'Describe it below' },
+const REASONS: {
+  code: string;
+  label: string;
+  hint: string;
+  /** The matching `access_reason` option, so the checklist need not ask again. */
+  access: string;
+}[] = [
+  {
+    code: 'access_blocked',
+    label: 'Access blocked',
+    hint: 'Locked gate, fencing, private land',
+    access: 'locked',
+  },
+  {
+    code: 'flooded',
+    label: 'Flooded',
+    hint: 'Water level too high to walk safely',
+    access: 'water',
+  },
+  {
+    code: 'unsafe_conditions',
+    label: 'Unsafe conditions',
+    hint: 'Weather, traffic, structural risk',
+    access: 'unsafe',
+  },
+  {
+    code: 'obstruction',
+    label: 'Obstruction on site',
+    hint: 'Works, vehicles, vegetation',
+    access: 'works',
+  },
+  {
+    // Nothing on site stopped the walk, so no access category fits. "Other"
+    // with the note is the honest answer rather than the nearest-looking one.
+    code: 'equipment_failure',
+    label: 'Equipment failure',
+    hint: 'Phone, torch or PPE fault',
+    access: 'other',
+  },
+  { code: 'other', label: 'Other', hint: 'Describe it below', access: 'other' },
 ];
 
 export default function OverrideScreen({ navigation }: { navigation: any }) {
@@ -76,10 +109,16 @@ export default function OverrideScreen({ navigation }: { navigation: any }) {
      */
     setAnswer('site_accessible', false);
     const chosen = REASONS.find((r) => r.code === reason);
-    setAnswer(
-      'access_obstruction',
-      notes.trim() || `${chosen?.label ?? reason}. ${chosen?.hint ?? ''}`.trim(),
-    );
+    setAnswer('access_reason', chosen?.access ?? 'other');
+    // Only the box that "Other" opens, and only when it is open. Filling a
+    // field the checklist will not show just leaves an orphan for prune() to
+    // strip on the way out.
+    if ((chosen?.access ?? 'other') === 'other') {
+      setAnswer(
+        'access_other',
+        notes.trim() || `${chosen?.label ?? reason}. ${chosen?.hint ?? ''}`.trim(),
+      );
+    }
 
     navigation.navigate('Checklist', {
       override: {

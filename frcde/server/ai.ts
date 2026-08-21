@@ -38,7 +38,7 @@ const API = 'https://api.openai.com/v1/chat/completions';
  */
 export const PROMPT_VERSION = 5;
 
-export const apiKey = () => process.env.OPENAI_API_KEY ?? '';
+const apiKey = () => process.env.OPENAI_API_KEY ?? '';
 export const isConfigured = () => apiKey().length > 0;
 
 /**
@@ -743,7 +743,11 @@ export async function reviewInspection(input: ReviewInput): Promise<AiReview> {
     });
 
     if (!res.ok) {
-      const body = await res.text();
+      // Read, and said. OpenAI explains a refusal in the body — an expired key,
+      // a rate limit, a model this account cannot reach — and returning only
+      // "502" turns a one-line fix into an afternoon of guessing.
+      const body = (await res.text().catch(() => '')).slice(0, 400);
+      console.error(`[ai] review failed (${res.status}): ${body || 'no body'}`);
       return {
         ...skipped(`Could not reach the model (${res.status}). ${sentences(rules)}`),
         error: `${res.status}`,

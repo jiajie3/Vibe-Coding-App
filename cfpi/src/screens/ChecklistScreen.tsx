@@ -154,8 +154,12 @@ function Severity({
  * Recording "I could not walk the full stretch" and then answering "was the full
  * stretch accessible? Yes" would put two opposite statements in one submission,
  * and a reviewer would have no way to tell which was meant.
+ *
+ * The reason goes with it. An inspector who has just chosen "flooded" and
+ * described it should not meet "what stopped you?" again two screens later —
+ * they have answered it, and asking twice invites two different answers.
  */
-const LOCKED_BY_OVERRIDE = ['site_accessible'];
+const LOCKED_BY_OVERRIDE = ['site_accessible', 'access_reason', 'access_other'];
 
 /* ------------------------------------------------------------------- screen */
 
@@ -310,7 +314,8 @@ export default function ChecklistScreen({
 
         {field.type === 'text' && (
           <TextInput
-            style={[styles.input, styles.inputMultiline]}
+            style={[styles.input, styles.inputMultiline, locked && styles.inputLocked]}
+            editable={!locked}
             multiline
             value={typeof value === 'string' ? value : ''}
             placeholder="Type here"
@@ -358,32 +363,41 @@ export default function ChecklistScreen({
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={styles.photoRow}>
                 {photos.map((p) => (
-                  <View key={p.id} style={styles.thumb}>
-                    <Image source={{ uri: p.uri }} style={styles.thumbImg} />
-                    {p.chainage_m != null && (
-                      <Text style={styles.thumbTag}>{p.chainage_m.toFixed(0)}m</Text>
-                    )}
-                    {/* A visible control, not a long press. Deleting a
-                        photograph was discoverable only by holding one down
-                        and hoping — which is no way to remove the blurred
-                        shot you have just noticed. Confirmed, because the
-                        photograph cannot be taken again from here. */}
-                    <Pressable
-                      style={styles.thumbDelete}
-                      hitSlop={8}
-                      onPress={() =>
-                        Alert.alert('Delete this photograph?', 'This cannot be undone.', [
-                          { text: 'Keep', style: 'cancel' },
-                          {
-                            text: 'Delete',
-                            style: 'destructive',
-                            onPress: () => removePhoto(p.id),
-                          },
-                        ])
-                      }
+                  <View key={p.id} style={styles.shot}>
+                    <View style={styles.thumb}>
+                      <Image source={{ uri: p.uri }} style={styles.thumbImg} />
+                      {/* A visible control, not a long press. Deleting a
+                          photograph was discoverable only by holding one down
+                          and hoping — which is no way to remove the blurred
+                          shot you have just noticed. Confirmed, because the
+                          photograph cannot be taken again from here. */}
+                      <Pressable
+                        style={styles.thumbDelete}
+                        hitSlop={8}
+                        onPress={() =>
+                          Alert.alert('Delete this photograph?', 'This cannot be undone.', [
+                            { text: 'Keep', style: 'cancel' },
+                            {
+                              text: 'Delete',
+                              style: 'destructive',
+                              onPress: () => removePhoto(p.id),
+                            },
+                          ])
+                        }
+                      >
+                        <Text style={styles.thumbDeleteText}>✕</Text>
+                      </Pressable>
+                    </View>
+                    {/* Under the photograph, not printed across the bottom of
+                        it. A caption sitting on the image hides the part of the
+                        drain nearest the camera, which is usually the part the
+                        photograph was taken for. Always shown, so one with no
+                        location is visibly missing rather than merely silent. */}
+                    <Text
+                      style={[styles.shotTag, p.chainage_m == null && styles.shotTagMissing]}
                     >
-                      <Text style={styles.thumbDeleteText}>✕</Text>
-                    </Pressable>
+                      {p.chainage_m != null ? `${p.chainage_m.toFixed(0)} m` : 'no location'}
+                    </Text>
                   </View>
                 ))}
                 <Pressable style={styles.addPhoto} onPress={() => openCamera(field.id)}>
@@ -611,6 +625,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#0F172A',
   },
+  inputLocked: { backgroundColor: '#F1F5F9', color: '#64748B' },
   inputMultiline: { minHeight: 76, textAlignVertical: 'top' },
   unit: { fontSize: 14, color: '#64748B', fontWeight: '600' },
 
@@ -629,7 +644,12 @@ const styles = StyleSheet.create({
   photoBlock: { gap: 8 },
   photoDemand: { fontSize: 12, color: '#B45309', fontWeight: '700' },
   photoEmpty: { fontSize: 12.5, color: '#64748B', lineHeight: 17 },
-  photoRow: { flexDirection: 'row', gap: 8, paddingVertical: 2 },
+  // flex-start, so the add button keeps its square shape beside a thumbnail
+  // that is now a little taller than it is.
+  photoRow: { flexDirection: 'row', gap: 8, paddingVertical: 2, alignItems: 'flex-start' },
+  shot: { width: 72, alignItems: 'center', gap: 3 },
+  shotTag: { fontSize: 11, fontWeight: '700', color: '#475569' },
+  shotTagMissing: { color: '#B45309', fontWeight: '600' },
   thumb: { width: 72, height: 72, borderRadius: 10, overflow: 'hidden', backgroundColor: '#E2E8F0' },
   thumbDelete: {
     position: 'absolute',
@@ -644,18 +664,6 @@ const styles = StyleSheet.create({
   },
   thumbDeleteText: { color: '#fff', fontSize: 11, fontWeight: '800', lineHeight: 13 },
   thumbImg: { width: '100%', height: '100%' },
-  thumbTag: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    fontSize: 10,
-    color: '#fff',
-    fontWeight: '700',
-    textAlign: 'center',
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    paddingVertical: 1,
-  },
   addPhoto: {
     width: 72,
     height: 72,

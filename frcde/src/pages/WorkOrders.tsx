@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 
 import { api } from '../api.ts';
 import type { JobRecord, Overview, WorkOrderStatus } from '../api.ts';
-import { toast } from '../toast.ts';
 
 const STATUS_LABEL: Record<WorkOrderStatus, string> = {
   open: 'Open',
