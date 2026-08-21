@@ -272,7 +272,13 @@ export interface WorkOrder {
    * still showing buttons on a case closed a week ago invites someone to close
    * it twice.
    */
-  slack?: { channel: string; ts: string };
+  slack?: {
+    /** The channel id. What Slack wants back on every later call. */
+    channel: string;
+    /** The channel name, `#nea`. What a person should be shown. */
+    name?: string;
+    ts: string;
+  };
 
   /** Evidence the contractor posted in the case thread, as attachment ids. */
   completion_attachment_ids?: string[];

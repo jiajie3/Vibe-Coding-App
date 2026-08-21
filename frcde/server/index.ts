@@ -1138,7 +1138,7 @@ app.post('/v1/console/work-orders', async (req: AuthedRequest, res) => {
       const view = caseView(order);
       if (view) {
         const posted = await slack.postCase(channel, view);
-        order.slack = { channel: posted.channel, ts: posted.ts };
+        order.slack = { channel: posted.channel, name: posted.name, ts: posted.ts };
         await postEvidence(order);
       }
     } catch (e) {

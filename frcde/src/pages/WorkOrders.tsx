@@ -170,7 +170,7 @@ export default function WorkOrders() {
               <ol className="trail">
                 <li>
                   <span className="when">{shortDate(w.raised_at)}</span>
-                  Raised{w.slack ? ` and opened in ${w.slack.channel}` : ''}
+                  Raised{w.slack ? ` and opened in ${w.slack.name ?? w.slack.channel}` : ''}
                 </li>
                 {w.acknowledged_at ? (
                   <li>

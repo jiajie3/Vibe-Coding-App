@@ -121,6 +121,8 @@ export interface PostedCase {
   channel: string;
   ts: string;
   simulated: boolean;
+  /** As the supervisor asked for it, `#nea`, for showing in the console. */
+  name?: string;
 }
 
 async function call<T>(method: string, payload: unknown): Promise<T> {
@@ -250,14 +252,17 @@ export async function postCase(channel: string, c: CaseView): Promise<PostedCase
   const text = `Follow-up on ${c.asset_name}: ${c.title}`;
   if (!isConfigured()) {
     console.log(`[slack] (simulated) would post to ${channel}: ${text}`);
-    return { channel, ts: `sim-${Date.now()}`, simulated: true };
+    return { channel, name: channel, ts: `sim-${Date.now()}`, simulated: true };
   }
   const r = await call<{ channel: string; ts: string }>('chat.postMessage', {
     channel,
     text,
     blocks: caseBlocks(c),
   });
-  return { channel: r.channel, ts: r.ts, simulated: false };
+  // Both: the id is what every later API call needs, and the name is the only
+  // one of the two worth showing anybody. Slack answers with the id alone, so
+  // the name has to be carried over from what was asked for.
+  return { channel: r.channel, name: channel, ts: r.ts, simulated: false };
 }
 
 /** Repaint the original message so the channel shows the current state. */

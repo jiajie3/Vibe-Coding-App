@@ -97,7 +97,13 @@ export interface WorkOrder {
   /** The case's Slack thread, as it happens. */
   thread?: CaseMessage[];
   /** Where the case was opened, once it has been. */
-  slack?: { channel: string; ts: string };
+  slack?: {
+    /** The channel id. What Slack wants back on every later call. */
+    channel: string;
+    /** The channel name, `#nea`. What a person should be shown. */
+    name?: string;
+    ts: string;
+  };
   /** Evidence posted back in the Slack case thread. */
   completion_attachment_ids?: string[];
   /** Who closed it, when it was closed from the console rather than Slack. */
