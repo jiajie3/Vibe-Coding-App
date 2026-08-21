@@ -181,7 +181,17 @@ export interface CaseMessage {
   at: string;
   /** `them` is anyone in the channel; `us` is FRCDE's own replies. */
   from: 'them' | 'us';
+  /**
+   * Who said it, as Slack shows them.
+   *
+   * The party name was used at first — "NEA said this" — which is wrong twice
+   * over: it names an organisation for something a person wrote, and it is not
+   * the name their colleagues would recognise in the channel.
+   */
+  who: string;
   text: string;
+  /** Attachment ids for anything posted with the message, shown inline. */
+  photos?: string[];
 }
 
 /**

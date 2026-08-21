@@ -648,13 +648,15 @@ html, body { height: 100%; }
 .photos.pickable .drop:hover { background: rgb(15 23 42 / 0.9); }
 .labelrow .hint { font-size: 14px; font-weight: 500; color: var(--muted); }
 
-/* What was sent with a case, and what came back. Two small sets rather than one
-   grid, because "we sent these" and "they returned these" are different claims
-   and running them together loses which is which. */
-.casephotos { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 10px; }
-.casephotos .photoset { flex: 1 1 220px; min-width: 0; }
-.casephotos .minilabel { display: block; margin-bottom: 5px; }
-.casephotos .photos { grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 6px; }
+/* What went out with the case, under the instruction it belongs to. */
+.photos.casesent { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; margin-top: 8px; }
+
+/* A message and whatever came with it, as one thing. */
+.trail .thread .msg + .msg { margin-top: 8px; }
+.trail .thread .msg .photos {
+  grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 6px; margin-top: 5px;
+}
+.trail .thread .msg.us p { color: var(--muted); }
 
 /* The Slack thread, inside the case's trail. Indented under the events rather
    than beside them: what was said is detail hanging off the sequence, not

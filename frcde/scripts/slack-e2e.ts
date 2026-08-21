@@ -233,7 +233,11 @@ async function main() {
   if ((withPhoto.completion_attachment_ids?.length ?? 0) === 0) {
     die('a photograph posted in the case thread was not filed against the case');
   }
-  ok('a photograph in the thread is filed against the work order');
+  // And it lives in the message that carried it, not in a gallery of its own —
+  // which is what made the same photograph look like two.
+  const carried = (withPhoto.thread ?? []).find((m: any) => (m.photos ?? []).length > 0);
+  if (!carried) die('the photograph was not attached to its own message');
+  ok('a photograph in the thread is filed against the message that carried it');
 
   /* ------------------------------------- what is said in the thread comes back */
 
@@ -258,7 +262,11 @@ async function main() {
   const withThread = await readOrder(order.id);
   const theirs = (withThread.thread ?? []).filter((m: any) => m.from === 'them');
   if (theirs.length === 0) die('a message in the case thread was not kept');
-  if (!theirs[0].text.includes('town council')) die('the message text was lost');
+  // By content, not by position: a photograph posted earlier is also a message
+  // from them, and carries no text of its own.
+  const chatted = theirs.find((m: any) => m.text.includes('town council'));
+  if (!chatted) die('the message text was lost');
+  if (!chatted.who) die('the message has no author');
   // Our own replies belong to the thread too, and we know them without waiting
   // for Slack to tell us about them.
   if (!(withThread.thread ?? []).some((m: any) => m.from === 'us')) {

@@ -350,10 +350,6 @@ export function closeModal(caseId: string): unknown {
           type: 'plain_text_input',
           action_id: 'value',
           multiline: true,
-          placeholder: {
-            type: 'plain_text',
-            text: 'Jetted and silt removed, approx 0.4 m3 carted away.',
-          },
         },
       },
       {
@@ -386,6 +382,35 @@ export async function openModal(triggerId: string, view: unknown): Promise<void>
  * cannot change without the token changing.
  */
 let botUserId: string | null | undefined;
+
+/**
+ * A Slack user id turned into the name their colleagues see.
+ *
+ * Needs `users:read`. Without it the lookup fails and the caller falls back to
+ * something generic — a missing scope should cost a name, not a message.
+ */
+const names = new Map<string, string>();
+
+export async function userName(id: string): Promise<string | null> {
+  if (!id || !isConfigured()) return null;
+  const cached = names.get(id);
+  if (cached) return cached;
+  try {
+    const r = await call<{ user?: { profile?: { display_name?: string; real_name?: string }; name?: string } }>(
+      'users.info',
+      { user: id },
+    );
+    const n =
+      r.user?.profile?.display_name?.trim() ||
+      r.user?.profile?.real_name?.trim() ||
+      r.user?.name?.trim() ||
+      null;
+    if (n) names.set(id, n);
+    return n;
+  } catch {
+    return null;
+  }
+}
 
 export async function selfUserId(): Promise<string | null> {
   if (botUserId !== undefined) return botUserId;

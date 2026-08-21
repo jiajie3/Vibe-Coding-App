@@ -1308,10 +1308,19 @@ function mapLine(order: WorkOrder): string {
  * without limit — the oldest go, since what a supervisor needs is where the
  * case has got to.
  */
-function appendToThread(order: WorkOrder, from: 'them' | 'us', text: string): void {
+function appendToThread(
+  order: WorkOrder,
+  from: 'them' | 'us',
+  who: string,
+  text: string,
+  photos?: string[],
+): void {
   const line = text.trim();
-  if (!line) return;
-  const thread = [...(order.thread ?? []), { at: new Date().toISOString(), from, text: line }];
+  if (!line && !photos?.length) return;
+  const thread = [
+    ...(order.thread ?? []),
+    { at: new Date().toISOString(), from, who, text: line, ...(photos?.length ? { photos } : {}) },
+  ];
   order.thread = thread.slice(-30);
 }
 
@@ -1393,7 +1402,7 @@ app.post('/v1/slack/interactions', (req, res) => {
       if (order.status === 'open') order.status = 'in_progress';
       store.saveWorkOrder(order);
       void syncCase(order);
-      appendToThread(order, 'us', `Acknowledged by ${who}.`);
+      appendToThread(order, 'us', 'FRCDE', `Acknowledged by ${who}.`);
       store.saveWorkOrder(order);
       if (order.slack) {
         void slack
@@ -1501,15 +1510,14 @@ app.post('/v1/slack/interactions', (req, res) => {
       order.status = 'done';
       order.closed_at = now;
       order.closing_note = note || `Completed in Slack by ${who}.`;
-      const n = order.completion_attachment_ids?.length ?? 0;
-      reply = `Closed by ${who} with ${n} photograph${n === 1 ? '' : 's'}. Thanks.`;
+      reply = `Closed by ${who}.`;
     } else {
       return;
     }
 
     // Our own replies are part of the thread too, and we know them without
     // waiting for Slack to tell us about them.
-    appendToThread(order, 'us', reply);
+    appendToThread(order, 'us', 'FRCDE', reply);
     store.saveWorkOrder(order);
     void syncCase(order);
     // The card repaints in place, which is easy to miss in a busy channel. The
@@ -1595,24 +1603,19 @@ async function ingestThreadEvent(
   event: Record<string, any>,
 ): Promise<void> {
   const seen = new Set(order.slack_seen ?? []);
-  let changed = false;
+  const msgKey = `msg:${event.ts}`;
+  if (seen.has(msgKey)) return;
 
   /**
-   * Keep what was said, not only what was attached.
+   * One entry per Slack message, with its photographs inside it.
    *
-   * The useful detail in a case tends to be conversational — "the gate key is
-   * with the town council", "we will be there Thursday" — and it was visible
-   * only to whoever had Slack open. The console polls, so a supervisor watching
-   * a case sees it arrive.
+   * They used to be filed separately — the text into the thread, the images
+   * into a "returned as done" gallery — so a message and the picture that came
+   * with it appeared in two places and read as duplicates. The console now
+   * shows the thread as Slack shows it, in order, which is both simpler and
+   * impossible to double up.
    */
-  const said = String(event.text ?? '').trim();
-  const msgKey = `msg:${event.ts}`;
-  if (said && !seen.has(msgKey)) {
-    seen.add(msgKey);
-    appendToThread(order, 'them', said);
-    changed = true;
-  }
-
+  const photos: string[] = [];
   for (const f of Array.isArray(event.files) ? event.files : []) {
     const fileKey = `file:${f.id}`;
     if (!f.id || seen.has(fileKey)) continue;
@@ -1630,26 +1633,35 @@ async function ingestThreadEvent(
         lat: null,
         lon: null,
         chainage_m: order.chainage_m,
-        caption: slack.isConfigured()
-          ? String(f.title ?? 'Posted in the Slack case thread')
-          : 'Simulated — no Slack workspace is connected',
+        caption: String(f.title ?? 'Posted in the Slack case thread'),
         byte_size: bytes.length,
         stored: true,
       } as AttachmentRecord);
-      order.completion_attachment_ids = [...(order.completion_attachment_ids ?? []), id];
+      photos.push(id);
       seen.add(fileKey);
-      changed = true;
     } catch (e) {
       console.error('[slack] could not file an attachment:', (e as Error).message);
     }
   }
 
-  if (!changed) return;
-  // Bounded: a long thread should not grow this list without limit, and only
-  // recent deliveries can plausibly be repeats.
+  const said = String(event.text ?? '').trim();
+  if (!said && photos.length === 0) return;
+
+  // The name their colleagues see in the channel, not the organisation the case
+  // was routed to. A person wrote this, and "NEA said" is not who they are.
+  const who = (await slack.userName(String(event.user ?? ''))) ?? order.assigned_to ?? 'Them';
+
+  seen.add(msgKey);
+  appendToThread(order, 'them', who, said, photos);
+  // Still recorded against the case, because completing one requires a
+  // photograph to have arrived — the console just no longer shows them twice.
+  if (photos.length > 0) {
+    order.completion_attachment_ids = [...(order.completion_attachment_ids ?? []), ...photos];
+  }
   order.slack_seen = [...seen].slice(-200);
   store.saveWorkOrder(order);
 }
+
 
 /* ----------------------------------------------------------------- serve */
 

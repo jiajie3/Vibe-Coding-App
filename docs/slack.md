@@ -55,6 +55,19 @@ message and is filed by the events handler — which means **this feature depend
 on Event Subscriptions being configured.** Without it no photograph is ever
 recorded, and Completed can never be pressed successfully.
 
+**The thread comes back, in Slack's own order.** The console shows the case as
+the channel shows it: the photographs that went out sit under the instruction,
+the sequence of events follows, and the conversation sits below that with each
+message's photographs inside the message that carried them.
+
+Filing them apart is what made a single photograph look like two — the picture
+in one gallery, the words in another, the same thing twice on one screen.
+
+Names come from `users.info`, so a message reads as the person who wrote it
+rather than the organisation the case was routed to. Without `users:read` the
+lookup fails and it falls back to the party name: a missing scope should cost a
+name, not a message.
+
 **The thread comes back.** Whatever is said in a case thread is kept on the work
 order and shown in the console, both sides of it. The useful detail in a case is
 conversational — "the gate key is with the town council", "we will be there
@@ -153,6 +166,7 @@ sleeps after fifteen minutes of quiet.
 | `chat:write` | posting and updating the case card |
 | `files:read` | reading completion photos out of the thread |
 | `files:write` | uploading the inspection photographs into the thread |
+| `users:read` | showing who said what, by the name Slack shows |
 | `channels:history` | receiving the `message.channels` event at all |
 
 Install to the workspace and copy the bot token (`xoxb-…`).

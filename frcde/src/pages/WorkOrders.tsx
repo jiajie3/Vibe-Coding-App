@@ -146,6 +146,24 @@ export default function WorkOrders() {
                   the same number produced "…at 84 m along the drain · 84 m". */}
               <div className="detail">{w.detail || w.title}</div>
 
+              {/* What went out with the case, where a reader looks first: this
+                  is part of the instruction, not part of the history. */}
+              {(w.attachment_ids?.length ?? 0) > 0 && (
+                <div className="photos casesent">
+                  {w.attachment_ids.map((id) => (
+                    <a key={id} className="photo" href={`/uploads/${id}.jpg`} target="_blank" rel="noreferrer">
+                      <img
+                        src={`/uploads/${id}.jpg`}
+                        alt="Sent with the case"
+                        onError={(e) => {
+                          (e.currentTarget.closest('.photo') as HTMLElement).style.display = 'none';
+                        }}
+                      />
+                    </a>
+                  ))}
+                </div>
+              )}
+
               {/* What has happened to it, oldest first. A case is a sequence of
                   events between two organisations, and reading it as one is the
                   only way to see where it is stuck. */}
@@ -172,10 +190,6 @@ export default function WorkOrders() {
                   <li className="good">
                     <span className="when">{shortDate(w.closed_at ?? w.raised_at)}</span>
                     {w.closing_note || 'Completed'}
-                    {(w.completion_attachment_ids?.length ?? 0) > 0 &&
-                      ` · ${w.completion_attachment_ids!.length} photo${
-                        w.completion_attachment_ids!.length === 1 ? '' : 's'
-                      }`}
                   </li>
                 )}
                 {w.status === 'cancelled' && (
@@ -200,96 +214,39 @@ export default function WorkOrders() {
                         {w.thread!.length} message{w.thread!.length === 1 ? '' : 's'} in Slack
                       </summary>
                       {w.thread!.map((m, i) => (
-                        <p key={i} className={m.from}>
-                          <span className="who">
-                            {m.from === 'us' ? 'FRCDE' : w.assigned_to || 'Them'}
-                          </span>
-                          {m.text}
-                        </p>
+                        <div key={i} className={`msg ${m.from}`}>
+                          {m.text && (
+                            <p>
+                              <span className="who">{m.who}</span>
+                              {m.text}
+                            </p>
+                          )}
+                          {/* Inside the message that carried them, in the order
+                              Slack shows them. Filed anywhere else, a photograph
+                              and the words that came with it read as two
+                              separate things — which is what made them look
+                              duplicated. */}
+                          {(m.photos?.length ?? 0) > 0 && (
+                            <div className="photos">
+                              {m.photos!.map((id) => (
+                                <a key={id} className="photo" href={`/uploads/${id}.jpg`} target="_blank" rel="noreferrer">
+                                  <img
+                                    src={`/uploads/${id}.jpg`}
+                                    alt="Posted in the thread"
+                                    onError={(e) => {
+                                      (e.currentTarget.closest('.photo') as HTMLElement).style.display = 'none';
+                                    }}
+                                  />
+                                </a>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       ))}
                     </details>
                   </li>
                 )}
               </ol>
-
-              {/* What was sent, and what came back. A supervisor reading a case
-                  should not have to open Slack to see the evidence on either
-                  side of it.
-
-                  A missing file hides itself: Render wipes the disk on every
-                  deploy, so a photograph from before the last one is gone, and a
-                  row of broken-image icons is worse than a row without them. */}
-              {(w.attachment_ids?.length || w.completion_attachment_ids?.length) && (
-                <div className="casephotos">
-                  {w.attachment_ids?.length > 0 && (
-                    <div className="photoset">
-                      <span className="minilabel">Sent with the case</span>
-                      <div className="photos">
-                        {w.attachment_ids.map((id) => (
-                          <a
-                            key={id}
-                            className="photo"
-                            href={`/uploads/${id}.jpg`}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            <img
-                              src={`/uploads/${id}.jpg`}
-                              alt="From the inspection"
-                              onError={(e) => {
-                                (e.currentTarget.closest('.photo') as HTMLElement).style.display =
-                                  'none';
-                              }}
-                            />
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {(w.completion_attachment_ids?.length ?? 0) > 0 && (
-                    <div className="photoset">
-                      <span className="minilabel">Returned as done</span>
-                      <div className="photos">
-                        {w.completion_attachment_ids!.map((id) => (
-                          <a
-                            key={id}
-                            className="photo"
-                            href={`/uploads/${id}.jpg`}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            <img
-                              src={`/uploads/${id}.jpg`}
-                              alt="Work reported complete"
-                              onError={(e) => {
-                                (e.currentTarget.closest('.photo') as HTMLElement).style.display =
-                                  'none';
-                              }}
-                            />
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {(w.completion_attachment_ids?.length ?? 0) > 0 && (
-                <div className="photos" style={{ marginTop: 8 }}>
-                  {w.completion_attachment_ids!.map((id) => (
-                    <a
-                      key={id}
-                      className="photo"
-                      href={`/uploads/${id}.jpg`}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      <img src={`/uploads/${id}.jpg`} alt="Work reported complete" />
-                    </a>
-                  ))}
-                </div>
-              )}
 
             </div>
           );

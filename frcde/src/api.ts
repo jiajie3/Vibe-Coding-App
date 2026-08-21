@@ -66,7 +66,11 @@ export type WorkOrderStatus = 'open' | 'in_progress' | 'done' | 'cancelled';
 export interface CaseMessage {
   at: string;
   from: 'them' | 'us';
+  /** Who said it, as Slack shows them. */
+  who: string;
   text: string;
+  /** Anything posted with the message, shown inline where Slack shows it. */
+  photos?: string[];
 }
 
 export interface WorkOrder {
