@@ -124,7 +124,7 @@ export default function SignInScreen({ onSignedIn }: { onSignedIn: () => void })
           </View>
 
           <Text style={styles.hint}>
-            Accounts — inspector / inspector, siti / siti
+            Accounts — inspector / inspector
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>

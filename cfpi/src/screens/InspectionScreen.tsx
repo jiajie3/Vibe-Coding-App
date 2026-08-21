@@ -439,7 +439,9 @@ export default function InspectionScreen({
               <Text style={styles.checklistTitle}>Checklist &amp; submit</Text>
               <View style={[styles.readyPill, insp.canSubmit && styles.readyPillOk]}>
                 <Text style={[styles.readyText, insp.canSubmit && styles.readyTextOk]}>
-                  {insp.canSubmit ? 'Ready' : `${(gate - pct).toFixed(0)}%`}
+                  {/* "12%" beside a coverage figure reads as another coverage
+                      figure. "12% left" is the same number saying what it is. */}
+                  {insp.canSubmit ? 'Ready' : `${(gate - pct).toFixed(0)}% left`}
                 </Text>
               </View>
             </Pressable>
@@ -634,6 +636,9 @@ const styles = StyleSheet.create({
   checklistIcon: { fontSize: 18 },
   checklistTitle: { flex: 1, fontSize: 15.5, fontWeight: '800', color: '#0F172A' },
   readyPill: {
+    // Never squashed: the drain name beside it can be long, and a clipped
+    // "12% le" is worse than a shorter title.
+    flexShrink: 0,
     backgroundColor: '#F1F5F9',
     paddingHorizontal: 10,
     paddingVertical: 5,
