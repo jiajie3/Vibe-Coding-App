@@ -312,7 +312,8 @@ export async function postThreadImages(
     // to see what would have been posted.
     console.log(
       `[slack] (simulated) would upload ${images.length} photo(s) to ${channel}/${ts}\n` +
-        heading.replace(/^/gm, '  | '),
+        heading.replace(/^/gm, '  | ') +
+        images.map((i) => `\n  | [title] ${i.caption}`).join(''),
     );
     return;
   }

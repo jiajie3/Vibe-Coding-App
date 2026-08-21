@@ -699,9 +699,11 @@ html, body { height: 100%; }
 .trail .thread[open] > summary { margin-bottom: 5px; }
 .trail .thread > p + p { margin-top: 4px; }
 .trail .thread p { margin: 0; font-size: 15px; line-height: 1.45; }
+/* Not uppercased. These are people's Slack handles, and "frvibecoding" is not
+   spelled "FRVIBECODING" anywhere its owner chose. The weight and the colour do
+   the separating instead. */
 .trail .thread .who {
   display: inline-block; margin-right: 7px; font-weight: 700;
-  font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.05em;
-  color: var(--muted);
+  font-size: 13px; color: var(--muted);
 }
 .trail .thread p.us { color: var(--muted); }

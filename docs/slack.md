@@ -326,8 +326,17 @@ the first vertex of the geometry — because the card is the instruction to go
 somewhere and a drain is walked from its start.
 
 **The photograph post** carries one pin per photograph, at the coordinates of
-that photograph. Whereabouts along the drain the problem sits is a question the
-pictures answer, and they answer it more exactly than the case ever could.
+that photograph, **and the chainage it was taken at**. Whereabouts along the
+drain the problem sits is a question the pictures answer, and they answer it more
+exactly than the case ever could.
+
+Both, because they are answers to different questions: the coordinates get a crew
+to the spot, and the chainage says where along the drain it is, which is the
+language the rest of the inspection is written in. CFPI projects every GPS fix
+onto the alignment as the walk goes, so a capture carries its chainage already —
+it costs nothing to pass on. The chainage stays on the image title too, even when
+the inspector wrote a caption: with several photographs in one post, where each
+was taken is what tells them apart.
 
 **Link previews are off** on everything FRCDE posts. Slack expands any link it
 recognises, and a map link became a "google.com — find local businesses, view

@@ -1320,11 +1320,15 @@ async function postEvidence(order: WorkOrder): Promise<void> {
           return {
             bytes: readFileSync(resolve(UPLOAD_DIR, `${a.id}.jpg`)),
             filename: `${a.id}.jpg`,
-            caption:
-              a.caption ||
-              (a.chainage_m != null
-                ? `${Math.round(a.chainage_m)} m along the drain`
-                : 'From the inspection'),
+            // The title under each image in Slack. The chainage stays on it
+            // even when the inspector wrote a caption: with several photographs
+            // in one post, where each was taken is what tells them apart.
+            caption: [
+              a.caption,
+              a.chainage_m == null ? null : `${Math.round(a.chainage_m)} m along the drain`,
+            ]
+              .filter(Boolean)
+              .join(' — ') || 'From the inspection',
             pin: photoPin(a),
           };
         } catch {
@@ -1390,15 +1394,25 @@ function drainStart(order: WorkOrder): { url: string; label: string } | undefine
 /**
  * Where each photograph was taken, from the photograph itself.
  *
- * A live capture carries the inspector's position at the moment of the shutter.
- * One picked out of the phone's album carries whatever EXIF came with it, which
- * is usually nothing — and there is no honest coordinate to invent for it, so it
- * gets no link. A missing pin beats a confident wrong one.
+ * Two answers to the same question, and both are worth having: the coordinates
+ * get a crew to the spot, and the chainage says where along the drain it is,
+ * which is the language the inspection is written in.
+ *
+ * A live capture carries the inspector's position at the moment of the shutter,
+ * chainage included — CFPI projects each fix onto the alignment as the walk
+ * goes. One picked out of the phone's album carries whatever EXIF came with it,
+ * which is usually nothing, and there is no honest coordinate to invent for it,
+ * so it gets no link. A missing pin beats a confident wrong one.
  */
 function photoPin(a: AttachmentRecord): string {
-  if (a.lat == null || a.lon == null) return '';
+  const along = a.chainage_m == null ? '' : `${Math.round(a.chainage_m)} m along the drain`;
+  if (a.lat == null || a.lon == null) {
+    // Chainage without coordinates is unusual but not impossible, and it still
+    // says where to stand. Plain text: there is nothing to link it to.
+    return along ? `\n:round_pushpin: ${along}` : '';
+  }
   const q = `${a.lat.toFixed(6)},${a.lon.toFixed(6)}`;
-  return `\n:round_pushpin: <${mapsUrl(q)}|${q}>`;
+  return `\n:round_pushpin: <${mapsUrl(q)}|${q}>${along ? ` — ${along}` : ''}`;
 }
 
 /**
