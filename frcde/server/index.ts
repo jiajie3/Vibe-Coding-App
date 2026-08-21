@@ -1221,6 +1221,7 @@ function caseView(order: WorkOrder): slack.CaseView | null {
     acknowledged_at: order.acknowledged_at,
     closing_note: order.closing_note,
     completion_photos: order.completion_attachment_ids?.length ?? 0,
+    map: mapFor(order),
   };
 }
 
@@ -1269,8 +1270,7 @@ async function postEvidence(order: WorkOrder): Promise<void> {
       order.slack.channel,
       order.slack.ts,
       files,
-      `*From the inspection* — ${files.length} photograph${files.length === 1 ? '' : 's'}.` +
-        mapLine(order),
+      `*From the inspection* — ${files.length} photograph${files.length === 1 ? '' : 's'}.`,
     );
   } catch (e) {
     // Loudly: this failed silently twice, once as an http URL Slack would not
@@ -1287,17 +1287,25 @@ async function postEvidence(order: WorkOrder): Promise<void> {
  * so the coordinates are a projection away — and a maps link is what actually
  * gets them to the spot.
  */
-function mapLine(order: WorkOrder): string {
+function mapFor(order: WorkOrder): { url: string; label: string } | undefined {
   const job = store.job(order.job_id);
-  if (!job || order.chainage_m == null) return '';
+  if (!job) return undefined;
   try {
-    const at = chainageToLatLon(buildAlignment(job.asset.geometry), order.chainage_m);
+    const align = buildAlignment(job.asset.geometry);
+    // The recorded spot when there is one, the middle of the drain otherwise:
+    // a crew sent to a drain they have never visited still has to find it.
+    const along = order.chainage_m ?? align.length_m / 2;
+    const at = chainageToLatLon(align, along);
     const q = `${at.lat.toFixed(6)},${at.lon.toFixed(6)}`;
-    return `\n:round_pushpin: <https://www.google.com/maps/search/?api=1&query=${q}|${q}> — ${Math.round(
-      order.chainage_m,
-    )} m along the drain.`;
+    return {
+      url: `https://www.google.com/maps/search/?api=1&query=${q}`,
+      label:
+        order.chainage_m == null
+          ? q
+          : `${q} — ${Math.round(order.chainage_m)} m along the drain`,
+    };
   } catch {
-    return '';
+    return undefined;
   }
 }
 

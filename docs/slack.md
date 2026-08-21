@@ -278,9 +278,20 @@ not trust Render's proxy, and Slack will not fetch an image over http.
 Uploading sidesteps both, and stops inspection photographs being readable by
 anyone holding a URL.
 
-Each thread also carries a **map link** for the spot: the chainage is projected
-onto the drain's alignment, so "106 m along the drain" arrives as coordinates a
-crew can tap. Precise-but-useless becomes precise-and-findable.
+## Where the drain is
+
+The card itself carries a **map link**, on the case message rather than buried in
+the thread. The chainage is projected onto the drain's alignment, so "106 m along
+the drain" arrives as coordinates a crew can tap on the way out.
+
+It is on the case and not on the photographs because the photographs are
+optional: a case raised without any would otherwise post no location at all, and
+the address is the one thing a crew needs before they have decided anything else.
+
+Where no chainage was recorded, the drain's **midpoint** is used and the distance
+is left off the label. Somebody sent to a named canal they have never visited
+still has to find it. If the geometry cannot be projected the line is omitted
+entirely — an empty pin is worse than saying nothing.
 
 ## Security
 

@@ -107,6 +107,14 @@ export interface CaseView {
   closing_note?: string;
   /** How many photographs have come back. Gates the Completed button. */
   completion_photos?: number;
+  /**
+   * Where to stand, as something tappable.
+   *
+   * "84 m along the drain" is exact and useless to a crew at a road junction.
+   * The alignment and the distance are both known here, so the coordinates are
+   * a projection away — and a map link is what actually gets them there.
+   */
+  map?: { url: string; label: string };
 }
 
 export interface PostedCase {
@@ -164,8 +172,16 @@ export function caseBlocks(c: CaseView): unknown[] {
       text: { type: 'plain_text', text: `${c.asset_name} — follow-up`, emoji: true },
     },
     { type: 'section', text: { type: 'mrkdwn', text: c.detail.slice(0, 2900) } },
-    { type: 'context', elements: [{ type: 'mrkdwn', text: status }] },
   ];
+
+  if (c.map) {
+    blocks.push({
+      type: 'context',
+      elements: [{ type: 'mrkdwn', text: `:round_pushpin: <${c.map.url}|${c.map.label}>` }],
+    });
+  }
+
+  blocks.push({ type: 'context', elements: [{ type: 'mrkdwn', text: status }] });
 
   if (!closed) {
     /**

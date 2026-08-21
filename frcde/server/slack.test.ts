@@ -239,6 +239,32 @@ test('a very long detail is truncated rather than rejected by Slack', () => {
   assert.ok(!b.includes('x'.repeat(3001)));
 });
 
+test('the card says where the drain is, as something tappable', () => {
+  // A case that reads "Sungei Whampoa, 261 m along" tells a crew nothing they
+  // can act on from a lorry. The link is the point of carrying the coordinates,
+  // so assert on the link and not merely on the numbers.
+  const b = json(
+    caseBlocks(
+      view({
+        map: {
+          url: 'https://www.google.com/maps/search/?api=1&query=1.320145,103.856210',
+          label: '1.320145,103.856210 \u2014 261 m along the drain',
+        },
+      }),
+    ),
+  );
+  assert.match(b, /<https:\/\/www\.google\.com\/maps\/search[^|]*\|1\.320145,103\.856210/);
+  assert.match(b, /261 m along the drain/);
+});
+
+test('a case with no coordinates simply omits the line', () => {
+  // Geometry can fail to project. An empty pin, or a link to the middle of the
+  // ocean, is worse than saying nothing at all.
+  const b = json(caseBlocks(view()));
+  assert.ok(!b.includes('round_pushpin'), 'no pin without a location');
+  assert.ok(!b.includes('google.com/maps'), 'no link without a location');
+});
+
 test('the close modal carries the case id and asks the right question', () => {
   const done = JSON.stringify(closeModal('wo-42'));
   assert.match(done, /case_done_submit/);
