@@ -417,7 +417,15 @@ export const REJECTION_CODES = [
 ] as const;
 
 export interface RejectionDraft {
-  code: (typeof REJECTION_CODES)[number];
+  /**
+   * Every reason that applies, not the closest one.
+   *
+   * An inspection sent back for missed stretches *and* unusable photographs was
+   * being filed under whichever the model thought fitted best, and the other
+   * survived only if the note happened to mention it. The inspector then fixed
+   * one thing and submitted again.
+   */
+  codes: (typeof REJECTION_CODES)[number][];
   note: string;
 }
 
@@ -455,7 +463,9 @@ Where a reading of this inspection is supplied below, stay consistent with it.
 Two accounts of the same drain that disagree is how a reviewer stops trusting
 either.
 
-Also choose the single reason code that best fits:
+Also choose every reason code that applies. Usually one; more when the record
+genuinely fails in more than one way, and never a second one added for weight.
+"other" stands alone — if the rest fit, it does not:
   coverage_gaps           stretches of the drain were not walked
   insufficient_photos     defects reported without photographs to support them
   checklist_incomplete    answers missing, contradictory or clearly wrong
@@ -466,9 +476,14 @@ Also choose the single reason code that best fits:
 const DRAFT_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['code', 'note'],
+  required: ['codes', 'note'],
   properties: {
-    code: { type: 'string', enum: [...REJECTION_CODES] },
+    codes: {
+      type: 'array',
+      minItems: 1,
+      items: { type: 'string', enum: [...REJECTION_CODES] },
+      description: 'Every reason that applies. Usually one.',
+    },
     note: {
       type: 'string',
       description: 'One or two sentences addressed directly to the inspector.',
@@ -533,8 +548,16 @@ ${priorReading}`,
     const raw = body.choices?.[0]?.message?.content;
     if (!raw) return null;
     const parsed = JSON.parse(raw) as RejectionDraft;
-    if (!REJECTION_CODES.includes(parsed.code)) return null;
-    return parsed;
+    // Deduplicated and filtered rather than trusted. A code the console does not
+    // offer cannot be selected there, so passing one on would show a rejection
+    // with a reason nobody can see.
+    const codes = [...new Set(parsed.codes ?? [])].filter((c) =>
+      REJECTION_CODES.includes(c),
+    );
+    if (codes.length === 0) return null;
+    // "Other" means none of the rest fit. Alongside one that does, it is noise.
+    const meaningful = codes.filter((c) => c !== 'other');
+    return { ...parsed, codes: meaningful.length ? meaningful : codes };
   } catch {
     return null;
   }

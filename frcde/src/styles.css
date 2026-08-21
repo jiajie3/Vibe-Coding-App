@@ -366,13 +366,29 @@ html, body { height: 100%; }
 /* ---------------------------------------------------------- reject reasons */
 
 .reasonlist { display: grid; gap: 6px; }
+/* Several reasons can be true at once, so each carries a box that is ticked or
+   not. A highlighted panel on its own reads as "the one selected", which is the
+   thing these stopped being. */
 .reasonopt {
-  display: grid; gap: 1px; text-align: left; cursor: pointer;
+  display: grid; grid-template-columns: 20px 1fr; gap: 1px 10px; align-items: start;
+  text-align: left; cursor: pointer;
   border: 1.5px solid var(--line); background: #fff; border-radius: 10px;
   padding: 9px 12px; font-family: inherit;
 }
 .reasonopt:hover { border-color: #cbd5e1; }
 .reasonopt.on { border-color: var(--accent); background: #eff6ff; }
+.reasonmark {
+  grid-row: span 2; align-self: center;
+  width: 20px; height: 20px; border-radius: 6px;
+  border: 1.5px solid var(--line); background: #fff;
+  display: grid; place-items: center;
+  font-size: 13px; font-weight: 800; color: #fff; line-height: 1;
+}
+.reasonopt.on .reasonmark { background: var(--accent); border-color: var(--accent); }
+.reasonaside {
+  font-size: 13.5px; font-weight: 500; color: var(--muted);
+  text-transform: none; letter-spacing: 0;
+}
 .reasonlabel {
   font-size: 17px; font-weight: 650; color: var(--ink);
   text-transform: none; letter-spacing: 0;

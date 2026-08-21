@@ -220,19 +220,3 @@ export function prune(template: ChecklistTemplate, answers: Answers): Answers {
   }
   return out;
 }
-
-/**
- * Fraction of *required* visible fields answered — drives the progress bar.
- *
- * Required-only on purpose. Counting optional fields would pin an inspector who
- * has done everything mandatory at 80% because they left "additional remarks"
- * blank, which reads as an error when it is not one.
- */
-export function completeness(template: ChecklistTemplate, answers: Answers): number {
-  const fields = visibleFields(template, answers).filter(
-    (f) => f.required && f.type !== 'photo' && f.type !== 'signature',
-  );
-  if (fields.length === 0) return 1;
-  const done = fields.filter((f) => !isBlank(answers[f.id])).length;
-  return done / fields.length;
-}

@@ -12,7 +12,7 @@ the drain while CFPI verifies coverage by GPS, complete a checklist, and sync re
 ## Run it
 
 ```bash
-npm run test:core     # coverage, checklist and uuid engines — 47 tests, no device
+npm run test:core     # coverage, checklist and uuid engines — 48 tests, no device
 npm run typecheck
 npm start             # Metro, in Expo Go mode
 ```

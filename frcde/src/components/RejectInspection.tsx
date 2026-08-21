@@ -11,10 +11,15 @@ import { toast } from '../toast.ts';
  * walked the drain and tells them what to do differently — it deserves more than
  * a one-line box with no context about what they submitted.
  *
- * The reason codes are the things reviewers actually send work back for. The
- * note is what makes one actionable, and is required only when the reason is
- * "Other" — the other five say enough on their own, and demanding a sentence
- * for every rejection is how "see above" and "as discussed" get typed.
+ * The reason codes are the things reviewers actually send work back for, and
+ * more than one can be true at once — an inspection with stretches unwalked and
+ * photographs too dark to read fails twice. It used to take a single choice,
+ * which meant the second fault survived only if the note happened to mention
+ * it; the inspector fixed one thing and submitted again.
+ *
+ * The note is what makes a reason actionable, and is required only when "Other"
+ * is among them — the other five say enough on their own, and demanding a
+ * sentence for every rejection is how "see above" and "as discussed" get typed.
  */
 
 export interface RejectionDraft {
@@ -67,12 +72,22 @@ export default function RejectInspection({
   onCancel: () => void;
   onSubmit: (draft: RejectionDraft) => void;
 }) {
-  const [code, setCode] = useState<string | null>(null);
+  const [codes, setCodes] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
   const [drafting, setDrafting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const needsNote = code === 'other';
+  const needsNote = codes.includes('other');
+
+  /** Toggle, keeping the list in the order the reasons are shown. */
+  const toggle = (code: string) => {
+    setCodes((prev) =>
+      prev.includes(code)
+        ? prev.filter((c) => c !== code)
+        : REASONS.filter((r) => r.code === code || prev.includes(r.code)).map((r) => r.code),
+    );
+    setError(null);
+  };
 
   /**
    * Ask for a draft written to the inspector, and the reason it fits.
@@ -94,7 +109,8 @@ export default function RejectInspection({
     try {
       const d = await api.draftRejection(inspectionId);
       setNotes(d.note);
-      if (REASONS.some((r) => r.code === d.code)) setCode(d.code);
+      const known = REASONS.filter((r) => d.codes.includes(r.code)).map((r) => r.code);
+      if (known.length) setCodes(known);
       setError(null);
     } catch (e) {
       toast.error(e, 'Could not draft a reason');
@@ -105,14 +121,15 @@ export default function RejectInspection({
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const chosen = REASONS.find((r) => r.code === code);
-    if (!chosen) return setError('Choose a reason.');
+    const chosen = REASONS.filter((r) => codes.includes(r.code));
+    if (chosen.length === 0) return setError('Choose at least one reason.');
     if (needsNote && !notes.trim()) return setError('Say what is wrong.');
-    // One sentence the inspector sees on their job list. The category alone
-    // ("checklist incomplete") does not say which answer to fix, so the note is
+    // One line the inspector sees on their job list. The categories alone
+    // ("checklist incomplete") do not say which answer to fix, so the note is
     // appended whenever there is one.
     const note = notes.trim();
-    onSubmit({ reason: note ? `${chosen.label}: ${note}` : chosen.label });
+    const heading = chosen.map((r) => r.label).join(' · ');
+    onSubmit({ reason: note ? `${heading}: ${note}` : heading });
   };
 
   return (
@@ -156,22 +173,26 @@ export default function RejectInspection({
         )}
 
         <label>
-          Reason
+          Reasons <span className="reasonaside">choose as many as apply</span>
           <div className="reasonlist">
-            {REASONS.map((r) => (
-              <button
-                type="button"
-                key={r.code}
-                className={`reasonopt${code === r.code ? ' on' : ''}`}
-                onClick={() => {
-                  setCode(r.code);
-                  setError(null);
-                }}
-              >
-                <span className="reasonlabel">{r.label}</span>
-                <span className="reasonhint">{r.hint}</span>
-              </button>
-            ))}
+            {REASONS.map((r) => {
+              const on = codes.includes(r.code);
+              return (
+                <button
+                  type="button"
+                  key={r.code}
+                  aria-pressed={on}
+                  className={`reasonopt${on ? ' on' : ''}`}
+                  onClick={() => toggle(r.code)}
+                >
+                  {/* A tick, because a highlighted panel alone reads as "the one
+                      selected" and these no longer work that way. */}
+                  <span className="reasonmark">{on ? '✓' : ''}</span>
+                  <span className="reasonlabel">{r.label}</span>
+                  <span className="reasonhint">{r.hint}</span>
+                </button>
+              );
+            })}
           </div>
         </label>
 

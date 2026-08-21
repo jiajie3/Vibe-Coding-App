@@ -436,7 +436,7 @@ test('the draft is addressed to the inspector, not about them', async () => {
           {
             message: {
               content: JSON.stringify({
-                code: 'coverage_gaps',
+                codes: ['coverage_gaps', 'photo_quality'],
                 note: 'Please re-walk from chainage 490 to the outfall.',
               }),
             },
@@ -448,7 +448,9 @@ test('the draft is addressed to the inspector, not about them', async () => {
   };
   try {
     const d = await draftRejection(base());
-    assert.equal(d?.code, 'coverage_gaps');
+    // Both, not the closest one. An inspection can fail in more than one way,
+    // and dropping the second sends the inspector back to fix half of it.
+    assert.deepEqual(d?.codes, ['coverage_gaps', 'photo_quality']);
     assert.match(d!.note, /Please re-walk/);
 
     // The failure this guards against: the review explains an inspection to a
@@ -470,13 +472,64 @@ test('a code the console does not offer is refused rather than passed on', async
   globalThis.fetch = async () =>
     new Response(
       JSON.stringify({
-        choices: [{ message: { content: JSON.stringify({ code: 'made_up', note: 'x' }) } }],
+        choices: [{ message: { content: JSON.stringify({ codes: ['made_up'], note: 'x' }) } }],
       }),
       { status: 200 },
     );
   try {
     // A code with no button behind it would select nothing and look broken.
     assert.equal(await draftRejection(base()), null);
+  } finally {
+    globalThis.fetch = savedFetch;
+    if (saved) process.env.OPENAI_API_KEY = saved;
+    else delete process.env.OPENAI_API_KEY;
+  }
+});
+
+test('a real reason beside "other" drops the "other"', async () => {
+  const saved = process.env.OPENAI_API_KEY;
+  const savedFetch = globalThis.fetch;
+  process.env.OPENAI_API_KEY = 'sk-test';
+  globalThis.fetch = async () =>
+    new Response(
+      JSON.stringify({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                codes: ['other', 'coverage_gaps', 'coverage_gaps'],
+                note: 'x',
+              }),
+            },
+          },
+        ],
+      }),
+      { status: 200 },
+    );
+  try {
+    // "Other" means none of the rest fit. Alongside one that does it is noise,
+    // and it drags the note-required rule on behind it. Duplicates go too.
+    assert.deepEqual((await draftRejection(base()))?.codes, ['coverage_gaps']);
+  } finally {
+    globalThis.fetch = savedFetch;
+    if (saved) process.env.OPENAI_API_KEY = saved;
+    else delete process.env.OPENAI_API_KEY;
+  }
+});
+
+test('"other" alone survives, because sometimes nothing else fits', async () => {
+  const saved = process.env.OPENAI_API_KEY;
+  const savedFetch = globalThis.fetch;
+  process.env.OPENAI_API_KEY = 'sk-test';
+  globalThis.fetch = async () =>
+    new Response(
+      JSON.stringify({
+        choices: [{ message: { content: JSON.stringify({ codes: ['other'], note: 'x' }) } }],
+      }),
+      { status: 200 },
+    );
+  try {
+    assert.deepEqual((await draftRejection(base()))?.codes, ['other']);
   } finally {
     globalThis.fetch = savedFetch;
     if (saved) process.env.OPENAI_API_KEY = saved;

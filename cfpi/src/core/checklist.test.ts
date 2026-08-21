@@ -11,7 +11,6 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
 import {
-  completeness,
   isVisible,
   prune,
   photoFieldId,
@@ -309,11 +308,3 @@ test('answers orphaned by a changed trigger are pruned', () => {
   assert.ok(!('blockage_type' in pruned), 'orphaned answer must not be submitted');
 });
 
-test('completeness tracks required visible fields', () => {
-  assert.ok(completeness(tpl, {}) < 0.2);
-  // Optional fields left blank must not hold the bar below 100% — an inspector
-  // who has answered everything mandatory is done.
-  assert.equal(completeness(tpl, VALID), 1);
-  // Unlocking a *required* follow-up drops it back.
-  assert.ok(completeness(tpl, { ...VALID, site_accessible: false }) < 1);
-});

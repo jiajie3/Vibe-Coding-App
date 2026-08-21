@@ -320,7 +320,7 @@ export const api = {
       { method: 'POST', body: '{}' },
     ),
   draftRejection: (inspectionId: string) =>
-    req<{ code: string; note: string }>(
+    req<{ codes: string[]; note: string }>(
       `/v1/console/inspections/${inspectionId}/draft-rejection`,
       { method: 'POST', body: '{}' },
     ),

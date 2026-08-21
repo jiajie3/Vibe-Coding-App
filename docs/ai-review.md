@@ -90,6 +90,14 @@ and told the decision is already taken and not to manufacture grounds for it. A
 model asked to explain a rejection will always find something, and an invented
 fault goes out over the supervisor's name.
 
+It picks **every reason that applies**, not the closest one, because an
+inspection with stretches unwalked and photographs too dark to read fails twice
+— and filing it under one meant the second survived only if the note happened to
+mention it, so the inspector fixed half of it and submitted again. The
+supervisor can tick as many as they like too. Codes the console does not offer
+are dropped, duplicates collapse, and "Other" beside a reason that does fit is
+discarded: it means *none of these*, so alongside one that fits it is noise.
+
 The follow-up drafter picks the Slack channel as well, because routing here is
 a judgement about *what kind of problem* it is — something inside the drain, or
 something about the road — and `routing.ts` can only match words a supervisor

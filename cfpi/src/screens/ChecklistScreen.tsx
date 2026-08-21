@@ -12,7 +12,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
-  completeness,
   prune,
   photoFieldId,
   requiresPhoto,
@@ -182,7 +181,6 @@ export default function ChecklistScreen({
   const counts = photoCounts();
 
   const fields = visibleFields(template, answers);
-  const progress = completeness(template, answers);
 
   // The coverage gate lives here, on submit — not on reaching this screen.
   // An inspector fills the checklist as they walk; they simply cannot send it
@@ -429,10 +427,6 @@ export default function ChecklistScreen({
         <Text style={styles.title} numberOfLines={2}>
           {job.asset.name}
         </Text>
-        <View style={styles.progressTrack}>
-          <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
-        </View>
-
         <View style={[styles.covBanner, coverageMet && !override && styles.covBannerOk]}>
           <Text style={[styles.covText, coverageMet && !override && styles.covTextOk]}>
             {override
@@ -537,14 +531,6 @@ const styles = StyleSheet.create({
   backChevron: { fontSize: 19, color: '#2563EB', fontWeight: '800', marginTop: -2 },
   back: { fontSize: 15, color: '#2563EB', fontWeight: '700' },
   title: { fontSize: 24, fontWeight: '700', color: '#0F172A', letterSpacing: -0.4 },
-  progressTrack: {
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: '#E2E8F0',
-    marginTop: 8,
-    overflow: 'hidden',
-  },
-  progressFill: { height: '100%', backgroundColor: '#16A34A' },
 
   body: { padding: 16, paddingBottom: 48, gap: 18 },
   section: { gap: 10 },

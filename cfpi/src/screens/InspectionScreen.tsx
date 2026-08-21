@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 
-import { completeness, photoFieldId } from '../core/checklist.ts';
+import { photoFieldId } from '../core/checklist.ts';
 import { toLatLng } from '../core/geo.ts';
 import { getJob } from '../data/jobs.ts';
 import { getTemplate } from '../data/templates.ts';
@@ -80,7 +80,6 @@ export default function InspectionScreen({
   const started = insp.status !== 'idle';
   const pct = insp.coverage;
   const gate = job.inspection_rules.min_coverage_pct;
-  const formProgress = completeness(template, session.answers);
 
   /**
    * Follow the inspection, not the handset.
@@ -431,14 +430,13 @@ export default function InspectionScreen({
               onPress={() => navigation.navigate('Checklist')}
             >
               <Text style={styles.checklistIcon}>📋</Text>
-              <View style={styles.checklistLeft}>
-                <Text style={styles.checklistTitle}>Checklist &amp; submit</Text>
-                {/* A bar rather than a percentage read twice. The number was
-                    beside another number that meant something different. */}
-                <View style={styles.formTrack}>
-                  <View style={[styles.formFill, { width: `${formProgress * 100}%` }]} />
-                </View>
-              </View>
+              {/* No progress bar. "60% filled" counts answered questions, which
+                  is not how close an inspection is to being submittable — a
+                  form can read 100% with a required photograph missing, and
+                  60% when everything the drain needed has been said. The
+                  validation on submit is the honest answer, and it names what
+                  is wrong instead of scoring it. */}
+              <Text style={styles.checklistTitle}>Checklist &amp; submit</Text>
               <View style={[styles.readyPill, insp.canSubmit && styles.readyPillOk]}>
                 <Text style={[styles.readyText, insp.canSubmit && styles.readyTextOk]}>
                   {insp.canSubmit ? 'Ready' : `${(gate - pct).toFixed(0)}%`}
@@ -634,10 +632,7 @@ const styles = StyleSheet.create({
   },
   checklistBtnDown: { backgroundColor: '#F1F5F9', transform: [{ scale: 0.98 }] },
   checklistIcon: { fontSize: 18 },
-  checklistLeft: { flex: 1, gap: 5 },
-  checklistTitle: { fontSize: 15.5, fontWeight: '800', color: '#0F172A' },
-  formTrack: { height: 4, borderRadius: 999, backgroundColor: '#E2E8F0', overflow: 'hidden' },
-  formFill: { height: '100%', borderRadius: 999, backgroundColor: '#2563EB' },
+  checklistTitle: { flex: 1, fontSize: 15.5, fontWeight: '800', color: '#0F172A' },
   readyPill: {
     backgroundColor: '#F1F5F9',
     paddingHorizontal: 10,
