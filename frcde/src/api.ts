@@ -143,6 +143,8 @@ export interface Overview {
   users: Account[];
   work_orders: WorkOrder[];
   scheduler?: { last_run_at: string; queued: string[]; checked: number };
+  /** Why Slack names are unresolved, when they are. `missing_scope`, usually. */
+  slack_names_blocked?: string | null;
   stats: {
     total: number;
     available: number;

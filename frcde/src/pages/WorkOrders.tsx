@@ -118,6 +118,18 @@ export default function WorkOrders() {
           </button>
         </header>
 
+        {/* Only when it is actually biting, and only saying what to do about it. */}
+        {data.slack_names_blocked && (
+          <div className="notice">
+            Slack messages show as <strong>Slack member</strong> because the Slack app
+            cannot read names
+            {data.slack_names_blocked === 'missing_scope'
+              ? ': add the '
+              : ` (${data.slack_names_blocked}). Add the `}
+            <code>users:read</code> scope and reinstall the app.
+          </div>
+        )}
+
         {orders.length === 0 && (
           <div className="empty">
             Nothing outstanding. Follow-ups come from a submitted inspection — open a

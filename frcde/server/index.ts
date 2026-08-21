@@ -786,6 +786,9 @@ app.get('/v1/console/overview', (_req, res) => {
     // Surfaced so the console can show the automation working, rather than
     // offering a button to do its job for it.
     scheduler: lastRun,
+    // Surfaced rather than logged: a supervisor looking at "Slack member" needs
+    // to know it is a missing scope and not a broken integration.
+    slack_names_blocked: slack.nameLookupError(),
     inspections: inspections.map((i) => ({
       ...i,
       // The track can be thousands of points; the list view never needs it.
@@ -1336,6 +1339,17 @@ async function postEvidence(order: WorkOrder): Promise<void> {
     if (files.length === 0) {
       console.warn('[slack] no photograph files remain on disk for this case');
       return;
+    }
+
+    // Said out loud, because a photograph with no pin is indistinguishable from
+    // a broken pin from the outside. A capture taken before the phone had a GPS
+    // fix has no coordinates either, and that is worth knowing during a demo.
+    const unpinned = files.filter((f) => !f.pin).length;
+    if (unpinned > 0) {
+      console.log(
+        `[slack] ${unpinned} of ${files.length} photograph(s) carry no coordinates` +
+          ' — from the album, or captured before a GPS fix. No map link for those.',
+      );
     }
 
     await slack.postThreadImages(

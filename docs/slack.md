@@ -88,6 +88,11 @@ a contractor typed, and reads as though the integration knows who they are when
 it does not. A missing scope should cost a name, not a message, and it should not
 cost the truth either.
 
+When the lookup fails, the console **says so, where it matters**: a notice at the
+top of the follow-up list naming the missing scope, rather than a quiet
+"Slack member" that reads like a broken integration. The reason comes back on
+the overview as `slack_names_blocked`.
+
 Unresolved ids are retried in the background off the back of console polls, at
 most every five minutes each. So granting `users:read` fixes the messages already
 stored, within a poll or two, without a redeploy. Messages that arrived before
@@ -323,6 +328,12 @@ somewhere and a drain is walked from its start.
 **The photograph post** carries one pin per photograph, at the coordinates of
 that photograph. Whereabouts along the drain the problem sits is a question the
 pictures answer, and they answer it more exactly than the case ever could.
+
+**Link previews are off** on everything FRCDE posts. Slack expands any link it
+recognises, and a map link became a "google.com — find local businesses, view
+maps and get driving directions" card sitting under the case, taller than the
+case itself. `unfurl_links: false` and `unfurl_media: false` on every
+`chat.postMessage`. The coordinates already are the link.
 
 A photograph with no coordinates gets no pin. A live capture carries the
 inspector's position at the moment of the shutter; one picked out of the phone's

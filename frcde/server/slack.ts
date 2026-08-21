@@ -258,6 +258,11 @@ export async function postCase(channel: string, c: CaseView): Promise<PostedCase
     channel,
     text,
     blocks: caseBlocks(c),
+    // No preview card. Slack expands any link it recognises, and a map link
+    // turns into a "google.com — find local businesses" advertisement below the
+    // case, taller than the case itself. The coordinates are already the link.
+    unfurl_links: false,
+    unfurl_media: false,
   });
   // Both: the id is what every later API call needs, and the name is the only
   // one of the two worth showing anybody. Slack answers with the id alone, so
@@ -351,7 +356,13 @@ export async function replyInThread(channel: string, ts: string, text: string): 
     console.log(`[slack] (simulated) would reply in ${channel}/${ts}: ${text}`);
     return;
   }
-  await call('chat.postMessage', { channel, thread_ts: ts, text });
+  await call('chat.postMessage', {
+    channel,
+    thread_ts: ts,
+    text,
+    unfurl_links: false,
+    unfurl_media: false,
+  });
 }
 
 /* --------------------------------------------------------------- modals */
@@ -419,6 +430,16 @@ let botUserId: string | null | undefined;
  * something generic — a missing scope should cost a name, not a message.
  */
 const names = new Map<string, string>();
+
+/**
+ * Why the last name lookup failed, if it did.
+ *
+ * Kept so the console can say *why* a message reads "Slack member" instead of
+ * a person. `missing_scope` is a two-minute fix in the Slack app, and silence
+ * about it has now cost several rounds of guessing.
+ */
+let lastNameError: string | null = null;
+export const nameLookupError = (): string | null => lastNameError;
 
 /**
  * A name Slack has already given us, without asking again.
@@ -528,6 +549,8 @@ export async function userName(id: string): Promise<string | null> {
   if (cached) return cached;
 
   const { res } = await lookup(id);
+
+  lastNameError = res?.ok ? null : (res?.error ?? 'request failed');
 
   if (!res?.ok) {
     // Said once per name rather than swallowed: `missing_scope` here is a
