@@ -60,12 +60,14 @@ export interface InspectionDetail {
   review: { decision: string; reason?: string; at: string } | null;
 }
 
-export type WorkOrderStatus =
-  | 'open'
-  | 'in_progress'
-  | 'done'
-  | 'blocked'
-  | 'cancelled';
+export type WorkOrderStatus = 'open' | 'in_progress' | 'done' | 'cancelled';
+
+/** One message in the case's Slack thread. */
+export interface CaseMessage {
+  at: string;
+  from: 'them' | 'us';
+  text: string;
+}
 
 export interface WorkOrder {
   id: string;
@@ -86,8 +88,8 @@ export interface WorkOrder {
 
   /** When the party it went to said they had seen it. Null means nobody has. */
   acknowledged_at: string | null;
-  /** Set with status `blocked` — they cannot do it, and said why. */
-  blocked_reason?: string;
+  /** The case's Slack thread, as it happens. */
+  thread?: CaseMessage[];
   /** Where the case was opened, once it has been. */
   slack?: { channel: string; ts: string };
   /** Evidence posted back in the Slack case thread. */

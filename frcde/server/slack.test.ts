@@ -170,11 +170,10 @@ test('an unacknowledged case offers only acknowledgement', () => {
   assert.match(b, /options to close it appear after that/);
 });
 
-test('acknowledging swaps in the two ways of finishing', () => {
+test('acknowledging swaps in the way of finishing', () => {
   const b = json(caseBlocks(view({ acknowledged_at: '2026-08-19T01:00:00.000Z' })));
   assert.ok(!b.includes('case_ack'), 'should not offer to acknowledge twice');
   assert.match(b, /case_done/);
-  assert.match(b, /case_blocked/);
   assert.match(b, /Acknowledged/);
 });
 
@@ -210,13 +209,6 @@ test('a closed case offers no buttons at all', () => {
   assert.match(b, /Jetted and cleared/);
 });
 
-test('a blocked case shows the reason and stops accepting actions', () => {
-  const b = json(caseBlocks(view({ status: 'blocked', blocked_reason: 'No access — gate locked.' })));
-  assert.match(b, /Cannot complete/);
-  assert.match(b, /gate locked/);
-  assert.ok(!b.includes('case_done'));
-});
-
 test('the card carries the drain and the finding, and nothing filed for us', () => {
   const b = json(caseBlocks(view()));
   assert.match(b, /Sungei Whampoa/);
@@ -248,12 +240,17 @@ test('a very long detail is truncated rather than rejected by Slack', () => {
 });
 
 test('the close modal carries the case id and asks the right question', () => {
-  const done = JSON.stringify(closeModal('done', 'wo-42'));
+  const done = JSON.stringify(closeModal('wo-42'));
   assert.match(done, /case_done_submit/);
   assert.match(done, /wo-42/);
   assert.match(done, /What was done/);
+});
 
-  const blocked = JSON.stringify(closeModal('blocked', 'wo-42'));
-  assert.match(blocked, /case_blocked_submit/);
-  assert.match(blocked, /Why can it not be done/);
+test('there is no way to say the work cannot be done', () => {
+  // Removed deliberately: a contractor declining a case in a channel left it
+  // open in a state only a supervisor could clear, and the console no longer
+  // has controls to clear anything.
+  const b = JSON.stringify(caseBlocks(view({ acknowledged_at: '2026-08-19T01:00:00.000Z' })));
+  assert.ok(!b.includes('case_blocked'), 'the cannot-complete button should be gone');
+  assert.match(b, /case_done/);
 });

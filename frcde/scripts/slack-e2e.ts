@@ -235,29 +235,36 @@ async function main() {
   }
   ok('a photograph in the thread is filed against the work order');
 
-  /* ------------------------------------------------- cannot complete */
+  /* ------------------------------------- what is said in the thread comes back */
 
-  const blockedBody = form({
-    type: 'view_submission',
-    user: { username: 'contractor.lim' },
-    view: {
-      callback_id: 'case_blocked_submit',
-      private_metadata: order.id,
-      state: { values: { note: { value: { value: 'No access — gate locked, key with the TC.' } } } },
+  const chat = JSON.stringify({
+    type: 'event_callback',
+    event: {
+      type: 'message',
+      ts: String(Date.now() / 1000),
+      thread_ts: order.slack.ts,
+      user: 'U123',
+      text: 'Gate key is with the town council — we will be there Thursday.',
     },
   });
-  const blocked = await fetch(`${BASE}/v1/slack/interactions`, {
+  const said = await fetch(`${BASE}/v1/slack/events`, {
     method: 'POST',
-    headers: slackHeaders(blockedBody),
-    body: blockedBody,
+    headers: { ...slackHeaders(chat), 'content-type': 'application/json' },
+    body: chat,
   });
-  if (!blocked.ok) die(`blocked submission refused (${blocked.status})`);
+  if (!said.ok) die(`the events endpoint refused a signed message (${said.status})`);
+  await new Promise((r) => setTimeout(r, 200));
 
-  const afterBlocked = await readOrder(order.id);
-  if (afterBlocked.status !== 'blocked') die(`status is ${afterBlocked.status}, expected blocked`);
-  if (!afterBlocked.blocked_reason?.includes('gate locked')) die('the reason was not kept');
-  if (afterBlocked.closed_at !== null) die('a blocked case must not count as closed');
-  ok('cannot-complete came back with its reason, and did not close the case');
+  const withThread = await readOrder(order.id);
+  const theirs = (withThread.thread ?? []).filter((m: any) => m.from === 'them');
+  if (theirs.length === 0) die('a message in the case thread was not kept');
+  if (!theirs[0].text.includes('town council')) die('the message text was lost');
+  // Our own replies belong to the thread too, and we know them without waiting
+  // for Slack to tell us about them.
+  if (!(withThread.thread ?? []).some((m: any) => m.from === 'us')) {
+    die('our own replies are missing from the thread');
+  }
+  ok('the Slack conversation reaches FRCDE, both sides of it');
 
   /* ------------------------------------------------------------ complete */
 

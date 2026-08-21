@@ -30,8 +30,8 @@ FRCDE                                     Slack
   │     status → done, closed_at        (refused without a photo)
   │  ──────────────────────────────────▶  thread reply: closed, with the count
   │
-  │  ◀─────────────────────────────────── Cannot complete + reason
-  │     status → blocked, stays in the follow-up list
+  │  ◀─────────────────────────────────── anything said in the thread
+  │     kept on the work order and shown in the console
 ```
 
 **Acknowledgement comes first.** The two ways of finishing a case are withheld
@@ -54,6 +54,18 @@ Slack modals cannot take a file upload, so the photograph arrives as a thread
 message and is filed by the events handler — which means **this feature depends
 on Event Subscriptions being configured.** Without it no photograph is ever
 recorded, and Completed can never be pressed successfully.
+
+**The thread comes back.** Whatever is said in a case thread is kept on the work
+order and shown in the console, both sides of it. The useful detail in a case is
+conversational — "the gate key is with the town council", "we will be there
+Thursday" — and it was visible only to whoever had Slack open. Capped at the most
+recent thirty lines, so an argument in a channel cannot grow a work order without
+limit.
+
+**There is no way to decline a case.** A *Cannot complete* button existed and was
+removed: it left a case open in a state only a supervisor could clear, and the
+console no longer has controls to clear anything. A crew who cannot do the work
+says so in the thread, which now reaches the record.
 
 **Every transition speaks in the thread.** The card repaints in place, which is
 easy to miss in a busy channel; a threaded reply is what actually notifies

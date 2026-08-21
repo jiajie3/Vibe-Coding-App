@@ -105,7 +105,6 @@ export interface CaseView {
   status: string;
   acknowledged_at?: string | null;
   closing_note?: string;
-  blocked_reason?: string;
   /** How many photographs have come back. Gates the Completed button. */
   completion_photos?: number;
 }
@@ -140,14 +139,11 @@ async function call<T>(method: string, payload: unknown): Promise<T> {
  */
 export function caseBlocks(c: CaseView): unknown[] {
   const closed = c.status === 'done' || c.status === 'cancelled';
-  const blocked = c.status === 'blocked';
   const photos = c.completion_photos ?? 0;
 
   const status = closed
     ? `:white_check_mark: *Closed* — ${c.closing_note || 'no note given'}`
-    : blocked
-      ? `:warning: *Cannot complete* — ${c.blocked_reason || 'no reason given'}`
-      : c.acknowledged_at
+    : c.acknowledged_at
           ? photos > 0
             ? `:camera: *Acknowledged* — ${photos} photo${photos === 1 ? '' : 's'} received, ready to close`
             : ':eyes: *Acknowledged* — post a photograph in this thread when the work is done'
@@ -171,7 +167,7 @@ export function caseBlocks(c: CaseView): unknown[] {
     { type: 'context', elements: [{ type: 'mrkdwn', text: status }] },
   ];
 
-  if (!closed && !blocked) {
+  if (!closed) {
     /**
      * Acknowledge first, and only then the two ways of finishing.
      *
@@ -198,13 +194,6 @@ export function caseBlocks(c: CaseView): unknown[] {
                   type: 'plain_text',
                   text: photos > 0 ? 'Completed' : 'Completed (photo needed)',
                 },
-              },
-              {
-                type: 'button',
-                action_id: 'case_blocked',
-                value: c.id,
-                style: 'danger',
-                text: { type: 'plain_text', text: 'Cannot complete' },
               },
             ],
           }
@@ -344,44 +333,33 @@ export async function replyInThread(channel: string, ts: string, text: string): 
  * A one-click "Completed" produces a closed case nobody can audit. The modal is
  * one field, and it is the difference between a record and a rumour.
  */
-export function closeModal(kind: 'done' | 'blocked', caseId: string): unknown {
-  const done = kind === 'done';
+export function closeModal(caseId: string): unknown {
   return {
     type: 'modal',
-    callback_id: done ? 'case_done_submit' : 'case_blocked_submit',
+    callback_id: 'case_done_submit',
     private_metadata: caseId,
-    title: { type: 'plain_text', text: done ? 'Close the case' : 'Cannot complete' },
-    submit: { type: 'plain_text', text: done ? 'Mark completed' : 'Send reason' },
+    title: { type: 'plain_text', text: 'Close the case' },
+    submit: { type: 'plain_text', text: 'Mark completed' },
     close: { type: 'plain_text', text: 'Cancel' },
     blocks: [
       {
         type: 'input',
         block_id: 'note',
-        label: {
-          type: 'plain_text',
-          text: done ? 'What was done?' : 'Why can it not be done?',
-        },
+        label: { type: 'plain_text', text: 'What was done?' },
         element: {
           type: 'plain_text_input',
           action_id: 'value',
           multiline: true,
           placeholder: {
             type: 'plain_text',
-            text: done
-              ? 'Jetted and silt removed, approx 0.4 m³ carted away.'
-              : 'No access — gate locked, key held by the town council.',
+            text: 'Jetted and silt removed, approx 0.4 m3 carted away.',
           },
         },
       },
       {
         type: 'context',
         elements: [
-          {
-            type: 'mrkdwn',
-            text: done
-              ? 'Photographs go in the case thread, not here.'
-              : 'This reopens the case for the supervisor to look at.',
-          },
+          { type: 'mrkdwn', text: 'Photographs go in the case thread, not here.' },
         ],
       },
     ],

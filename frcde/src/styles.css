@@ -655,3 +655,19 @@ html, body { height: 100%; }
 .casephotos .photoset { flex: 1 1 220px; min-width: 0; }
 .casephotos .minilabel { display: block; margin-bottom: 5px; }
 .casephotos .photos { grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 6px; }
+
+/* The Slack thread, inside the case's trail. Indented under the events rather
+   than beside them: what was said is detail hanging off the sequence, not
+   another step in it. */
+.trail li.said { align-items: flex-start; }
+.trail .thread {
+  display: flex; flex-direction: column; gap: 4px;
+  padding-left: 10px; border-left: 2px solid var(--line);
+}
+.trail .thread p { margin: 0; font-size: 15px; line-height: 1.45; }
+.trail .thread .who {
+  display: inline-block; margin-right: 7px; font-weight: 700;
+  font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--muted);
+}
+.trail .thread p.us { color: var(--muted); }

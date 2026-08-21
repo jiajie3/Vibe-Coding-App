@@ -9,23 +9,13 @@ const STATUS_LABEL: Record<WorkOrderStatus, string> = {
   open: 'Open',
   in_progress: 'In progress',
   done: 'Done',
-  blocked: 'Cannot complete',
   cancelled: 'Cancelled',
 };
 
-/**
- * Violet for blocked, rather than another shade of red or amber.
- *
- * Open is red and in-progress amber, so both ends of that ramp are spoken for.
- * Blocked is not "more urgent" — it is a different kind of thing: the party it
- * went to has replied that they cannot act, and it needs a decision here rather
- * than more waiting. A colour outside the ramp is what says that at a glance.
- */
 const STATUS_COLOUR: Record<WorkOrderStatus, string> = {
   open: '#dc2626',
   in_progress: '#d97706',
   done: '#16a34a',
-  blocked: '#7c3aed',
   cancelled: '#94a3b8',
 };
 
@@ -94,15 +84,9 @@ export default function WorkOrders() {
 
   const orders = useMemo(() => {
     const all = data?.work_orders ?? [];
-    // Blocked stays in the live list. It is the one status that came back from
-    // outside and is waiting on somebody here — hiding it with the closed ones
-    // is how a case nobody can do turns into a case nobody looks at.
     const live = showClosed
       ? all
-      : all.filter(
-          (w) =>
-            w.status === 'open' || w.status === 'in_progress' || w.status === 'blocked',
-        );
+      : all.filter((w) => w.status === 'open' || w.status === 'in_progress');
     // Soonest due first — the same rule the drain queue uses, so urgency means
     // one thing across the whole console. Undated ones sink to the bottom.
     return [...live].sort((a, b) => {
@@ -184,12 +168,6 @@ export default function WorkOrders() {
                     </li>
                   )
                 )}
-                {w.status === 'blocked' && (
-                  <li className="bad">
-                    <span className="when">{shortDate(w.closed_at ?? w.raised_at)}</span>
-                    Cannot complete — {w.blocked_reason || 'no reason given'}
-                  </li>
-                )}
                 {w.status === 'done' && (
                   <li className="good">
                     <span className="when">{shortDate(w.closed_at ?? w.raised_at)}</span>
@@ -204,6 +182,21 @@ export default function WorkOrders() {
                   <li>
                     <span className="when">{shortDate(w.closed_at ?? w.raised_at)}</span>
                     Cancelled
+                  </li>
+                )}
+                {(w.thread?.length ?? 0) > 0 && (
+                  <li className="said">
+                    <span className="when" />
+                    <div className="thread">
+                      {w.thread!.map((m, i) => (
+                        <p key={i} className={m.from}>
+                          <span className="who">
+                            {m.from === 'us' ? 'FRCDE' : w.assigned_to || 'Them'}
+                          </span>
+                          {m.text}
+                        </p>
+                      ))}
+                    </div>
                   </li>
                 )}
               </ol>

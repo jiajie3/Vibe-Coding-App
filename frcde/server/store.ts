@@ -174,12 +174,15 @@ export interface Session {
  * they had already delegated, and the photograph still arrives and is still
  * filed against the record either way.
  */
-export type WorkOrderStatus =
-  | 'open'
-  | 'in_progress'
-  | 'done'
-  | 'blocked'
-  | 'cancelled';
+export type WorkOrderStatus = 'open' | 'in_progress' | 'done' | 'cancelled';
+
+/** One message in the case's Slack thread, kept so the console can show it. */
+export interface CaseMessage {
+  at: string;
+  /** `them` is anyone in the channel; `us` is FRCDE's own replies. */
+  from: 'them' | 'us';
+  text: string;
+}
 
 /**
  * Remediation raised off the back of an inspection.
@@ -224,8 +227,15 @@ export interface WorkOrder {
    */
   acknowledged_at: string | null;
 
-  /** Why it cannot be done. Set with status `blocked`, which needs a human. */
-  blocked_reason?: string;
+  /**
+   * The case's Slack thread, as it happens.
+   *
+   * A conversation about the work is where the useful detail ends up — "the
+   * gate key is with the town council", "we will be there Thursday" — and it
+   * was visible only to whoever had Slack open. Kept here so the record of a
+   * case is complete without one.
+   */
+  thread?: CaseMessage[];
 
   /**
    * Where the case was opened in Slack.

@@ -1220,7 +1220,6 @@ function caseView(order: WorkOrder): slack.CaseView | null {
     status: order.status,
     acknowledged_at: order.acknowledged_at,
     closing_note: order.closing_note,
-    blocked_reason: order.blocked_reason,
     completion_photos: order.completion_attachment_ids?.length ?? 0,
   };
 }
@@ -1302,6 +1301,20 @@ function mapLine(order: WorkOrder): string {
   }
 }
 
+/**
+ * Add a line to the case's thread.
+ *
+ * Capped, because a long argument in a channel should not grow a work order
+ * without limit — the oldest go, since what a supervisor needs is where the
+ * case has got to.
+ */
+function appendToThread(order: WorkOrder, from: 'them' | 'us', text: string): void {
+  const line = text.trim();
+  if (!line) return;
+  const thread = [...(order.thread ?? []), { at: new Date().toISOString(), from, text: line }];
+  order.thread = thread.slice(-30);
+}
+
 /** Repaint the posted card. Never throws — Slack being down is not our outage. */
 async function syncCase(order: WorkOrder): Promise<void> {
   if (!order.slack) return;
@@ -1380,6 +1393,8 @@ app.post('/v1/slack/interactions', (req, res) => {
       if (order.status === 'open') order.status = 'in_progress';
       store.saveWorkOrder(order);
       void syncCase(order);
+      appendToThread(order, 'us', `Acknowledged by ${who}.`);
+      store.saveWorkOrder(order);
       if (order.slack) {
         void slack
           .replyInThread(order.slack.channel, order.slack.ts, `Acknowledged by ${who}.`)
@@ -1388,7 +1403,7 @@ app.post('/v1/slack/interactions', (req, res) => {
       return;
     }
 
-    if (i.actionId === 'case_done' || i.actionId === 'case_blocked') {
+    if (i.actionId === 'case_done') {
       res.status(200).end();
 
       /**
@@ -1425,9 +1440,8 @@ app.post('/v1/slack/interactions', (req, res) => {
         return;
       }
 
-      const kind = i.actionId === 'case_done' ? 'done' : 'blocked';
       void slack
-        .openModal(i.triggerId ?? '', slack.closeModal(kind, order.id))
+        .openModal(i.triggerId ?? '', slack.closeModal(order.id))
         .catch((e) => console.warn('[slack] modal failed:', (e as Error).message));
       return;
     }
@@ -1489,17 +1503,13 @@ app.post('/v1/slack/interactions', (req, res) => {
       order.closing_note = note || `Completed in Slack by ${who}.`;
       const n = order.completion_attachment_ids?.length ?? 0;
       reply = `Closed by ${who} with ${n} photograph${n === 1 ? '' : 's'}. Thanks.`;
-    } else if (i.callbackId === 'case_blocked_submit') {
-      // Not a closed case. Someone still has to act, so it stays in the console
-      // follow-up list rather than quietly disappearing from it.
-      order.status = 'blocked';
-      order.closed_at = null;
-      order.blocked_reason = note || `Reported blocked in Slack by ${who}.`;
-      reply = `${who} cannot complete this: ${order.blocked_reason}`;
     } else {
       return;
     }
 
+    // Our own replies are part of the thread too, and we know them without
+    // waiting for Slack to tell us about them.
+    appendToThread(order, 'us', reply);
     store.saveWorkOrder(order);
     void syncCase(order);
     // The card repaints in place, which is easy to miss in a busy channel. The
@@ -1549,11 +1559,27 @@ app.post('/v1/slack/events', (req, res) => {
 
   const event = body.event;
   if (!event || event.type !== 'message' || event.bot_id) return;
-  const files: Record<string, any>[] = Array.isArray(event.files) ? event.files : [];
-  if (files.length === 0 || !event.thread_ts) return;
+  if (!event.thread_ts) return;
 
   const order = store.workOrders().find((w) => w.slack?.ts === event.thread_ts);
   if (!order) return;
+
+  /**
+   * Keep what was said, not only what was attached.
+   *
+   * The useful detail in a case tends to be conversational — "the gate key is
+   * with the town council", "we will be there Thursday" — and it was visible
+   * only to whoever had Slack open. The console polls, so a supervisor watching
+   * a case sees it arrive.
+   */
+  const said = String(event.text ?? '').trim();
+  if (said) {
+    appendToThread(order, 'them', said);
+    store.saveWorkOrder(order);
+  }
+
+  const files: Record<string, any>[] = Array.isArray(event.files) ? event.files : [];
+  if (files.length === 0) return;
 
   void (async () => {
     for (const f of files) {
