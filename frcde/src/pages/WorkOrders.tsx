@@ -117,12 +117,9 @@ export default function WorkOrders() {
                 </span>
               </div>
 
-              <div className="detail">
-                {w.detail || w.title}
-                {w.chainage_m != null && (
-                  <span className="at"> · chainage {w.chainage_m.toFixed(0)} m</span>
-                )}
-              </div>
+              {/* The description says where along the drain it is; appending
+                  the same number produced "…at 84 m along the drain · 84 m". */}
+              <div className="detail">{w.detail || w.title}</div>
 
               {/* What has happened to it, oldest first. A case is a sequence of
                   events between two organisations, and reading it as one is the

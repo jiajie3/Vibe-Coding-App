@@ -217,12 +217,17 @@ test('a blocked case shows the reason and stops accepting actions', () => {
   assert.ok(!b.includes('case_done'));
 });
 
-test('the card says what and where without needing a click', () => {
+test('the card carries the drain and the finding, and nothing filed for us', () => {
   const b = json(caseBlocks(view()));
   assert.match(b, /Sungei Whampoa/);
-  assert.match(b, /INS-2026-004021/);
-  assert.match(b, /chainage 261 m/);
-  assert.match(b, /Ang Mo Kio Town Council/);
+  assert.match(b, /Approx 260 mm silt/);
+  // A contractor reading a channel does not need our filing: the distance is in
+  // the description, the channel is who it went to, and the inspection
+  // reference and case id mean nothing to them.
+  assert.ok(!b.includes('INS-2026-004021'), 'inspection reference should not be shown');
+  assert.ok(!b.includes('*Routed to*'), 'the channel already says who it went to');
+  assert.ok(!b.includes('*Case*'), 'the case id is our filing');
+  assert.ok(!b.includes('*Location*'), 'the distance belongs in the description');
 });
 
 test('a severity nobody chose is not reported to the contractor', () => {
@@ -232,13 +237,6 @@ test('a severity nobody chose is not reported to the contractor', () => {
   const b = json(caseBlocks(view({ severity: 3 })));
   assert.ok(!b.includes('Severity'), 'card should not claim a severity');
   assert.ok(!/\d\/5/.test(b), 'card should not print a severity score');
-});
-
-test('a due date shows when there is one, and is absent when there is not', () => {
-  assert.match(json(caseBlocks(view())), /\*Due\*/);
-  const undated = json(caseBlocks(view({ due_at: null })));
-  assert.ok(!undated.includes('*Due*'), 'an empty Due field is noise, not information');
-  assert.ok(!undated.includes('not set'));
 });
 
 test('a very long detail is truncated rather than rejected by Slack', () => {

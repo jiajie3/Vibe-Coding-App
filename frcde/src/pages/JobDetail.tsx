@@ -86,34 +86,15 @@ export default function JobDetail() {
   );
 
   /**
-   * Suggest a work order from what the inspection actually found, rather than
-   * making the reviewer retype it. A blockage or a poor structural grade is
-   * exactly the finding that ought to become work.
+   * Where along the drain the finding is, taken from the first photograph that
+   * recorded it. Still passed to the work order; the description that used to
+   * be assembled from the checklist is gone, since "Let AI populate this" reads
+   * the same answers and the photographs as well, and two prefills competing
+   * for one box only means the reviewer clears one before using the other.
    */
   const suggestion = useMemo(() => {
-    const a = (current?.checklist?.answers ?? {}) as Record<string, unknown>;
     const photo = current?.attachments.find((x) => x.chainage_m != null);
-    const at = photo?.chainage_m != null ? ` at chainage ${photo.chainage_m.toFixed(0)} m` : '';
-
-    if (a.blockage_present === true) {
-      const kinds = Array.isArray(a.blockage_type)
-        ? ` (${(a.blockage_type as string[]).join(', ').replace(/_/g, ' ')})`
-        : '';
-      return {
-        detail: `Clear blockage${at}${kinds}. Reported during inspection.`,
-        chainage_m: photo?.chainage_m ?? null,
-      };
-    }
-    if (a.structural_condition === 'critical' || a.structural_condition === 'poor') {
-      const defects = Array.isArray(a.defect_types)
-        ? ` Defects: ${(a.defect_types as string[]).join(', ').replace(/_/g, ' ')}.`
-        : '';
-      return {
-        detail: `Structural condition reported as ${String(a.structural_condition)}${at}.${defects}`,
-        chainage_m: photo?.chainage_m ?? null,
-      };
-    }
-    return null;
+    return photo?.chainage_m != null ? { detail: '', chainage_m: photo.chainage_m } : null;
   }, [current]);
 
   const routeFollowUp = async (draft: FollowUpDraft) => {
@@ -159,7 +140,7 @@ export default function JobDetail() {
           colour: '#f59e0b',
           onClick: () => a.stored && setLightbox(`/uploads/${a.id}.jpg`),
           html:
-            `<div class="pop-name">${a.chainage_m != null ? `Chainage ${a.chainage_m.toFixed(0)} m` : 'Photograph'}</div>` +
+            `<div class="pop-name">${a.chainage_m != null ? `${a.chainage_m.toFixed(0)} m along the drain` : 'Photograph'}</div>` +
             (a.caption ? `<div class="pop-row"><span>${a.caption}</span></div>` : '') +
             (a.stored ? `<div class="pop-hint">Click to view</div>` : ''),
         })),

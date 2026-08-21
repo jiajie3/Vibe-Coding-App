@@ -130,8 +130,6 @@ async function call<T>(method: string, payload: unknown): Promise<T> {
   return body;
 }
 
-const dueWord = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString('en-SG', { day: 'numeric', month: 'short' }) : 'not set';
 
 /**
  * The case as it appears in the channel.
@@ -156,30 +154,19 @@ export function caseBlocks(c: CaseView): unknown[] {
           : ':bell: *Awaiting acknowledgement*';
 
   /**
-   * Only what was actually captured.
+   * The finding, and nothing else.
    *
-   * Severity is no longer asked for when raising a follow-up, so printing
-   * "Moderate (3/5)" would be inventing a judgement nobody made — and a
-   * contractor has no way to tell a real severity from a default. Same for a due
-   * date: absent means absent, not "not set" occupying a field.
+   * The card used to open with a grid of the inspection reference, who it was
+   * routed to, the distance along the drain and a case id. A contractor reading
+   * a channel needs to know what to fix and where — the distance is in the
+   * description already, the channel is who it went to, and the reference and
+   * case id are our filing, not theirs.
    */
-  const fields: unknown[] = [
-    { type: 'mrkdwn', text: `*Inspection*\n${c.reference}` },
-    { type: 'mrkdwn', text: `*Routed to*\n${c.assigned_to}` },
-    {
-      type: 'mrkdwn',
-      text: `*Location*\n${c.chainage_m == null ? 'along the drain' : `chainage ${Math.round(c.chainage_m)} m`}`,
-    },
-    { type: 'mrkdwn', text: `*Case*\n\`${c.id.slice(0, 8)}\`` },
-  ];
-  if (c.due_at) fields.push({ type: 'mrkdwn', text: `*Due*\n${dueWord(c.due_at)}` });
-
   const blocks: unknown[] = [
     {
       type: 'header',
       text: { type: 'plain_text', text: `${c.asset_name} — follow-up`, emoji: true },
     },
-    { type: 'section', fields },
     { type: 'section', text: { type: 'mrkdwn', text: c.detail.slice(0, 2900) } },
     { type: 'context', elements: [{ type: 'mrkdwn', text: status }] },
   ];

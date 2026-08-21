@@ -40,6 +40,17 @@ const DUMMY_HASH = hashPasswordSync('unused-placeholder');
 load();
 
 const app = express();
+
+/**
+ * Behind Render's proxy, `req.protocol` is `http` unless this is set — TLS is
+ * terminated upstream and the real scheme arrives in `X-Forwarded-Proto`.
+ *
+ * That silently broke photographs in Slack. Image blocks are fetched by Slack
+ * from the URL we give it, Slack will not fetch one over http, and the failure
+ * came back as an API error we log and swallow. The pictures simply never
+ * appeared, with nothing in the console to say why.
+ */
+app.set('trust proxy', true);
 app.use(cors());
 
 /**
@@ -1224,7 +1235,14 @@ function caseView(order: WorkOrder): slack.CaseView | null {
  */
 function publicBase(req: express.Request): string {
   const configured = (process.env.FRCDE_PUBLIC_URL ?? '').trim().replace(/\/+$/, '');
-  return configured || `${req.protocol}://${req.get('host')}`;
+  if (configured) return configured;
+
+  // Belt and braces alongside `trust proxy`: anything that is not a local
+  // address is assumed to be reachable over https, because a photograph URL
+  // Slack refuses to fetch fails silently and looks like the feature is broken.
+  const host = req.get('host') ?? '';
+  const local = /^(localhost|127\.0\.0\.1|\[::1\]|192\.168\.|10\.)/.test(host);
+  return `${local ? req.protocol : 'https'}://${host}`;
 }
 
 /**
@@ -1249,7 +1267,7 @@ async function postEvidence(order: WorkOrder, base: string): Promise<void> {
         url: `${base}/uploads/${a.id}.jpg`,
         caption:
           a.caption ||
-          (a.chainage_m != null ? `Chainage ${Math.round(a.chainage_m)} m` : 'From the inspection'),
+          (a.chainage_m != null ? `${Math.round(a.chainage_m)} m along the drain` : 'From the inspection'),
       })),
       `*From the inspection* — ${shots.length} photograph${shots.length === 1 ? '' : 's'}.`,
     );

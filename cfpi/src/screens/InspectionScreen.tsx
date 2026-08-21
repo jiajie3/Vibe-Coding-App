@@ -315,7 +315,7 @@ export default function InspectionScreen({
               </View>
               <Text style={styles.metaLabel}>
                 {insp.chainage != null
-                  ? `chainage ${insp.chainage.toFixed(0)} / ${job.asset.length_m.toFixed(0)} m`
+                  ? `${insp.chainage.toFixed(0)} / ${job.asset.length_m.toFixed(0)} m along`
                   : `${job.asset.length_m.toFixed(0)} m total`}
                 {insp.lastFix?.acc != null && ` · ±${insp.lastFix.acc.toFixed(0)} m`}
               </Text>

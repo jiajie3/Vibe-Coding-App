@@ -595,7 +595,7 @@ identified.`;
         type: 'text',
         text: `Photograph ${p.id}${
           p.field_label ? ` filed under "${p.field_label}" (answered "${p.field_answer ?? '—'}")` : ''
-        }${p.chainage_m != null ? `, chainage ${Math.round(p.chainage_m)} m` : ''}.`,
+        }${p.chainage_m != null ? `, ${Math.round(p.chainage_m)} m along the drain` : ''}.`,
       });
       content.push({
         type: 'image_url',
@@ -703,7 +703,7 @@ export async function reviewInspection(input: ReviewInput): Promise<AiReview> {
           filed,
           origin,
           p.caption ? `Caption: "${p.caption}".` : '',
-          p.chainage_m != null ? `Chainage ${Math.round(p.chainage_m)} m.` : '',
+          p.chainage_m != null ? `${Math.round(p.chainage_m)} m along the drain.` : '',
         ]
           .filter(Boolean)
           .join(' '),

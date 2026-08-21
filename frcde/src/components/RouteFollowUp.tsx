@@ -45,7 +45,7 @@ export default function RouteFollowUp({
   onCancel: () => void;
   onSubmit: (draft: FollowUpDraft) => void;
 }) {
-  const [detail, setDetail] = useState(suggestion?.detail ?? '');
+  const [detail, setDetail] = useState('');
   /**
    * Every photograph, until the supervisor drops one.
    *
