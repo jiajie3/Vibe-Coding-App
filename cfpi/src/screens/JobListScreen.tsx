@@ -16,8 +16,15 @@ import { listInspections } from '../services/persistence.ts';
 import { isConfigured } from '../services/config.ts';
 import { drain, onOutboxChange, stats } from '../services/outbox.ts';
 
+/**
+ * Only the states that say something.
+ *
+ * "Due for inspection" was on every untouched job on the list — a label that
+ * never varies is furniture, and it sat beside a due date that already said
+ * when. Accepted and In progress distinguish a card from its neighbours; the
+ * default does not, so it says nothing.
+ */
 const STATUS_LABEL: Record<string, string> = {
-  available: 'Due for inspection',
   accepted: 'Accepted',
   in_progress: 'In progress',
 };
@@ -42,14 +49,15 @@ function JobRow({
           and blue while the due date beside it read "Overdue by 2d". */}
       <View style={[styles.dueBar, { backgroundColor: DUE_COLOUR[due.severity] }]} />
       <View style={styles.cardBody}>
+        {/* The reference is a database key. An inspector picks a job by the
+            drain and by when it is due, and neither is easier to find with a
+            row of INS-2026- above them. */}
         <View style={styles.cardTop}>
-          <Text style={styles.reference}>{job.reference}</Text>
+          <Text style={styles.name} numberOfLines={2}>
+            {job.asset.name}
+          </Text>
           <Text style={[styles.due, styles[`due_${due.severity}`]]}>{due.text}</Text>
         </View>
-
-        <Text style={styles.name} numberOfLines={2}>
-          {job.asset.name}
-        </Text>
 
         {/* A job sent back by a reviewer looks identical to a new one unless we
             say so. Without the reason the inspector repeats the same walk and
@@ -76,10 +84,14 @@ function JobRow({
           <Text style={styles.meta}>{job.asset.length_m.toFixed(0)} m</Text>
           <Text style={styles.dot}>·</Text>
           <Text style={styles.meta}>{job.asset.type.replace(/_/g, ' ')}</Text>
-          <Text style={styles.dot}>·</Text>
-          <Text style={styles.meta}>
-            {job.rejection_reason ? 'To re-inspect' : (STATUS_LABEL[job.status] ?? job.status)}
-          </Text>
+          {(job.rejection_reason || STATUS_LABEL[job.status]) && (
+            <>
+              <Text style={styles.dot}>·</Text>
+              <Text style={styles.meta}>
+                {job.rejection_reason ? 'To re-inspect' : STATUS_LABEL[job.status]}
+              </Text>
+            </>
+          )}
         </View>
 
         {job.asset.hazards && job.asset.hazards.length > 0 && (
@@ -254,14 +266,15 @@ const styles = StyleSheet.create({
   cardPressed: { opacity: 0.7 },
   dueBar: { width: 5 },
   cardBody: { flex: 1, padding: 14 },
-  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  reference: { fontSize: 12, fontWeight: '600', color: '#94A3B8', letterSpacing: 0.4 },
-  due: { fontSize: 12, fontWeight: '700' },
+  // flex-start, so a two-line drain name keeps the due date beside its first
+  // line rather than dragging it halfway down the card.
+  cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  due: { fontSize: 12, fontWeight: '700', marginTop: 3 },
   // Same three states as the console: red is late, amber is due soon, grey informs.
   due_overdue: { color: '#DC2626' },
   due_soon: { color: '#B45309' },
   due_later: { color: '#64748B', fontWeight: '600' },
-  name: { fontSize: 17, fontWeight: '600', color: '#0F172A', marginTop: 6 },
+  name: { flex: 1, fontSize: 17, fontWeight: '600', color: '#0F172A' },
 
   metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 6 },
   meta: { fontSize: 13, color: '#475569', textTransform: 'capitalize' },

@@ -1,6 +1,6 @@
 {
   "id": "tpl_open_drain",
-  "version": 13,
+  "version": 14,
   "title": "Open Concrete Drain — Routine Inspection",
   "published_at": "2026-07-02T08:00:00.000Z",
   "sections": [
@@ -35,7 +35,7 @@
       "section_id": "sec_photos",
       "type": "photo",
       "label": "General condition photographs",
-      "help_text": "At least one is required, whatever you found. Taken with the Take a photo button on the map screen, which records the distance along the drain for each one.",
+      "help_text": "At least one, whatever you found.",
       "required": true,
       "min": 1
     },

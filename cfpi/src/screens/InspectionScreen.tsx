@@ -293,16 +293,15 @@ export default function InspectionScreen({
           </Pressable>
 
           <View style={styles.titleRow}>
-            <Text style={styles.hudRef}>{job.reference}</Text>
+            <Text style={styles.hudName} numberOfLines={1}>
+              {job.asset.name}
+            </Text>
             {insp.status === 'paused' && (
               <View style={styles.pausedPill}>
                 <Text style={styles.pausedPillText}>PAUSED</Text>
               </View>
             )}
           </View>
-          <Text style={styles.hudName} numberOfLines={1}>
-            {job.asset.name}
-          </Text>
 
           <View style={styles.coverageRow}>
             <Text style={[styles.pct, pct >= gate && styles.pctGood]}>
@@ -428,18 +427,21 @@ export default function InspectionScreen({
             </Pressable>
 
             <Pressable
-              style={styles.checklistBtn}
+              style={({ pressed }) => [styles.checklistBtn, pressed && styles.checklistBtnDown]}
               onPress={() => navigation.navigate('Checklist')}
             >
+              <Text style={styles.checklistIcon}>📋</Text>
               <View style={styles.checklistLeft}>
                 <Text style={styles.checklistTitle}>Checklist &amp; submit</Text>
-                <Text style={styles.checklistSub}>
-                  {Math.round(formProgress * 100)}% filled
-                </Text>
+                {/* A bar rather than a percentage read twice. The number was
+                    beside another number that meant something different. */}
+                <View style={styles.formTrack}>
+                  <View style={[styles.formFill, { width: `${formProgress * 100}%` }]} />
+                </View>
               </View>
               <View style={[styles.readyPill, insp.canSubmit && styles.readyPillOk]}>
                 <Text style={[styles.readyText, insp.canSubmit && styles.readyTextOk]}>
-                  {insp.canSubmit ? 'Ready' : `${(gate - pct).toFixed(0)}% short`}
+                  {insp.canSubmit ? 'Ready' : `${(gate - pct).toFixed(0)}%`}
                 </Text>
               </View>
             </Pressable>
@@ -519,7 +521,6 @@ const styles = StyleSheet.create({
   backChevron: { fontSize: 19, color: '#2563EB', fontWeight: '800', marginTop: -2 },
   back: { fontSize: 15, color: '#2563EB', fontWeight: '700' },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  hudRef: { fontSize: 11, fontWeight: '700', color: '#94A3B8', letterSpacing: 0.6 },
   pausedPill: {
     backgroundColor: '#FEF3C7',
     paddingHorizontal: 7,
@@ -527,7 +528,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   pausedPillText: { fontSize: 9, fontWeight: '800', color: '#92400E', letterSpacing: 0.6 },
-  hudName: { fontSize: 17, fontWeight: '700', color: '#0F172A', marginTop: 2 },
+  hudName: { flexShrink: 1, fontSize: 17, fontWeight: '700', color: '#0F172A' },
 
   coverageRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 14 },
   pct: { fontSize: 44, fontWeight: '800', color: '#334155', letterSpacing: -2 },
@@ -619,15 +620,24 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(255,255,255,0.96)',
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 13,
+    gap: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    paddingLeft: 13,
+    paddingRight: 12,
+    paddingVertical: 11,
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
-  checklistLeft: { gap: 2 },
-  checklistTitle: { fontSize: 15, fontWeight: '700', color: '#0F172A' },
-  checklistSub: { fontSize: 12, color: '#64748B' },
+  checklistBtnDown: { backgroundColor: '#F1F5F9', transform: [{ scale: 0.98 }] },
+  checklistIcon: { fontSize: 18 },
+  checklistLeft: { flex: 1, gap: 5 },
+  checklistTitle: { fontSize: 15.5, fontWeight: '800', color: '#0F172A' },
+  formTrack: { height: 4, borderRadius: 999, backgroundColor: '#E2E8F0', overflow: 'hidden' },
+  formFill: { height: '100%', borderRadius: 999, backgroundColor: '#2563EB' },
   readyPill: {
     backgroundColor: '#F1F5F9',
     paddingHorizontal: 10,

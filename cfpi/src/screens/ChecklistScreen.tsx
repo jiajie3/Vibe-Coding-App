@@ -423,8 +423,12 @@ export default function ChecklistScreen({
           <Text style={styles.backChevron}>‹</Text>
           <Text style={styles.back}>Map</Text>
         </Pressable>
-        <Text style={styles.title}>{template.title}</Text>
-        <Text style={styles.sub}>{job.reference} · {job.asset.name}</Text>
+        {/* The drain, and nothing else. The template's own title named the form
+            an inspector is already looking at, and the reference named a row in
+            a database they will never type. */}
+        <Text style={styles.title} numberOfLines={2}>
+          {job.asset.name}
+        </Text>
         <View style={styles.progressTrack}>
           <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
         </View>
@@ -533,7 +537,6 @@ const styles = StyleSheet.create({
   backChevron: { fontSize: 19, color: '#2563EB', fontWeight: '800', marginTop: -2 },
   back: { fontSize: 15, color: '#2563EB', fontWeight: '700' },
   title: { fontSize: 24, fontWeight: '700', color: '#0F172A', letterSpacing: -0.4 },
-  sub: { fontSize: 13, color: '#64748B' },
   progressTrack: {
     height: 5,
     borderRadius: 3,
