@@ -68,6 +68,8 @@ export interface CaseMessage {
   from: 'them' | 'us';
   /** Who said it, as Slack shows them. */
   who: string;
+  /** Their Slack id, so a name resolved later can correct older messages. */
+  who_id?: string;
   text: string;
   /** Anything posted with the message, shown inline where Slack shows it. */
   photos?: string[];

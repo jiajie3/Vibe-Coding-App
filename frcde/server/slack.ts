@@ -171,9 +171,10 @@ export function caseBlocks(c: CaseView): unknown[] {
       type: 'header',
       text: { type: 'plain_text', text: `${c.asset_name} — follow-up`, emoji: true },
     },
-    { type: 'section', text: { type: 'mrkdwn', text: c.detail.slice(0, 2900) } },
   ];
 
+  // Directly under the heading, before the detail: where it is comes before
+  // what is wrong with it, because that is the order someone reads a case in.
   if (c.map) {
     blocks.push({
       type: 'context',
@@ -181,6 +182,7 @@ export function caseBlocks(c: CaseView): unknown[] {
     });
   }
 
+  blocks.push({ type: 'section', text: { type: 'mrkdwn', text: c.detail.slice(0, 2900) } });
   blocks.push({ type: 'context', elements: [{ type: 'mrkdwn', text: status }] });
 
   if (!closed) {
@@ -407,30 +409,123 @@ let botUserId: string | null | undefined;
  */
 const names = new Map<string, string>();
 
+/**
+ * A name Slack has already given us, without asking again.
+ *
+ * Synchronous on purpose: the console serialises stored messages on every poll,
+ * and a name learned today should correct the ones stored yesterday rather than
+ * leaving them frozen at whatever was known when they arrived.
+ */
+export function cachedName(id?: string | null): string | null {
+  return (id && names.get(id)) || null;
+}
+
+/**
+ * Remember a name Slack handed us for free.
+ *
+ * Interaction payloads carry `user.username` with no scope required, so the
+ * moment somebody presses Acknowledged or Completed we know who they are — and
+ * that is almost always the same person who has been typing in the thread.
+ */
+export function remember(id?: string | null, name?: string | null): void {
+  const n = (name ?? '').trim();
+  if (id && n) names.set(id, n);
+}
+
+/**
+ * Take the name straight off the event when Slack included one.
+ *
+ * Message events often carry `user_profile`, which costs no API call and needs
+ * no scope at all. `users.info` exists here only for when they do not.
+ */
+export function learnFromEvent(event: Record<string, any>): string | null {
+  const id = String(event?.user ?? '');
+  const p = event?.user_profile ?? {};
+  const n = String(p.display_name || p.real_name || p.name || '').trim();
+  if (!id || !n) return null;
+  names.set(id, n);
+  return n;
+}
+
+interface UserInfo {
+  ok: boolean;
+  error?: string;
+  user?: { profile?: { display_name?: string; real_name?: string }; name?: string };
+}
+
+/**
+ * `users.info`, as its own function so the diagnostic can report what it said.
+ *
+ * GET with query parameters, not a JSON body. It is one of the older
+ * form-encoded methods and answers `invalid_arguments` to JSON, which looks
+ * exactly like a missing scope from the outside and is not.
+ */
+async function lookup(id: string): Promise<{ res: UserInfo | null; scopes: string | null }> {
+  const r = await fetch(`${API}/users.info?${new URLSearchParams({ user: id })}`, {
+    headers: { authorization: `Bearer ${botToken()}` },
+  }).catch(() => null);
+  if (!r) return { res: null, scopes: null };
+  const res = (await r.json().catch(() => null)) as UserInfo | null;
+  return { res, scopes: r.headers.get('x-oauth-scopes') };
+}
+
+/**
+ * What the bot can and cannot see, in one answer.
+ *
+ * Names falling back to the organisation has now been diagnosed twice by
+ * reasoning about it, both times wrongly. The token's granted scopes come back
+ * in a response header, so the question "does this app have `users:read`" has a
+ * factual answer — this endpoint fetches it instead of guessing.
+ */
+export async function diagnose(probe?: string): Promise<Record<string, unknown>> {
+  if (!isConfigured()) return { configured: false };
+
+  const r = await fetch(`${API}/auth.test`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${botToken()}` },
+  }).catch(() => null);
+  const auth = ((await r?.json().catch(() => null)) ?? {}) as Record<string, any>;
+  const scopes = (r?.headers.get('x-oauth-scopes') ?? '').split(',').filter(Boolean);
+
+  const id = probe || String(auth.user_id ?? '');
+  const { res, scopes: viaLookup } = id ? await lookup(id) : { res: null, scopes: null };
+  const granted = scopes.length ? scopes : (viaLookup ?? '').split(',').filter(Boolean);
+
+  return {
+    configured: true,
+    bot_ok: auth.ok === true,
+    bot_error: auth.error ?? null,
+    workspace: auth.team ?? null,
+    scopes: granted,
+    has_users_read: granted.includes('users:read'),
+    probe: {
+      user: id || null,
+      ok: res?.ok === true,
+      error: res?.error ?? null,
+      name:
+        res?.user?.profile?.display_name?.trim() ||
+        res?.user?.profile?.real_name?.trim() ||
+        res?.user?.name?.trim() ||
+        null,
+    },
+  };
+}
+
 export async function userName(id: string): Promise<string | null> {
   if (!id || !isConfigured()) return null;
   const cached = names.get(id);
   if (cached) return cached;
 
-  // GET with query parameters, not a JSON body. `users.info` is one of the
-  // older form-encoded methods and answers `invalid_arguments` to JSON — which
-  // looks exactly like a missing scope from the outside, and is not.
-  const res = await fetch(`${API}/users.info?${new URLSearchParams({ user: id })}`, {
-    headers: { authorization: `Bearer ${botToken()}` },
-  }).then(
-    (r) =>
-      r.json() as Promise<{
-        ok: boolean;
-        error?: string;
-        user?: { profile?: { display_name?: string; real_name?: string }; name?: string };
-      }>,
-  ).catch(() => null);
+  const { res } = await lookup(id);
 
   if (!res?.ok) {
     // Said once per name rather than swallowed: `missing_scope` here is a
     // one-line fix in the Slack app, and invisible otherwise — the console just
     // keeps showing the organisation instead of the person.
-    console.warn(`[slack] could not resolve ${id}: ${res?.error ?? 'request failed'}`);
+    console.warn(
+      `[slack] could not resolve ${id}: ${res?.error ?? 'request failed'}` +
+        ` — check /v1/console/slack/check`,
+    );
     return null;
   }
 
@@ -465,6 +560,8 @@ export interface Interaction {
   /** Where to send a message only this user sees, in reply to their click. */
   responseUrl?: string;
   userName?: string;
+  /** Their Slack id, so the name on this payload can be reused elsewhere. */
+  userId?: string;
   channel?: string;
   messageTs?: string;
   callbackId?: string;
@@ -490,6 +587,7 @@ export function parseInteraction(raw: string): Interaction | null {
         callbackId: p.view?.callback_id,
         caseId: p.view?.private_metadata,
         userName: p.user?.username ?? p.user?.name,
+      userId: p.user?.id,
         value: values?.note?.value?.value ?? '',
       };
     }
@@ -502,6 +600,7 @@ export function parseInteraction(raw: string): Interaction | null {
       triggerId: p.trigger_id,
       responseUrl: p.response_url,
       userName: p.user?.username ?? p.user?.name,
+      userId: p.user?.id,
       channel: p.channel?.id,
       messageTs: p.message?.ts,
     };

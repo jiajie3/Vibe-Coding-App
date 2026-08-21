@@ -189,6 +189,15 @@ export interface CaseMessage {
    * the name their colleagues would recognise in the channel.
    */
   who: string;
+  /**
+   * Their Slack id, kept so the name can be corrected later.
+   *
+   * The name is resolved when the message lands, which fails while the app is
+   * missing `users:read`. Storing only the name would freeze every message that
+   * arrived before the scope was granted; storing the id lets the console
+   * re-resolve them the moment any lookup succeeds.
+   */
+  who_id?: string;
   text: string;
   /** Attachment ids for anything posted with the message, shown inline. */
   photos?: string[];

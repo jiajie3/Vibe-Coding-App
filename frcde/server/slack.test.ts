@@ -13,10 +13,12 @@ import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 
 import {
+  cachedName,
   caseBlocks,
   closeModal,
   isConfigured,
   parseInteraction,
+  remember,
   verifyRequest,
 } from './slack.ts';
 import type { CaseView } from './slack.ts';
@@ -255,6 +257,14 @@ test('the card says where the drain is, as something tappable', () => {
   );
   assert.match(b, /<https:\/\/www\.google\.com\/maps\/search[^|]*\|1\.320145,103\.856210/);
   assert.match(b, /261 m along the drain/);
+
+  // Directly under the heading and above the detail. Where a case is comes
+  // before what is wrong with it: that is the order it gets read in, and it is
+  // the part somebody acts on before they have finished reading.
+  assert.ok(
+    b.indexOf('round_pushpin') < b.indexOf('Approx 260 mm silt'),
+    'the location must come before the detail',
+  );
 });
 
 test('a case with no coordinates simply omits the line', () => {
@@ -263,6 +273,33 @@ test('a case with no coordinates simply omits the line', () => {
   const b = json(caseBlocks(view()));
   assert.ok(!b.includes('round_pushpin'), 'no pin without a location');
   assert.ok(!b.includes('google.com/maps'), 'no link without a location');
+});
+
+test('a name learned from one payload names that person everywhere', () => {
+  // Interaction payloads carry `user.username` with no scope at all, so the
+  // first press of Acknowledged tells us who somebody is. Reusing it is what
+  // stops a thread reading "NEA said" for something a person wrote.
+  assert.equal(cachedName('U123'), null);
+  remember('U123', 'frvibecoding');
+  assert.equal(cachedName('U123'), 'frvibecoding');
+
+  // Nothing useful is worth remembering as if it were a name.
+  remember('U999', '   ');
+  assert.equal(cachedName('U999'), null);
+  assert.equal(cachedName(undefined), null);
+});
+
+test('a button press carries the presser id, not only their name', () => {
+  // Without the id the name cannot be filed against anything, and the free
+  // route to naming people closes.
+  const payload = {
+    type: 'block_actions',
+    user: { id: 'U42', username: 'frvibecoding' },
+    actions: [{ action_id: 'case_ack', value: 'wo-1' }],
+  };
+  const i = parseInteraction('payload=' + encodeURIComponent(JSON.stringify(payload)));
+  assert.equal(i?.userId, 'U42');
+  assert.equal(i?.userName, 'frvibecoding');
 });
 
 test('the close modal carries the case id and asks the right question', () => {

@@ -782,7 +782,7 @@ app.get('/v1/console/overview', (_req, res) => {
   res.json({
     jobs,
     users: store.users().map(publicUser),
-    work_orders: store.workOrders(),
+    work_orders: store.workOrders().map(withNames),
     // Surfaced so the console can show the automation working, rather than
     // offering a button to do its job for it.
     scheduler: lastRun,
@@ -1186,7 +1186,43 @@ app.patch('/v1/console/work-orders/:id', (req, res) => {
 });
 
 app.get('/v1/console/work-orders', (_req, res) => {
-  res.json({ data: store.workOrders() });
+  res.json({ data: store.workOrders().map(withNames) });
+});
+
+/**
+ * Stored messages, with their names re-resolved from what Slack has said since.
+ *
+ * A message keeps the name that was known when it arrived, which is nothing at
+ * all while the app lacks `users:read`. Resolving again on the way out means the
+ * first time anybody presses a button — which names them, scope or no scope —
+ * every message they ever posted starts showing who wrote it.
+ */
+function withNames(order: WorkOrder): WorkOrder {
+  if (!order.thread?.length) return order;
+  return {
+    ...order,
+    thread: order.thread.map((m) =>
+      m.who_id ? { ...m, who: slack.cachedName(m.who_id) ?? m.who } : m,
+    ),
+  };
+}
+
+/**
+ * What the Slack app can actually see.
+ *
+ * Names falling back to the organisation has been diagnosed by reasoning about
+ * it twice, wrongly both times. This asks Slack instead: the granted scopes come
+ * back in a response header, and the probe runs against a real person from a
+ * real thread rather than the bot itself, which can always read itself and so
+ * proves nothing.
+ */
+app.get('/v1/console/slack/check', async (_req, res) => {
+  const someone = store
+    .workOrders()
+    .flatMap((w) => w.thread ?? [])
+    .reverse()
+    .find((m) => m.who_id)?.who_id;
+  res.json(await slack.diagnose(someone));
 });
 
 app.post('/v1/console/reset', (_req, res) => {
@@ -1270,7 +1306,8 @@ async function postEvidence(order: WorkOrder): Promise<void> {
       order.slack.channel,
       order.slack.ts,
       files,
-      `*From the inspection* — ${files.length} photograph${files.length === 1 ? '' : 's'}.`,
+      `*From the inspection* — ${files.length} photograph${files.length === 1 ? '' : 's'}.` +
+        mapSuffix(order),
     );
   } catch (e) {
     // Loudly: this failed silently twice, once as an http URL Slack would not
@@ -1287,6 +1324,11 @@ async function postEvidence(order: WorkOrder): Promise<void> {
  * so the coordinates are a projection away — and a maps link is what actually
  * gets them to the spot.
  */
+function mapSuffix(order: WorkOrder): string {
+  const m = mapFor(order);
+  return m ? `\n:round_pushpin: <${m.url}|${m.label}>` : '';
+}
+
 function mapFor(order: WorkOrder): { url: string; label: string } | undefined {
   const job = store.job(order.job_id);
   if (!job) return undefined;
@@ -1322,12 +1364,20 @@ function appendToThread(
   who: string,
   text: string,
   photos?: string[],
+  whoId?: string,
 ): void {
   const line = text.trim();
   if (!line && !photos?.length) return;
   const thread = [
     ...(order.thread ?? []),
-    { at: new Date().toISOString(), from, who, text: line, ...(photos?.length ? { photos } : {}) },
+    {
+      at: new Date().toISOString(),
+      from,
+      who,
+      text: line,
+      ...(whoId ? { who_id: whoId } : {}),
+      ...(photos?.length ? { photos } : {}),
+    },
   ];
   order.thread = thread.slice(-30);
 }
@@ -1400,6 +1450,9 @@ app.post('/v1/slack/interactions', (req, res) => {
   }
 
   const who = i.userName ?? 'someone';
+  // Free of charge, and free of scopes: this payload names the person. Keeping
+  // it corrects their thread messages too, past ones included.
+  slack.remember(i.userId, i.userName);
   const now = new Date().toISOString();
 
   if (i.type === 'block_actions') {
@@ -1657,10 +1710,15 @@ async function ingestThreadEvent(
 
   // The name their colleagues see in the channel, not the organisation the case
   // was routed to. A person wrote this, and "NEA said" is not who they are.
-  const who = (await slack.userName(String(event.user ?? ''))) ?? order.assigned_to ?? 'Them';
+  const whoId = String(event.user ?? '');
+  const who =
+    slack.learnFromEvent(event) ??
+    (await slack.userName(whoId)) ??
+    order.assigned_to ??
+    'Them';
 
   seen.add(msgKey);
-  appendToThread(order, 'them', who, said, photos);
+  appendToThread(order, 'them', who, said, photos, whoId);
   // Still recorded against the case, because completing one requires a
   // photograph to have arrived — the console just no longer shows them twice.
   if (photos.length > 0) {

@@ -63,10 +63,34 @@ message's photographs inside the message that carried them.
 Filing them apart is what made a single photograph look like two — the picture
 in one gallery, the words in another, the same thing twice on one screen.
 
-Names come from `users.info`, so a message reads as the person who wrote it
-rather than the organisation the case was routed to. Without `users:read` the
-lookup fails and it falls back to the party name: a missing scope should cost a
-name, not a message.
+### Who said it
+
+A message should read as the person who wrote it, not as the organisation the
+case was routed to. "NEA said the gate is locked" names a government agency for
+something a contractor typed.
+
+Three sources, cheapest first:
+
+1. **The interaction payload.** Pressing Acknowledged or Completed sends
+   `user.username` along with the click, with no scope required at all.
+2. **`user_profile` on the message event**, when Slack includes it. Also free.
+3. **`users.info`**, which needs `users:read`.
+
+Every name found by any route is remembered against the Slack id, and stored
+messages keep that id alongside the name. Names are resolved again on the way
+out of the API rather than frozen at the moment a message arrived — so the first
+time somebody presses a button, every message they have ever posted starts
+showing who wrote it, retrospectively, scope or no scope.
+
+Without any of the three it falls back to the party name. A missing scope should
+cost a name, not a message.
+
+**`GET /v1/console/slack/check`** (signed in as a supervisor) answers the
+question directly: whether the bot token works, which scopes were actually
+granted, and what `users.info` says when asked about a real person from a real
+thread — not about the bot, which can always read itself and so proves nothing.
+Worth using before theorising: this has now been misdiagnosed twice by
+reasoning about it instead of asking.
 
 **The thread comes back.** Whatever is said in a case thread is kept on the work
 order and shown in the console, both sides of it. The useful detail in a case is
@@ -280,13 +304,15 @@ anyone holding a URL.
 
 ## Where the drain is
 
-The card itself carries a **map link**, on the case message rather than buried in
-the thread. The chainage is projected onto the drain's alignment, so "106 m along
-the drain" arrives as coordinates a crew can tap on the way out.
+The card carries a **map link** directly under its heading, above the detail:
+where the drain is comes before what is wrong with it, because that is the order
+somebody reads a case in. The chainage is projected onto the drain's alignment,
+so "106 m along the drain" arrives as coordinates a crew can tap on the way out.
 
-It is on the case and not on the photographs because the photographs are
-optional: a case raised without any would otherwise post no location at all, and
-the address is the one thing a crew needs before they have decided anything else.
+The photograph post in the thread carries the same line. Not a duplicate worth
+removing — a crew scrolling a thread of pictures should not have to scroll back
+up to the card for the address, and a case raised without photographs would
+otherwise carry no location at all.
 
 Where no chainage was recorded, the drain's **midpoint** is used and the distance
 is left off the label. Somebody sent to a named canal they have never visited
