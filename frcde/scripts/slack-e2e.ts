@@ -266,6 +266,32 @@ async function main() {
   }
   ok('the Slack conversation reaches FRCDE, both sides of it');
 
+  // Slack can deliver the same event twice — a retry, or two subscriptions that
+  // both match. A contractor's photograph arriving twice showed up on the case
+  // twice, so nothing is filed twice regardless of why it arrives again.
+  const photosBefore = (withThread.completion_attachment_ids ?? []).length;
+  const messagesBefore = (withThread.thread ?? []).length;
+  for (const dupe of [chat, event]) {
+    await fetch(`${BASE}/v1/slack/events`, {
+      method: 'POST',
+      headers: { ...slackHeaders(dupe), 'content-type': 'application/json' },
+      body: dupe,
+    });
+  }
+  await new Promise((r) => setTimeout(r, 300));
+  const afterDupes = await readOrder(order.id);
+  if ((afterDupes.completion_attachment_ids ?? []).length !== photosBefore) {
+    die(
+      `a redelivered photograph was filed again: ${photosBefore} -> ${
+        (afterDupes.completion_attachment_ids ?? []).length
+      }`,
+    );
+  }
+  if ((afterDupes.thread ?? []).length !== messagesBefore) {
+    die('a redelivered message was appended again');
+  }
+  ok('the same event delivered twice is filed once');
+
   /* ------------------------------------------------------------ complete */
 
   const doneBody = form({

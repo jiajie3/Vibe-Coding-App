@@ -228,6 +228,15 @@ export interface WorkOrder {
   acknowledged_at: string | null;
 
   /**
+   * Slack message timestamps and file ids already filed against this case.
+   *
+   * Slack can deliver the same event more than once, and a photograph arriving
+   * twice showed up on the case twice. Keyed rather than reasoned about: it
+   * does not matter which delivery path caused it.
+   */
+  slack_seen?: string[];
+
+  /**
    * The case's Slack thread, as it happens.
    *
    * A conversation about the work is where the useful detail ends up — "the

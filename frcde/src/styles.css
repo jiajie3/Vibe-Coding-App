@@ -661,9 +661,21 @@ html, body { height: 100%; }
    another step in it. */
 .trail li.said { align-items: flex-start; }
 .trail .thread {
-  display: flex; flex-direction: column; gap: 4px;
   padding-left: 10px; border-left: 2px solid var(--line);
 }
+.trail .thread > summary {
+  cursor: pointer; color: var(--muted); font-size: 14.5px; font-weight: 600;
+  list-style: none; user-select: none;
+}
+.trail .thread > summary::-webkit-details-marker { display: none; }
+/* A caret that turns, so the row says whether there is more to read. */
+.trail .thread > summary::before {
+  content: '▸'; display: inline-block; width: 14px; color: var(--muted);
+  transition: transform 120ms ease;
+}
+.trail .thread[open] > summary::before { transform: rotate(90deg); }
+.trail .thread[open] > summary { margin-bottom: 5px; }
+.trail .thread > p + p { margin-top: 4px; }
 .trail .thread p { margin: 0; font-size: 15px; line-height: 1.45; }
 .trail .thread .who {
   display: inline-block; margin-right: 7px; font-weight: 700;

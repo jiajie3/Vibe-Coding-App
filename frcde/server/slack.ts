@@ -374,6 +374,31 @@ export async function openModal(triggerId: string, view: unknown): Promise<void>
   await call('views.open', { trigger_id: triggerId, view });
 }
 
+/**
+ * Our own bot's user id, so we can recognise our own messages.
+ *
+ * `event.bot_id` is not enough. A file shared through
+ * `files.completeUploadExternal` is posted *as the bot user*, and that message
+ * carries no `bot_id` at all — so the photographs we send with a case come
+ * straight back in as photographs the contractor returned, and appear twice.
+ *
+ * `auth.test` needs no scope beyond the token itself. Cached because the answer
+ * cannot change without the token changing.
+ */
+let botUserId: string | null | undefined;
+
+export async function selfUserId(): Promise<string | null> {
+  if (botUserId !== undefined) return botUserId;
+  if (!isConfigured()) return (botUserId = null);
+  try {
+    const r = await call<{ user_id?: string }>('auth.test', {});
+    botUserId = r.user_id ?? null;
+  } catch {
+    botUserId = null;
+  }
+  return botUserId;
+}
+
 /* ------------------------------------------------------------ inbound */
 
 export interface Interaction {

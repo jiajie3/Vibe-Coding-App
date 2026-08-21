@@ -1564,6 +1564,39 @@ app.post('/v1/slack/events', (req, res) => {
   const order = store.workOrders().find((w) => w.slack?.ts === event.thread_ts);
   if (!order) return;
 
+  void (async () => {
+    /**
+     * Ignore what we posted ourselves.
+     *
+     * `bot_id` catches our `chat.postMessage` replies but not our file uploads:
+     * a file shared through `files.completeUploadExternal` is posted as the bot
+     * *user* and carries no `bot_id`. Without this the photographs sent with a
+     * case came back as photographs returned by the contractor, and every case
+     * showed them twice.
+     */
+    const me = await slack.selfUserId();
+    if (me && event.user === me) return;
+    await ingestThreadEvent(order, event);
+  })();
+});
+
+/**
+ * Everything a human said or attached in a case thread.
+ *
+ * Deliberately idempotent. Slack can deliver the same message more than once —
+ * a retry when a response looks slow, or two subscriptions that both match —
+ * and a contractor's photograph arriving twice showed up twice on the case.
+ * Rather than reason about which delivery path caused it, nothing is filed
+ * twice: messages are keyed by their Slack timestamp and files by their Slack
+ * id.
+ */
+async function ingestThreadEvent(
+  order: WorkOrder,
+  event: Record<string, any>,
+): Promise<void> {
+  const seen = new Set(order.slack_seen ?? []);
+  let changed = false;
+
   /**
    * Keep what was said, not only what was attached.
    *
@@ -1573,50 +1606,50 @@ app.post('/v1/slack/events', (req, res) => {
    * a case sees it arrive.
    */
   const said = String(event.text ?? '').trim();
-  if (said) {
+  const msgKey = `msg:${event.ts}`;
+  if (said && !seen.has(msgKey)) {
+    seen.add(msgKey);
     appendToThread(order, 'them', said);
-    store.saveWorkOrder(order);
+    changed = true;
   }
 
-  const files: Record<string, any>[] = Array.isArray(event.files) ? event.files : [];
-  if (files.length === 0) return;
-
-  void (async () => {
-    for (const f of files) {
-      try {
-        const bytes = await slack.downloadFile(f.url_private_download ?? f.url_private);
-        if (!bytes) continue;
-        const id = randomUUID();
-        createWriteStream(resolve(UPLOAD_DIR, `${id}.jpg`)).end(bytes);
-        const rec: AttachmentRecord = {
-          id,
-          inspection_id: order.inspection_id ?? '',
-          kind: 'completion',
-          source: 'library',
-          captured_at: new Date(
-            (Number(event.ts) || Date.now() / 1000) * 1000,
-          ).toISOString(),
-          lat: null,
-          lon: null,
-          chainage_m: order.chainage_m,
-          caption: slack.isConfigured()
-            ? String(f.title ?? 'Posted in the Slack case thread')
-            : 'Simulated — no Slack workspace is connected',
-          byte_size: bytes.length,
-          stored: true,
-        };
-        store.addAttachment(rec);
-        order.completion_attachment_ids = [
-          ...(order.completion_attachment_ids ?? []),
-          id,
-        ];
-      } catch (e) {
-        console.warn('[slack] could not file an attachment:', (e as Error).message);
-      }
+  for (const f of Array.isArray(event.files) ? event.files : []) {
+    const fileKey = `file:${f.id}`;
+    if (!f.id || seen.has(fileKey)) continue;
+    try {
+      const bytes = await slack.downloadFile(f.url_private_download ?? f.url_private);
+      if (!bytes) continue;
+      const id = randomUUID();
+      createWriteStream(resolve(UPLOAD_DIR, `${id}.jpg`)).end(bytes);
+      store.addAttachment({
+        id,
+        inspection_id: order.inspection_id ?? '',
+        kind: 'completion',
+        source: 'library',
+        captured_at: new Date((Number(event.ts) || Date.now() / 1000) * 1000).toISOString(),
+        lat: null,
+        lon: null,
+        chainage_m: order.chainage_m,
+        caption: slack.isConfigured()
+          ? String(f.title ?? 'Posted in the Slack case thread')
+          : 'Simulated — no Slack workspace is connected',
+        byte_size: bytes.length,
+        stored: true,
+      } as AttachmentRecord);
+      order.completion_attachment_ids = [...(order.completion_attachment_ids ?? []), id];
+      seen.add(fileKey);
+      changed = true;
+    } catch (e) {
+      console.error('[slack] could not file an attachment:', (e as Error).message);
     }
-    store.saveWorkOrder(order);
-  })();
-});
+  }
+
+  if (!changed) return;
+  // Bounded: a long thread should not grow this list without limit, and only
+  // recent deliveries can plausibly be repeats.
+  order.slack_seen = [...seen].slice(-200);
+  store.saveWorkOrder(order);
+}
 
 /* ----------------------------------------------------------------- serve */
 

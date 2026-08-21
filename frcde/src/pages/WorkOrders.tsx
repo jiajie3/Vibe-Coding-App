@@ -187,7 +187,18 @@ export default function WorkOrders() {
                 {(w.thread?.length ?? 0) > 0 && (
                   <li className="said">
                     <span className="when" />
-                    <div className="thread">
+                    {/* Collapsed by default. The conversation is the detail
+                        behind the case, not the case — a supervisor scanning a
+                        list wants the sequence, and opens the talk when a case
+                        is not where they expect it to be.
+
+                        A native <details> rather than React state: it needs no
+                        per-row bookkeeping and keeps keyboard behaviour for
+                        free. */}
+                    <details className="thread">
+                      <summary>
+                        {w.thread!.length} message{w.thread!.length === 1 ? '' : 's'} in Slack
+                      </summary>
                       {w.thread!.map((m, i) => (
                         <p key={i} className={m.from}>
                           <span className="who">
@@ -196,7 +207,7 @@ export default function WorkOrders() {
                           {m.text}
                         </p>
                       ))}
-                    </div>
+                    </details>
                   </li>
                 )}
               </ol>
