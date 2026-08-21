@@ -268,41 +268,62 @@ export async function updateCase(channel: string, ts: string, c: CaseView): Prom
 }
 
 /**
- * Put the inspection's own photographs in the case thread.
+ * Put the inspection's photographs in the case thread.
  *
- * The contractor is being asked to fix something they did not see. A card
- * describing "approx 260 mm silt" is a great deal less useful than the
- * photograph the inspector took of it, and sending them means nobody has to ask
- * for them later.
+ * The bytes are uploaded to Slack rather than linked. Linking was tried first
+ * and does not work here: Slack fetches an `image_url` itself, and the file it
+ * would fetch lives on Render's disk, which is wiped on every deploy. A URL
+ * that resolves today is a 404 next week, and the failure is invisible —
+ * Slack simply renders nothing.
  *
- * Images are referenced by URL rather than uploaded: FRCDE already serves
- * `/uploads` publicly, so Slack fetches them itself and no `files:write` scope
- * is needed. That does mean anyone with the URL can read them — see docs.
+ * Uploading also stops inspection photographs being readable by anyone holding
+ * the URL, which linking required.
+ *
+ * Three calls, which is Slack's own flow: ask where to put it, put it there,
+ * then say which channel and thread it belongs to.
  */
 export async function postThreadImages(
   channel: string,
   ts: string,
-  images: { url: string; caption: string }[],
+  images: { bytes: Buffer; filename: string; caption: string }[],
   heading: string,
 ): Promise<void> {
   if (images.length === 0) return;
   if (!isConfigured() || ts.startsWith('sim-')) {
-    console.log(`[slack] (simulated) would post ${images.length} image(s) to ${channel}/${ts}`);
+    console.log(`[slack] (simulated) would upload ${images.length} photo(s) to ${channel}/${ts}`);
     return;
   }
-  await call('chat.postMessage', {
-    channel,
+
+  const uploaded: { id: string; title: string }[] = [];
+  for (const img of images.slice(0, 8)) {
+    // 1. Where to put it. Form-encoded, not JSON — this endpoint predates the
+    //    rest and rejects a JSON body.
+    const q = new URLSearchParams({
+      filename: img.filename,
+      length: String(img.bytes.length),
+    });
+    const slot = await fetch(`${API}/files.getUploadURLExternal?${q}`, {
+      method: 'GET',
+      headers: { authorization: `Bearer ${botToken()}` },
+    }).then((r) => r.json() as Promise<{ ok: boolean; error?: string; upload_url?: string; file_id?: string }>);
+    if (!slot.ok || !slot.upload_url || !slot.file_id) {
+      throw new Error(`slack files.getUploadURLExternal: ${slot.error ?? 'no upload url'}`);
+    }
+
+    // 2. The bytes themselves, to the one-off URL. No bearer token here.
+    const put = await fetch(slot.upload_url, { method: 'POST', body: new Uint8Array(img.bytes) });
+    if (!put.ok) throw new Error(`slack upload failed: ${put.status}`);
+
+    uploaded.push({ id: slot.file_id, title: img.caption.slice(0, 150) || 'Inspection photograph' });
+  }
+
+  // 3. Where it belongs. Sharing every file in one call keeps them together in
+  //    the thread rather than arriving as separate messages.
+  await call('files.completeUploadExternal', {
+    files: uploaded,
+    channel_id: channel,
     thread_ts: ts,
-    text: heading,
-    blocks: [
-      { type: 'section', text: { type: 'mrkdwn', text: heading } },
-      ...images.slice(0, 8).map((i) => ({
-        type: 'image',
-        image_url: i.url,
-        alt_text: i.caption.slice(0, 200) || 'Inspection photograph',
-        title: { type: 'plain_text', text: i.caption.slice(0, 150) || 'Photograph' },
-      })),
-    ],
+    initial_comment: heading,
   });
 }
 

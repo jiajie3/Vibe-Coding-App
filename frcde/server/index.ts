@@ -16,7 +16,7 @@ import cors from 'cors';
 import express from 'express';
 
 import { CoverageTracker } from '../../cfpi/src/core/coverage.ts';
-import { sliceAlignment } from '../../cfpi/src/core/geo.ts';
+import { buildAlignment, chainageToLatLon, sliceAlignment } from '../../cfpi/src/core/geo.ts';
 import type { CoverageFlag } from '../../cfpi/src/core/types.ts';
 import { issue, publicUser, requireAuth, rotate } from './auth.ts';
 import type { AuthedRequest } from './auth.ts';
@@ -1139,7 +1139,7 @@ app.post('/v1/console/work-orders', async (req: AuthedRequest, res) => {
       if (view) {
         const posted = await slack.postCase(channel, view);
         order.slack = { channel: posted.channel, ts: posted.ts };
-        await postEvidence(order, publicBase(req));
+        await postEvidence(order);
       }
     } catch (e) {
       console.warn('[slack] could not open the case:', (e as Error).message);
@@ -1226,33 +1226,13 @@ function caseView(order: WorkOrder): slack.CaseView | null {
 }
 
 /**
- * Where Slack should fetch photographs from.
- *
- * Slack renders an image by fetching the URL itself, so this has to be an
- * address reachable from the internet — `localhost` silently renders nothing.
- * Set FRCDE_PUBLIC_URL on any deployment; the request's own host is the right
- * guess everywhere else.
- */
-function publicBase(req: express.Request): string {
-  const configured = (process.env.FRCDE_PUBLIC_URL ?? '').trim().replace(/\/+$/, '');
-  if (configured) return configured;
-
-  // Belt and braces alongside `trust proxy`: anything that is not a local
-  // address is assumed to be reachable over https, because a photograph URL
-  // Slack refuses to fetch fails silently and looks like the feature is broken.
-  const host = req.get('host') ?? '';
-  const local = /^(localhost|127\.0\.0\.1|\[::1\]|192\.168\.|10\.)/.test(host);
-  return `${local ? req.protocol : 'https'}://${host}`;
-}
-
-/**
  * Send the inspector's own photographs into the case thread.
  *
  * The contractor is being asked to fix something they never saw. "Approx 260 mm
  * silt" is a good deal less useful than the photograph of it, and attaching them
  * up front saves the round of messages that otherwise asks for them.
  */
-async function postEvidence(order: WorkOrder, base: string): Promise<void> {
+async function postEvidence(order: WorkOrder): Promise<void> {
   if (!order.slack) return;
   const shots = (order.attachment_ids ?? [])
     .map((id) => store.attachment(id))
@@ -1260,19 +1240,65 @@ async function postEvidence(order: WorkOrder, base: string): Promise<void> {
   if (shots.length === 0) return;
 
   try {
+    const files = shots
+      .map((a) => {
+        try {
+          return {
+            bytes: readFileSync(resolve(UPLOAD_DIR, `${a.id}.jpg`)),
+            filename: `${a.id}.jpg`,
+            caption:
+              a.caption ||
+              (a.chainage_m != null
+                ? `${Math.round(a.chainage_m)} m along the drain`
+                : 'From the inspection'),
+          };
+        } catch {
+          // The file is gone — Render wipes the disk on every deploy, so a
+          // photograph from before the last one no longer exists. Skip it
+          // rather than failing the whole post.
+          return null;
+        }
+      })
+      .filter((f): f is NonNullable<typeof f> => f !== null);
+
+    if (files.length === 0) {
+      console.warn('[slack] no photograph files remain on disk for this case');
+      return;
+    }
+
     await slack.postThreadImages(
       order.slack.channel,
       order.slack.ts,
-      shots.map((a) => ({
-        url: `${base}/uploads/${a.id}.jpg`,
-        caption:
-          a.caption ||
-          (a.chainage_m != null ? `${Math.round(a.chainage_m)} m along the drain` : 'From the inspection'),
-      })),
-      `*From the inspection* — ${shots.length} photograph${shots.length === 1 ? '' : 's'}.`,
+      files,
+      `*From the inspection* — ${files.length} photograph${files.length === 1 ? '' : 's'}.` +
+        mapLine(order),
     );
   } catch (e) {
-    console.warn('[slack] could not attach inspection photos:', (e as Error).message);
+    // Loudly: this failed silently twice, once as an http URL Slack would not
+    // fetch and once as a file the disk no longer had.
+    console.error('[slack] could not attach inspection photographs:', (e as Error).message);
+  }
+}
+
+/**
+ * Where on the ground, as something a crew can tap.
+ *
+ * "106 m along the drain" is precise and useless to someone standing at a road
+ * junction. The alignment is already here and the chainage is already recorded,
+ * so the coordinates are a projection away — and a maps link is what actually
+ * gets them to the spot.
+ */
+function mapLine(order: WorkOrder): string {
+  const job = store.job(order.job_id);
+  if (!job || order.chainage_m == null) return '';
+  try {
+    const at = chainageToLatLon(buildAlignment(job.asset.geometry), order.chainage_m);
+    const q = `${at.lat.toFixed(6)},${at.lon.toFixed(6)}`;
+    return `\n:round_pushpin: <https://www.google.com/maps/search/?api=1&query=${q}|${q}> — ${Math.round(
+      order.chainage_m,
+    )} m along the drain.`;
+  } catch {
+    return '';
   }
 }
 

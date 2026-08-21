@@ -140,6 +140,7 @@ sleeps after fifteen minutes of quiet.
 |---|---|
 | `chat:write` | posting and updating the case card |
 | `files:read` | reading completion photos out of the thread |
+| `files:write` | uploading the inspection photographs into the thread |
 | `channels:history` | receiving the `message.channels` event at all |
 
 Install to the workspace and copy the bot token (`xoxb-…`).
@@ -239,16 +240,21 @@ can drop any that do not belong in a channel a contractor reads. Removable and
 not addable: the inspection is their source, and attaching something else would
 be adding evidence to a record the supervisor did not gather.
 
-They are sent **by URL, not uploaded**: FRCDE already serves `/uploads`
-statically, so Slack fetches them itself and no `files:write` scope is needed.
-Two consequences worth knowing:
+They are **uploaded to Slack**, not linked, which needs the `files:write` scope.
 
-- **Those URLs are public.** Anyone holding one can read the photograph without
-  signing in. That is true of the console today as well, and wants an authorising
-  proxy or signed URLs before any real deployment.
-- **Slack fetches the URL itself**, so it must be reachable from the internet.
-  On a laptop it is not, and images silently fail to render. Set
-  `FRCDE_PUBLIC_URL` on the deployment; the request's own host is used otherwise.
+Linking was tried first and does not work here. Slack fetches an `image_url`
+itself, and what it would fetch lives on Render's disk — which is wiped on every
+deploy. A URL that resolves today is a 404 next week, and the failure is
+invisible: Slack renders nothing and says nothing. An earlier attempt failed for
+a second reason on top of that, serving the URL over `http` because Express did
+not trust Render's proxy, and Slack will not fetch an image over http.
+
+Uploading sidesteps both, and stops inspection photographs being readable by
+anyone holding a URL.
+
+Each thread also carries a **map link** for the spot: the chainage is projected
+onto the drain's alignment, so "106 m along the drain" arrives as coordinates a
+crew can tap. Precise-but-useless becomes precise-and-findable.
 
 ## Security
 
