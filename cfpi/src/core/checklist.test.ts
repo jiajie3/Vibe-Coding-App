@@ -82,6 +82,58 @@ test('defects are asked for at fair, poor and critical', () => {
   assert.equal(isVisible(f, { structural_condition: 'critical' }), true);
 });
 
+test('a follow-up disappears when its own trigger disappears', () => {
+  // The bug this guards: say the site was not accessible, choose Other, type
+  // the reason — then change your mind and say it *was* accessible. "What
+  // stopped you?" goes, but the box it opened stayed on the form, still holding
+  // the reason for a walk that was no longer blocked.
+  //
+  // Answers are not cleared when a field hides; they are pruned at submission.
+  // So `access_other`'s own condition still held — its trigger was simply no
+  // longer on screen to be seen.
+  const stuck = { site_accessible: false, access_reason: 'other', access_other: 'Padlocked' };
+  assert.equal(isVisible(field('access_other'), stuck, tpl), true);
+
+  const changed = { ...stuck, site_accessible: true };
+  assert.equal(isVisible(field('access_reason'), changed, tpl), false);
+  assert.equal(
+    isVisible(field('access_other'), changed, tpl),
+    false,
+    'the box must go with the question that opened it',
+  );
+  assert.ok(!visibleFields(tpl, changed).some((f) => f.id === 'access_other'));
+
+  // The other two chains of the same shape.
+  const defects = { structural_condition: 'poor', defect_types: ['other'], defect_other: 'Scour' };
+  assert.equal(isVisible(field('defect_other'), defects, tpl), true);
+  assert.equal(
+    isVisible(field('defect_other'), { ...defects, structural_condition: 'good' }, tpl),
+    false,
+  );
+
+  const blockage = { blockage_present: true, blockage_type: ['other'], blockage_other: 'Trolley' };
+  assert.equal(isVisible(field('blockage_other'), blockage, tpl), true);
+  assert.equal(
+    isVisible(field('blockage_other'), { ...blockage, blockage_present: false }, tpl),
+    false,
+  );
+});
+
+test('an orphaned follow-up is never validated or submitted', () => {
+  // Hidden is not enough on its own: a required box that is invisible must also
+  // stop demanding an answer, and must not travel to FRCDE describing an
+  // obstruction on a walk that finished.
+  const changed = {
+    ...VALID,
+    site_accessible: true,
+    access_reason: 'other',
+    access_other: 'Padlocked',
+  };
+  assert.deepEqual(validate(tpl, changed, VALID_PHOTOS), []);
+  assert.ok(!('access_other' in prune(tpl, changed)));
+  assert.ok(!('access_reason' in prune(tpl, changed)));
+});
+
 test('unconditional fields are always visible', () => {
   assert.equal(isVisible(field('structural_condition'), {}), true);
 });

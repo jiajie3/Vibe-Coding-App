@@ -153,8 +153,11 @@ export default function OverrideScreen({ navigation }: { navigation: any }) {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
-        <Pressable onPress={() => navigation.goBack()} hitSlop={12}>
-          <Text style={styles.back}>‹ Back</Text>
+        {/* The same pill as All jobs and Map. Three ways back that look like
+            three different controls is three things to learn. */}
+        <Pressable onPress={() => navigation.goBack()} hitSlop={12} style={styles.backRow}>
+          <Text style={styles.backChevron}>‹</Text>
+          <Text style={styles.back}>Map</Text>
         </Pressable>
 
         <Text style={styles.title}>Submit without full coverage</Text>
@@ -246,7 +249,22 @@ export default function OverrideScreen({ navigation }: { navigation: any }) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#F1F5F9' },
   body: { padding: 20, paddingBottom: 40, gap: 10 },
-  back: { fontSize: 16, color: '#2563EB', fontWeight: '600' },
+  backRow: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 8,
+    paddingLeft: 10,
+    paddingRight: 14,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  backChevron: { fontSize: 19, color: '#2563EB', fontWeight: '800', marginTop: -2 },
+  back: { fontSize: 15, color: '#2563EB', fontWeight: '700' },
   title: { fontSize: 24, fontWeight: '700', color: '#0F172A', letterSpacing: -0.4 },
   help: { fontSize: 13.5, color: '#475569', lineHeight: 20 },
   section: { fontSize: 12, fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.7, marginTop: 12 },

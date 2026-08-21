@@ -34,40 +34,49 @@ const DIR_NAME = 'inspection-photos';
 export const STALE_FIX_MS = 30_000;
 
 /**
- * Where the photograph is being taken, measured now.
+ * Where the photograph is being taken.
  *
- * The position used to be whatever the walk last accepted, which produced the
- * bug this replaces: two photographs at two places, one of them with no
- * position at all. A fix is only *accepted* by the coverage tracker when it is
- * inside the corridor and accurate enough, so between two accepted fixes there
- * is no position to inherit — and before the first one there is nothing at all.
+ * The walk's own position first, and only while it is fresh. That position has
+ * been through the coverage tracker — checked for accuracy, checked against the
+ * corridor, already projected onto the alignment — so it is both the best
+ * answer available and the one consistent with the coverage the same walk is
+ * reporting. It is also the only answer that works under Simulate, where the
+ * drain is being walked in software and the handset is sitting on a desk
+ * several kilometres away.
  *
- * So the shutter asks for its own fix. The walk's last one is the fallback, and
- * only while it is recent enough to still describe where the inspector is
- * standing; otherwise the photograph is filed with no position, which is honest
- * and visibly missing rather than quietly wrong.
+ * Asking the device instead was tried and is wrong for exactly that reason: it
+ * answered with the desk, which is off the corridor, so the projection refused
+ * it and the photograph came out "off the drain".
+ *
+ * The one-shot fix is the fallback, for when the walk has no recent position of
+ * its own — the tracker only *accepts* a fix that is accurate enough and inside
+ * the corridor, so between two accepted fixes, and before the first one, there
+ * is nothing to inherit. That was the original bug: two photographs at two
+ * places, one of them with no position at all.
+ *
+ * If neither answers, the photograph is filed with no position. Honest and
+ * visibly missing beats quietly wrong.
  */
 async function positionNow(): Promise<{
   lat: number;
   lon: number;
   chainage_m: number | null;
 } | null> {
-  const fix = await getCurrentLocation();
-  if (fix) {
-    const at = {
-      lat: fix.lat,
-      lon: fix.lon,
-      chainage_m: getController()?.chainageAt(fix.lat, fix.lon) ?? null,
-    };
-    // The map and the camera overlay both read this, so a photograph taken
-    // while the walk was between fixes still moves the displayed distance.
-    setPosition(at.lat, at.lon, at.chainage_m);
-    return at;
-  }
-
   const last = getSession().last_position;
   if (last && Date.now() - Date.parse(last.at) <= STALE_FIX_MS) return last;
-  return null;
+
+  const fix = await getCurrentLocation();
+  if (!fix) return null;
+
+  const at = {
+    lat: fix.lat,
+    lon: fix.lon,
+    chainage_m: getController()?.chainageAt(fix.lat, fix.lon) ?? null,
+  };
+  // The map and the camera overlay both read this, so a photograph taken while
+  // the walk was between fixes still moves the displayed distance.
+  setPosition(at.lat, at.lon, at.chainage_m);
+  return at;
 }
 
 function photoDir(): Directory {

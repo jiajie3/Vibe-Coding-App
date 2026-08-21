@@ -1,6 +1,6 @@
 {
   "id": "tpl_open_drain",
-  "version": 12,
+  "version": 13,
   "title": "Open Concrete Drain — Routine Inspection",
   "published_at": "2026-07-02T08:00:00.000Z",
   "sections": [
@@ -17,8 +17,12 @@
       "title": "Structural Condition"
     },
     {
+      "id": "sec_blockage",
+      "title": "Blockage"
+    },
+    {
       "id": "sec_flow",
-      "title": "Flow & Blockage"
+      "title": "Flow"
     },
     {
       "id": "sec_remarks",
@@ -176,14 +180,14 @@
     },
     {
       "id": "blockage_present",
-      "section_id": "sec_flow",
+      "section_id": "sec_blockage",
       "type": "boolean",
       "label": "Blockage or restriction present?",
       "required": true
     },
     {
       "id": "blockage_type",
-      "section_id": "sec_flow",
+      "section_id": "sec_blockage",
       "type": "multi_select",
       "label": "Blockage composition",
       "visible_if": {
@@ -220,7 +224,7 @@
     },
     {
       "id": "blockage_other",
-      "section_id": "sec_flow",
+      "section_id": "sec_blockage",
       "type": "text",
       "label": "Describe the blockage",
       "required": true,

@@ -42,13 +42,40 @@ function matches(cond: FieldCondition | undefined, value: AnswerValue): boolean 
   return false;
 }
 
-export function isVisible(field: ChecklistField, answers: Answers): boolean {
+/**
+ * Is this field currently shown?
+ *
+ * Visibility is inherited. A field whose trigger is itself hidden is hidden too,
+ * however its own condition reads — because the answer that condition is testing
+ * is stale: nobody can see the question it came from any more.
+ *
+ * Without that, changing "site accessible" back to Yes hid "what stopped you?"
+ * but left the box that "Other" had opened sitting on the form, still holding
+ * the reason for a walk that was no longer blocked. The same happened under
+ * blockage and structural condition, which are the other two-deep chains.
+ *
+ * `template` is optional so a caller holding a single field can still ask the
+ * local question, but every caller that has the form passes it.
+ */
+export function isVisible(
+  field: ChecklistField,
+  answers: Answers,
+  template?: ChecklistTemplate,
+  seen: Set<string> = new Set(),
+): boolean {
   if (!field.visible_if) return true;
   const dep = field.visible_if.field;
   // A condition with no field reference cannot be evaluated. Fail visible
   // rather than silently hiding a question an inspector is meant to answer.
   if (!dep) return true;
-  return matches(field.visible_if, answers[dep]);
+  if (!matches(field.visible_if, answers[dep])) return false;
+  if (!template || seen.has(field.id)) return true;
+
+  // `seen` guards a template that points two fields at each other. It would be
+  // a broken form, but a stack overflow on the phone is a worse way to say so.
+  seen.add(field.id);
+  const parent = template.fields.find((f) => f.id === dep);
+  return !parent || isVisible(parent, answers, template, seen);
 }
 
 /** Fields currently shown, in template order. Hidden fields are not answered. */
@@ -56,7 +83,7 @@ export function visibleFields(
   template: ChecklistTemplate,
   answers: Answers,
 ): ChecklistField[] {
-  return template.fields.filter((f) => isVisible(f, answers));
+  return template.fields.filter((f) => isVisible(f, answers, template));
 }
 
 /**
@@ -79,9 +106,13 @@ export function photoFieldId(template: ChecklistTemplate): string | null {
  * no evidence — the single most common way inspection data becomes unusable.
  * The requirement is unchanged; only where the photograph has to be has moved.
  */
-export function requiresPhoto(field: ChecklistField, answers: Answers): boolean {
+export function requiresPhoto(
+  field: ChecklistField,
+  answers: Answers,
+  template?: ChecklistTemplate,
+): boolean {
   if (!field.requires_photo_when) return false;
-  if (!isVisible(field, answers)) return false;
+  if (!isVisible(field, answers, template)) return false;
   return matches(field.requires_photo_when, answers[field.id]);
 }
 
@@ -107,7 +138,7 @@ export function validate(
   const generalCount = generalId ? (photoCounts[generalId] ?? 0) : 0;
 
   for (const field of template.fields) {
-    if (!isVisible(field, answers)) continue;
+    if (!isVisible(field, answers, template)) continue;
 
     const value = answers[field.id];
 
@@ -157,7 +188,7 @@ export function validate(
       }
     }
 
-    if (requiresPhoto(field, answers) && generalCount < 1) {
+    if (requiresPhoto(field, answers, template) && generalCount < 1) {
       errors.push({
         field_id: field.id,
         label: field.label,
