@@ -136,10 +136,6 @@ export default function RejectInspection({
     <div className="modal" onClick={onCancel}>
       <form className="modal-card" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
         <h2>Reject this inspection</h2>
-        <p className="modal-sub">
-          It goes back to the inspector with your reason and reappears on their job
-          list. Their original submission is kept in full.
-        </p>
 
         {/* At the top, because it fills in the form below it. Offered after the
             fields it populates, it reads as a footnote to work already done. */}

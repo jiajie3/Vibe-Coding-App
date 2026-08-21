@@ -353,9 +353,8 @@ export default function ChecklistScreen({
           <View style={styles.photoBlock}>
             {photos.length === 0 && (
               <Text style={styles.photoEmpty}>
-                At least one is needed, whatever you found. Take a photo on the
-                map screen and it appears here, tagged with the distance along
-                the drain.
+                Take a photo on the map screen and it appears here, tagged with
+                the distance along the drain.
               </Text>
             )}
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>

@@ -163,7 +163,7 @@ export default function OverrideScreen({ navigation }: { navigation: any }) {
         <Text style={styles.title}>Submit without full coverage</Text>
         <Text style={styles.help}>
           You walked {coverage.toFixed(0)}% of {job.asset.name}. Tell us what stopped
-          you — this is kept on the record and reviewed.
+          you.
         </Text>
 
         {gaps.length > 0 && (
@@ -210,8 +210,6 @@ export default function OverrideScreen({ navigation }: { navigation: any }) {
           multiline
           value={notes}
           onChangeText={setNotes}
-          placeholder="Gate at the downstream end padlocked; no key at the depot."
-          placeholderTextColor="#94A3B8"
           {...multilineDoneProps}
         />
 

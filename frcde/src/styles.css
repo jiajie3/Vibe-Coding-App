@@ -349,7 +349,6 @@ html, body { height: 100%; }
   box-shadow: 0 20px 60px rgb(0 0 0 / 0.3); max-height: 90vh; overflow-y: auto;
 }
 .modal-card h2 { margin: 0; font-size: 23.5px; }
-.modal-sub { margin: -6px 0 2px; font-size: 17px; color: var(--muted); }
 .modal-card label {
   display: grid; gap: 5px; font-size: 15px; font-weight: 800;
   color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px;
