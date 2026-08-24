@@ -615,7 +615,7 @@ export default function JobDetail() {
                   disabled={busy}
                   onClick={() => setRouting(true)}
                 >
-                  Route to officer
+                  Route to external
                 </button>
               )}
             </div>

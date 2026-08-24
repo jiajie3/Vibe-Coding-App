@@ -132,7 +132,7 @@ export default function WorkOrders() {
         {orders.length === 0 && (
           <div className="empty">
             Nothing outstanding. Follow-ups come from a submitted inspection — open a
-            drain with findings and use <strong>Route to officer</strong>.
+            drain with findings and use <strong>Route to external</strong>.
           </div>
         )}
 

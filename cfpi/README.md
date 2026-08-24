@@ -130,6 +130,18 @@ reason shown. Without it an inspector has two options, walking the drain badly t
 the percentage or leaving the job open — both worse than an honest 62% with a photo of
 the padlock.
 
+## Site notes
+
+Whatever the supervisor wrote for the person who turns up at the gate — "key held at
+the depot, collect before 08:00" — sits on the map screen with the drain's hazards,
+before you start walking. It travelled on the job payload all along and the handset
+simply never rendered it, so the one note written for the inspector reached everyone
+except them.
+
+Hidden while the walk is running. It is the only thing on that screen that cannot
+change during a walk, and the map underneath is what matters then; it comes back on
+pause, when you are standing at a gate again.
+
 ## Photographs
 
 **Take a photo** sits beside Checklist & submit on the map screen. Every photograph is

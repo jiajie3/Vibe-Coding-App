@@ -328,6 +328,37 @@ export default function InspectionScreen({
             </View>
           </View>
 
+          {/*
+            * What the supervisor wrote for whoever turns up at the gate.
+            *
+            * It has been on the job all along — FRCDE has an editor for it —
+            * and the handset never showed it, so "key held at the depot,
+            * collect before 08:00" reached the one person who could not act on
+            * it. Read on arrival, which is why it is here and not two taps into
+            * the checklist.
+            *
+            * Hidden while walking: it is the only thing on this screen that
+            * cannot change during the walk, and the map underneath is what the
+            * inspector needs then. It comes back on pause, when they are
+            * standing at a gate again.
+            */}
+          {!running && (job.asset.access_notes || job.asset.hazards?.length) && (
+            <View style={styles.site}>
+              {!!job.asset.access_notes && (
+                <Text style={styles.siteText}>{job.asset.access_notes}</Text>
+              )}
+              {!!job.asset.hazards?.length && (
+                <View style={styles.hazards}>
+                  {job.asset.hazards.map((h) => (
+                    <View key={h} style={styles.hazard}>
+                      <Text style={styles.hazardText}>{h.replace(/_/g, ' ')}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+
           {insp.rejected && running && (
             <View style={styles.warn}>
               <Text style={styles.warnText}>
@@ -529,6 +560,33 @@ const styles = StyleSheet.create({
   },
   pausedPillText: { fontSize: 9, fontWeight: '800', color: '#92400E', letterSpacing: 0.6 },
   hudName: { flexShrink: 1, fontSize: 17, fontWeight: '700', color: '#0F172A' },
+
+  /* Amber, like a note pinned to the gate. Not red: it is information to act
+     on, not a fault to fix. */
+  site: {
+    marginTop: 10,
+    backgroundColor: '#FFFBEB',
+    borderLeftWidth: 3,
+    borderLeftColor: '#F59E0B',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    gap: 7,
+  },
+  siteText: { fontSize: 13.5, color: '#78350F', lineHeight: 18.5 },
+  hazards: { flexDirection: 'row', flexWrap: 'wrap', gap: 5 },
+  hazard: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  hazardText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#92400E',
+    textTransform: 'capitalize',
+  },
 
   coverageRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 14 },
   pct: { fontSize: 44, fontWeight: '800', color: '#334155', letterSpacing: -2 },
