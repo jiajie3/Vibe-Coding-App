@@ -337,6 +337,9 @@ export const api = {
  * business — see `dueLabel`. Red here is reserved for a rejected inspection,
  * which genuinely is a problem with the record itself.
  */
+/** A follow-up nobody has closed yet. Teal: in hand, but not in ours. */
+export const FOLLOW_UP_COLOUR = '#0d9488';
+
 export const STATUS_COLOUR: Record<string, string> = {
   available: '#475569',
   accepted: '#0284c7',
@@ -398,12 +401,35 @@ export const STATUS_LABEL: Record<string, string> = {
  * mechanically, but "Accepted" tells a supervisor nothing about why it is back
  * on someone's list. The rejection reason is what distinguishes the two.
  */
-export function jobStatusLabel(job: { status: string; rejection_reason?: string | null }): string {
+export function jobStatusLabel(job: JobState): string {
   if (job.status === 'accepted' && job.rejection_reason) return 'To re-inspect';
+  if (job.status === 'submitted' && job.awaiting_follow_up) return 'Awaiting follow-ups';
   return STATUS_LABEL[job.status] ?? job.status;
 }
 
-export function jobStatusColour(job: { status: string; rejection_reason?: string | null }): string {
+export function jobStatusColour(job: JobState): string {
   if (job.status === 'accepted' && job.rejection_reason) return STATUS_COLOUR.rejected;
+  if (job.status === 'submitted' && job.awaiting_follow_up) return FOLLOW_UP_COLOUR;
   return STATUS_COLOUR[job.status] ?? '#64748b';
+}
+
+interface JobState {
+  status: string;
+  rejection_reason?: string | null;
+  /** A case is open with somebody outside FRCDE. See `openFollowUps`. */
+  awaiting_follow_up?: boolean;
+}
+
+/**
+ * Jobs with a follow-up case nobody has closed.
+ *
+ * "Awaiting review" is a queue a supervisor works through. A drain that has
+ * been routed to a contractor is not in that queue — nothing a supervisor does
+ * moves it, and it sat there looking like work they were behind on. Once the
+ * case closes it becomes their turn again and the label goes back.
+ */
+export function openFollowUps(orders: { job_id: string; status: string }[]): Set<string> {
+  return new Set(
+    orders.filter((w) => w.status !== 'done' && w.status !== 'cancelled').map((w) => w.job_id),
+  );
 }

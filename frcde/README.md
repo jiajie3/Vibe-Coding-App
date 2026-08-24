@@ -144,10 +144,15 @@ of truth to the server.
 
 ## Scheduling runs itself
 
-A drain's next inspection is set from its own cycle when the last one is approved —
-canal 60 days, open drain 90, box culvert 120, roadside scupper 180 (`INSPECTION_CYCLE_DAYS`
-in `server/store.ts`). An hourly sweep, plus one on startup, queues anything that has
-come due, so a server left off over a weekend catches up by itself.
+A drain's next inspection is set from its cycle when the last one is approved — 30
+days, because every drain is walked monthly. The intervals used to vary by asset type
+on the reasoning that bigger drains deserve more attention; plausible, and not what
+happens, and a schedule that quietly differs from the one being worked to is worse than
+none. It is still a lookup (`INSPECTION_CYCLE_DAYS` in `server/store.ts`), because a
+real maintenance policy does vary by asset and that is the seam where it arrives.
+
+An hourly sweep, plus one on startup, queues anything that has come due, so a server
+left off over a weekend catches up by itself.
 
 There is deliberately **no "run scheduler" button**. A supervisor should be able to see
 the automation working, not be asked to trigger it — the queue panel shows when it last
@@ -158,6 +163,14 @@ rare "policy just changed, sweep now" case.
 
 Raised from a submitted inspection and pre-filled from what it found — a blockage with
 260 mm of silt proposes clearing it, at the chainage of the first photograph.
+
+A drain with an open case reads **Awaiting follow-ups**, not Awaiting review, and is
+counted on its own card. Nothing a supervisor does moves it while a contractor holds
+it, so leaving it in the review queue made the number they check every morning wrong
+in the direction that causes chasing. When the case closes it becomes their turn again
+and the label goes back on its own. Both are still `submitted` on the server — this is
+a console distinction, because the two mean different things to the person reading
+them and nothing to the state machine.
 
 An inspection that finds a defect and produces nothing but a record is how inspectors
 learn their findings do not matter. So a follow-up is a case with a party on the other

@@ -79,6 +79,8 @@ html, body { height: 100%; }
 .kpi.warn .v { color: var(--red); }
 .kpi.soon .v { color: var(--amber); }
 .kpi.review .v { color: var(--violet); }
+/* Teal, matching the pill: in hand, but not in ours. */
+.kpi.followup .v { color: #0d9488; }
 .kpi.active .v { color: var(--amber); }
 
 /* ------------------------------------------------------------------ split */

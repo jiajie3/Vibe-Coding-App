@@ -314,17 +314,16 @@ export const DUE_WINDOW_DAYS = 7;
  * hand: closing an inspection sets the next due date from the asset's own cycle,
  * and anything falling due inside the window is queued automatically.
  *
- * Real intervals would come from PUB's maintenance policy; these are plausible
- * stand-ins — bigger, more consequential assets are seen more often.
+ * Monthly, for everything. The intervals here used to vary by asset type on the
+ * reasoning that bigger drains deserve more attention — plausible, and not what
+ * happens: every drain is walked once a month. A schedule that quietly differs
+ * from the one being worked to is worse than no schedule.
+ *
+ * Still a lookup rather than a constant, because a real maintenance policy does
+ * vary by asset and this is the seam where that arrives.
  */
-const INSPECTION_CYCLE_DAYS: Record<string, number> = {
-  canal: 60,
-  open_concrete_drain: 90,
-  closed_box_culvert: 120,
-  earth_drain: 120,
-  roadside_scupper: 180,
-};
-const DEFAULT_CYCLE_DAYS = 90;
+const INSPECTION_CYCLE_DAYS: Record<string, number> = {};
+const DEFAULT_CYCLE_DAYS = 30;
 
 export function cycleFor(assetType: string): number {
   return INSPECTION_CYCLE_DAYS[assetType] ?? DEFAULT_CYCLE_DAYS;

@@ -8,7 +8,15 @@ import AutoReview from '../components/AutoReview.tsx';
 import RouteFollowUp from '../components/RouteFollowUp.tsx';
 import type { FollowUpDraft } from '../components/RouteFollowUp.tsx';
 import SiteNotes from '../components/SiteNotes.tsx';
-import { api, DISPATCHED, dueLabel, emphasis, jobStatusColour, jobStatusLabel } from '../api.ts';
+import {
+  api,
+  DISPATCHED,
+  dueLabel,
+  emphasis,
+  jobStatusColour,
+  jobStatusLabel,
+  openFollowUps,
+} from '../api.ts';
 import { toast } from '../toast.ts';
 
 import type {
@@ -173,6 +181,15 @@ export default function JobDetail() {
 
   if (!job) return <div className="page"><div className="empty">Loading…</div></div>;
 
+  /**
+   * The job as its pill should read it.
+   *
+   * A drain routed to a contractor is not sitting in the supervisor's review
+   * queue, and saying "Awaiting review" on the page that shows the open case
+   * directly below contradicts itself.
+   */
+  const shownJob = { ...job, awaiting_follow_up: openFollowUps(orders).has(job.id) };
+
   const gate = job.inspection_rules.min_coverage_pct;
   const serverPct = current?.server_coverage_pct ?? 0;
   const clientPct = current?.client_coverage?.client_computed_pct ?? null;
@@ -228,8 +245,8 @@ export default function JobDetail() {
           </div>
         </div>
         <div className="headactions">
-          <span className="pill" style={{ background: jobStatusColour(job) }}>
-            {jobStatusLabel(job)}
+          <span className="pill" style={{ background: jobStatusColour(shownJob) }}>
+            {jobStatusLabel(shownJob)}
           </span>
           {job.status === 'submitted' && current && (
             <>

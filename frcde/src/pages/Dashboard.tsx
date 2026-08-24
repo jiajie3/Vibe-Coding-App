@@ -13,6 +13,7 @@ import {
   emphasis,
   jobStatusColour,
   jobStatusLabel,
+  openFollowUps,
   STATUS_COLOUR,
 } from '../api.ts';
 import type { JobRecord, Overview } from '../api.ts';
@@ -116,6 +117,15 @@ export default function Dashboard() {
 
   const visible = useMemo(() => (data?.jobs ?? []).filter(matches), [data, matches]);
 
+  /** Jobs with a case still open somewhere outside FRCDE. */
+  const followUps = useMemo(() => openFollowUps(data?.work_orders ?? []), [data]);
+
+  /** A job as the pills should read it, follow-up state included. */
+  const withFollowUp = useCallback(
+    <T extends { id: string }>(job: T) => ({ ...job, awaiting_follow_up: followUps.has(job.id) }),
+    [followUps],
+  );
+
   const dispatched = useMemo(
     () => visible.filter((j) => DISPATCHED.includes(j.status)),
     [visible],
@@ -184,7 +194,7 @@ export default function Dashboard() {
       return (
         `<div class="pop-ref">${esc(j.reference)}</div>` +
         `<div class="pop-name">${esc(j.asset.name)}</div>` +
-        `<div class="pop-row"><span>Status</span><span>${esc(jobStatusLabel(j))}</span></div>` +
+        `<div class="pop-row"><span>Status</span><span>${esc(jobStatusLabel(withFollowUp(j)))}</span></div>` +
         `<div class="pop-row"><span>Length</span><span>${j.asset.length_m.toFixed(0)} m</span></div>` +
         `<div class="pop-row"><span>Due</span><span>${due.text}</span></div>` +
         extra +
@@ -276,16 +286,23 @@ export default function Dashboard() {
   const overdue = dispatched.filter((j) => dueLabel(j.due_at).overdue).length;
   const dueSoon = dispatched.filter((j) => emphasis(j) === 'soon').length;
 
+  // Two queues, counted apart. A drain routed to a contractor is not work a
+  // supervisor is behind on, and adding it to "Awaiting review" made the number
+  // they check every morning wrong in the direction that causes chasing.
+  const submitted = data.jobs.filter((j) => j.status === 'submitted');
+  const awaitingFollowUp = submitted.filter((j) => followUps.has(j.id)).length;
+  const awaitingReview = submitted.length - awaitingFollowUp;
+
   return (
     <div className="page">
       {/*
-        * Four numbers, not seven.
+        * Five numbers, not seven.
         *
         * Every figure used to be the same size, so "Drains: 40" shouted as loudly
         * as "Overdue: 1" — and a dashboard where everything is emphasised has
-        * nothing emphasised. The total leads because it is what the other three
-        * are counted out of, and it is left uncoloured so the ones that need
-        * acting on are still the ones that catch the eye.
+        * nothing emphasised. The total leads because it is what the others are
+        * counted out of, and it is left uncoloured so the ones that need acting
+        * on are still the ones that catch the eye.
         */}
       <div className="kpis">
         <div className="kpi">
@@ -301,8 +318,12 @@ export default function Dashboard() {
           <div className="k">Due soon</div>
         </div>
         <div className="kpi review">
-          <div className="v">{s.submitted}</div>
+          <div className="v">{awaitingReview}</div>
           <div className="k">Awaiting review</div>
+        </div>
+        <div className="kpi followup">
+          <div className="v">{awaitingFollowUp}</div>
+          <div className="k">Awaiting follow-ups</div>
         </div>
       </div>
 
@@ -411,7 +432,7 @@ export default function Dashboard() {
             {shown.map((j) => (
               <QueueRow
                 key={j.id}
-                job={j}
+                job={withFollowUp(j)}
                 busy={busy === j.id}
                 onOpen={() => nav(`/jobs/${j.id}`)}
                 onDispatch={() => act(() => api.dispatch(j.id), j.id)}
@@ -432,7 +453,8 @@ function QueueRow({
   onDispatch,
   onClose,
 }: {
-  job: JobRecord;
+  /** With `awaiting_follow_up` folded in, so the pill can read the whole state. */
+  job: JobRecord & { awaiting_follow_up?: boolean };
   busy: boolean;
   onOpen: () => void;
   onDispatch: () => void;
