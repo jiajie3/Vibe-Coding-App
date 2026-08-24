@@ -70,7 +70,10 @@ html, body { height: 100%; }
 
 /* Three cards, sized to their content rather than stretched across the monitor.
    Seven equal cards made every number shout; these are the ones worth acting on. */
-.kpis { display: grid; grid-template-columns: repeat(4, minmax(150px, 230px)); gap: 12px; margin-bottom: 16px; }
+/* auto-fit, not a fixed four. The count was hardcoded, so adding a fifth card
+   pushed it onto a line of its own — and the follow-ups page, which has three,
+   was already living with a gap where the fourth would have been. */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 240px)); gap: 12px; margin-bottom: 16px; }
 @media (max-width: 640px) { .kpis { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); } }
 
 .kpi { background: var(--panel); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); }
