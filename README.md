@@ -11,7 +11,7 @@ up in the others.
 | **CFPI** | The field app. An inspector receives inspection cases, walks the drain with GPS, and submits a checklist. | Your phone |
 | **Slack** | Where follow-ups get handed to external agencies/contractors. | Slack |
 
-> **All usernames and passwords are in the submission document**, not in this file.
+> ⚠️ **All usernames and passwords are in the submission document**, not in this file.
 
 ---
 
@@ -19,7 +19,7 @@ up in the others.
 
 **<https://frcde.onrender.com>**
 
-Open it and sign in with the credentials provided in the submission.
+Open it and sign in with the **FRCDE credentials provided in the submission**.
 
 > ⏳ **The first page may take up to a minute.** The server runs on a free hosting
 > plan, so it goes to sleep when nobody has used it for a while and has to wake up
@@ -39,7 +39,7 @@ Search for **Expo Go** in the App Store or Google Play and install it.
 
 ### Step 2 — Sign in to Expo Go
 
-Open Expo Go and sign in with the **Expo account** provided in the submission.
+Open Expo Go and sign in with the **Expo Go credentials provided in the submission**.
 
 > ⚠️ **This step is not optional.** The demo is shared privately with that account.
 > If you skip it, the next step appears to do nothing at all.
@@ -52,19 +52,19 @@ Open Expo Go and sign in with the **Expo account** provided in the submission.
   appears. (Expo Go on iPhone has no scanner of its own.)
 - **Android** — open **Expo Go**, tap **Scan QR code**, and point it at the code.
 
-Either way, it opens in Expo Go. It takes a few seconds to download the first time.
+The app takes a few seconds to download the first time.
 
 ### Step 4 — Sign in to the app
 
-Use the **inspector** credentials from the submission. The server address is already
+Use the **CFPI credentials provided in the submission**. The server address is already
 filled in for you.
 
 ---
 
 ## 3. Slack — where follow-ups get handed over
 
-Sign in to Slack with the **credentials provided in the submission**, and look at
-these two channels:
+Sign in to Slack with the **Slack credentials provided in the submission**, and look
+at these two channels once a follow-up has been routed from FRCDE:
 
 - **#nea** — cases routed to the National Environment Agency
 - **#lta** — cases routed to the Land Transport Authority
@@ -149,6 +149,3 @@ behind each decision is written down rather than left implicit:
 Drain data comes from **OpenStreetMap** — around 40 real drains across Singapore —
 because PUB's own asset data is confidential. Genuine geometry for Pelton Canal,
 Bukit Timah 1st Diversion Canal, Sungei Ulu Pandan and others.
-
-Roughly 40% of Singapore's mapped drains run underground, where GPS cannot verify
-anything. That case is not handled here and would need a different approach entirely.
