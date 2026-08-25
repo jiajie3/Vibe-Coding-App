@@ -7,9 +7,9 @@ up in the others.
 
 | | What it is | Where |
 |---|---|---|
-| **FRCDE** | The console and repository. Decides which drains are due, dispatches them, reviews what comes back. | A website |
+| **FRCDE** | The console and repository. Decides which drains are due, dispatches them, reviews what comes back. | Your browser |
 | **CFPI** | The field app. An inspector receives inspection cases, walks the drain with GPS, and submits a checklist. | Your phone |
-| **Slack** | Where follow-ups get handed to external agencies/contractors. | Slack |
+| **Slack** | Where follow-ups get handed to external agencies/contractors. | Slack app or browser |
 
 > ⚠️ **All usernames and passwords are in the submission document**, not in this file.
 
@@ -21,10 +21,10 @@ up in the others.
 
 Open it and sign in with the **FRCDE credentials provided in the submission**.
 
-> ⏳ **The first page may take up to a minute.** The server runs on a free hosting
-> plan, so it goes to sleep when nobody has used it for a while and has to wake up
-> again. It is only slow once — after that it is immediate. If the page looks stuck,
-> give it sixty seconds before reloading.
+> ⏳ **The first page may take up to a minute to load.** The server runs on a free
+> hosting plan, so it goes to sleep when nobody has used it for a while and has to
+> wake up again. It is only slow once — after that it is immediate. If the page looks
+> stuck, give it sixty seconds before reloading.
 
 ---
 
