@@ -1,152 +1,182 @@
-# Drain inspection system
+# Drain inspection, end to end
 
-Two connected applications for scheduling, carrying out and reviewing drain inspections.
+A working demonstration of how a drain inspection could run in Singapore, from the
+moment one falls due to the moment a contractor closes off the repair.
 
-| | | |
+There are three things to open, and they are connected. Something you do in one shows
+up in the others.
+
+| | What it is | Where |
 |---|---|---|
-| **[CFPI](cfpi/)** | React Native + Expo SDK 54 | Field app. Inspectors walk the drain while GPS verifies coverage, fill a checklist, take photos. |
-| **[FRCDE](frcde/)** | React + Vite + Express | Console. Decides what needs inspecting, dispatches jobs, reviews results. |
+| **FRCDE** | The office console. Decides which drains are due, dispatches them, reviews what comes back. | A website |
+| **CFPI** | The field app. An inspector walks the drain while GPS checks they covered it. | Your phone |
+| **Slack** | Where a repair gets handed to whoever fixes it. | Slack |
 
-Runs locally with no build step and no database. There is also a shared deployment —
-FRCDE on Render, CFPI over Expo Go — described in
-[docs/deploying.md](docs/deploying.md).
+> **All usernames and passwords are in the submission document**, not in this file.
+> Keep it open alongside — you will need three sets: one for the console, one for
+> Expo Go, one for Slack.
 
-Slack follow-ups and the automatic first pass are optional: without their keys both
-degrade to logging and rule checks, and nothing else changes.
+---
 
-## Run it
+## 1. FRCDE — the console
 
-```bash
-cd frcde && npm install && npm run dev     # API :4000, console :5173
-cd cfpi  && npm install && npm start       # Metro, Expo Go mode
-```
+**<https://frcde.onrender.com>**
 
-Open <http://localhost:5173> for the console. Scan the CFPI QR code with your iPhone
-**Camera app** — Expo Go on iOS has no scanner of its own, so scanning from inside the
-app is not an option there. Android's Expo Go does have one. Both machines must be on
-the same Wi-Fi.
+Open it and sign in with the **console** credentials from the submission.
 
-### Accounts
+> ⏳ **The first page may take up to a minute.** The server sleeps when nobody has
+> used it for a while and has to wake up. It is only slow once — after that it is
+> immediate. If the page looks stuck, give it sixty seconds before reloading.
 
-| Where | Username | Password | |
-|---|---|---|---|
-| Console | `supervisor` | `supervisor` | approves work, schedules drains |
-| App | `inspector` | `inspector` | walks drains |
-| App | `siti` | `siti` | second inspector |
+What you are looking at: every drain in the register, on a map and in a list, with the
+ones falling due pushed to the top. The counters along the top are the day's work —
+how many are overdue, how many are waiting for someone to look at them.
 
-Local defaults only. The deployed instance overrides all three from environment
-variables, precisely so these do not reach a public URL.
+Two pages, from the bar at the top: **Inspection Dashboard** (the drains) and
+**Inspection Follow-ups** (repairs handed to someone else).
 
-The console is supervisor-only and the server enforces it, not just the UI. On the phone,
-the server address and sign-in are on one screen — on a fresh handset both are unset, and
-signing in against no server achieves nothing. Jobs download on success.
+Have a click around. Nothing here is fragile — there is a **Reset** button beside the
+sort box if you would like to put everything back as it was.
 
-Per-project detail is in [cfpi/README.md](cfpi/README.md) and
-[frcde/README.md](frcde/README.md). Deployment is
-[docs/deploying.md](docs/deploying.md); the Slack integration is
-[docs/slack.md](docs/slack.md); the automatic review is
-[docs/ai-review.md](docs/ai-review.md).
+---
 
-## How they fit together
+## 2. CFPI — the field app
 
-```
-FRCDE                                  CFPI
-  │                                      │
-  │  GET /v1/jobs ─────────────────────▶ │  only jobs needing inspection
-  │                                      │  (cached to disk; works offline)
-  │                                      │
-  │  ◀── heartbeat ──────────────────────│  ~100 bytes: "47%, paused"
-  │                                      │
-  │  ◀── start · track · photos ─────────│  queued in an outbox,
-  │  ◀── complete ───────────────────────│  drains when signal returns
-  │                                      │
-  │  reviewer approves ─────────────────▶│  job disappears
-  │       └─ next due set from the       │
-  │          asset's own cycle, then     │
-  │          re-queued automatically     │
-  │  reviewer rejects ──────────────────▶│  job returns, with the reason
-  │  reviewer raises work order          │
-```
+Works on **iPhone and Android**. It runs inside a free app called Expo Go, so there is
+nothing to install from an app store beyond that.
 
-**FRCDE is the brain.** It holds the whole asset register and decides what is due;
-CFPI receives only actionable jobs and never sees the rest.
+### Step 1 — Install Expo Go
 
-**CFPI owns work in progress.** A part-walked inspection — coverage, draft answers,
-photos — lives on the handset, so an inspector can pause at a locked gate and resume
-three days later with no signal at all. FRCDE gets a small heartbeat so a supervisor can
-still see progress. Reasoning and the trade-off: [frcde/README.md](frcde/README.md).
+Search for **Expo Go** in the App Store or Google Play and install it.
 
-**The server has the final say on coverage.** CFPI's percentage drives its own live map,
-but on submission FRCDE recomputes coverage from the raw GPS points — using the very same
-engine, imported directly from `cfpi/src/core/` so the two cannot drift apart.
+### Step 2 — Sign in to Expo Go
 
-## The contract
+Open Expo Go and sign in with the **Expo account** from the submission.
 
-[docs/api-contract.md](docs/api-contract.md) is the spec both sides build against —
-job lifecycle, offline sync rules, coverage semantics, and the reasoning behind each.
-[contracts/openapi.yaml](contracts/openapi.yaml) is the machine-readable version.
+> ⚠️ **This step is not optional.** The demo is shared privately with that account.
+> If you skip it, the next step appears to do nothing at all.
 
-Worth reading first if you are picking this up cold. The design principles in §1
-(client-generated IDs, idempotent writes, server-authoritative coverage) explain most of
-what looks unusual elsewhere.
+### Step 3 — Open the app
 
-## Where the drain data comes from
+<img src="docs/expo-go-qr.png" width="240" alt="QR code to open CFPI in Expo Go">
 
-Real PUB drain centrelines are confidential, so development data is **OpenStreetMap** —
-about 2,400 mapped waterway centrelines across Singapore. Genuine alignments for Pelton
-Canal, Bukit Timah 1st Diversion Canal, Sungei Ulu Pandan and others.
+- **iPhone** — point your normal **Camera** app at the code and tap the banner that
+  appears. (Expo Go on iPhone has no scanner of its own.)
+- **Android** — open **Expo Go**, tap **Scan QR code**, and point it at the code.
 
-```bash
-python tools/seed_from_osm.py --count 40
-```
+Either way, it opens in Expo Go. It takes a few seconds to download the first time.
 
-Structurally identical to what a real asset register supplies (GeoJSON `LineString`,
-WGS84), so swapping in production geometry changes an ingestion adapter and nothing else.
-ODbL-licensed: fine for development, needs attribution if shown publicly, must not become
-the production register.
+*Alternative:* once you are signed in, the project also appears under **Projects** on
+the Expo Go home screen — you can tap it there instead of scanning.
 
-## Tests
+### Step 4 — Sign in to the app
 
-```bash
-cd cfpi  && npm run test:core   # coverage, checklist, deadline and uuid engines
-cd frcde && npm test            # passwords, Slack routing and signature verification
-cd frcde && npm run e2e         # full contract round-trip against a running server
-cd frcde && npm run slack:e2e   # the Slack case round-trip, signatures included
-```
+Use the **inspector** credentials from the submission. The server address is already
+filled in for you.
 
-`cfpi/src/core/` is free of React and Expo imports on purpose. The parts that decide
-whether an inspection counts are tested exhaustively against real Singapore geometry in
-milliseconds, with no device or emulator.
+You should land on a list of drains waiting to be walked.
 
-The e2e walks accept → start → track → photo → complete → review, and asserts the
-lifecycle end to end: a submitted job leaves the handset, a rejected one comes back with
-its reason, an approved one is gone for good, and a client claiming 100% coverage against
-a 93.5% track is flagged.
+---
 
-## Status
+## 3. Slack — where repairs get handed over
 
-**Built.** An automatic first pass over every submitted inspection — rule checks
-plus a model reading the remarks and the photographs, advisory only
-([docs/ai-review.md](docs/ai-review.md)); Slack follow-ups — a case is opened in a routed channel, the contractor
-acknowledges and closes it there, and the outcome comes back
-([docs/slack.md](docs/slack.md)); authentication with roles; job dispatch and lifecycle; GPS coverage
-verification with server-side recomputation; pause and resume across days; server-driven
-checklists; geotagged photo capture and upload; an offline outbox with retry and
-dead-lettering; coverage override with a recorded reason and evidence; review, approval
-and re-inspection; remediation work orders; automatic scheduling from per-asset
-inspection cycles.
+Sign in to Slack with the credentials from the submission, and look at these two
+channels:
 
-**Not built.** Tunnel handling — roughly 40% of Singapore's mapped drains are
-underground, where GPS cannot verify coverage at all. Also: delta sync, real signature
-capture, reporting and export, an audit trail, and offline basemap tiles.
+- **#nea** — cases routed to the National Environment Agency
+- **#lta** — cases routed to the Land Transport Authority
 
-**Known shortcuts, deliberately visible rather than half-hidden.** Tokens are opaque
-random strings rather than signed JWTs, and there is no rate limiting or account
-lockout — production needs a real identity provider. The console keeps its token in
-`localStorage` rather than an httpOnly cookie. Passwords *are* hashed (scrypt, per-user
-salt); the demo credentials above are weak on purpose and should be overridden on any
-deployment — see [docs/deploying.md](docs/deploying.md).
+This is where a problem found in the field lands as a job for someone else, with the
+photographs and a map pin to the exact spot. Anything you or a colleague do in the
+channel comes straight back to the console.
 
-This is a mock-up. Before any production use, settle data retention and written
-disclosure for continuous employee location tracking — regulated under PDPA in Singapore
-and GDPR in the EU.
+---
+
+## See the whole thing in ten minutes
+
+Do these in order and every part of the system will have done its job.
+
+### In the app, walk a drain
+
+1. Tap any drain in the list.
+2. Tap **Simulate**. This starts the inspection and walks the drain for you, so you
+   can see the whole flow without leaving your chair — watch the coverage percentage
+   climb as the line on the map fills in. (**Start inspection** is the real thing,
+   which needs you to actually be at the drain.)
+3. While it walks, tap **Take a photo**. Photograph anything. It records where you
+   were standing and how far along the drain that is.
+4. Tap **Checklist & submit**. Your photograph is already there at the top. Answer the
+   questions — try answering **Poor** or **Critical** for the structural condition and
+   watch extra questions appear.
+5. Tap **Submit inspection**.
+
+> Try this too: open the checklist before the walk is finished. Because the drain is
+> not covered yet, you cannot submit — but at the bottom there is
+> **"Can't complete the walk? Submit with a reason"**. The app makes you say why and
+> photograph it, then submits honestly at whatever was actually covered rather than
+> pretending. That record reaches the supervisor flagged.
+
+### In the console, review it
+
+6. Refresh FRCDE. Your drain is now under **Awaiting review**.
+7. Open it. You will see the route walked, the photographs, the answers — and an
+   **automatic first pass**: a short written opinion on whether anything looks wrong,
+   including whether the photographs actually match what was reported. It only
+   advises; a person still decides.
+8. Either **Approve** it, or **Reject** it and send it back to the inspector with a
+   reason. (Rejected drains reappear in the app, with the reason attached.)
+
+### Hand a repair to someone else
+
+9. On the same page, press **Route to external**. Pick a channel — **#nea** or
+   **#lta** — and press the button that fills in the details for you if you like.
+10. Open Slack. The case is there, with the photographs, a tappable map pin and two
+    buttons.
+11. Press **Acknowledge**. Post a photo in the thread as though you had done the work.
+    Then press **Completed**.
+12. Go back to FRCDE and open **Inspection Follow-ups**. The whole conversation is there —
+    who said what, the photographs, and the case now closed. It updates by itself; you
+    do not need to refresh.
+
+That is the full loop: due → dispatched → walked → reviewed → handed over → fixed →
+recorded.
+
+---
+
+## If something does not work
+
+| What you see | What it is |
+|---|---|
+| The console takes ages to load | The server was asleep. Wait up to a minute; it only happens once. |
+| Scanning the QR does nothing | You are not signed in to Expo Go. Sign in with the account from the submission and scan again. |
+| The app looks out of date | Close Expo Go completely — swipe it away, do not just go to the home screen — and reopen. It checks for updates only when it starts fresh. |
+| "No GPS fix" when taking a photo | Expected indoors. Use **Simulate**, which walks the drain in software and gives every photograph a proper position. |
+| A drain will not submit | It is short of the coverage it needs, or a required answer or photograph is missing. The message at the bottom says which. |
+
+---
+
+## For anyone who wants to look under the bonnet
+
+This is a mock-up built to show the workflow, not a production system. The reasoning
+behind each decision is written down rather than left implicit:
+
+- [cfpi/README.md](cfpi/README.md) — the field app: how coverage is measured, why a
+  photograph must be taken and not chosen from the camera roll
+- [frcde/README.md](frcde/README.md) — the console: the job lifecycle and the scheduler
+- [docs/api-contract.md](docs/api-contract.md) — the agreement the two sides are built
+  against
+- [docs/slack.md](docs/slack.md) — the follow-up integration
+- [docs/ai-review.md](docs/ai-review.md) — what the automatic first pass does, and what
+  it is deliberately not allowed to do
+- [docs/deploying.md](docs/deploying.md) — how the shared demo is hosted
+
+Drain alignments come from **OpenStreetMap** — around 2,400 real waterway centrelines
+across Singapore — because PUB's own asset data is confidential. Genuine geometry for
+Pelton Canal, Bukit Timah 1st Diversion Canal, Sungei Ulu Pandan and others.
+
+Roughly 40% of Singapore's mapped drains run underground, where GPS cannot verify
+anything. That case is not handled here and would need a different approach entirely.
+
+Before anything like this ran for real, the continuous location tracking of employees
+would need settled data retention and written disclosure — PDPA in Singapore, GDPR in
+the EU.
