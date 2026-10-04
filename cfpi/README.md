@@ -1,13 +1,17 @@
 # CFPI — field inspection app
 
-React Native + **Expo SDK 54**. Inspectors receive drain inspection jobs from FRCDE, walk
+React Native + **Expo SDK 57**. Inspectors receive drain inspection jobs from FRCDE, walk
 the drain while CFPI verifies coverage by GPS, complete a checklist, and sync results back.
 
-> **Why SDK 54 and not the latest?** The App Store build of Expo Go is 54.0.2 and only
-> runs SDK 54 apps. Expo's route to a newer Expo Go on a physical iPhone is
-> `eas go` → TestFlight, which needs a paid Apple Developer account. Pinning to 54 is
-> what keeps this runnable on an iPhone for free. Check whether the App Store has moved
-> past 54.x before upgrading.
+> **The SDK tracks whatever Expo Go on the App Store runs**, because that is how this is
+> distributed — there is no build of our own for a phone to install. It sat on 54 while
+> the store did; the store moved to 57 and this had to follow the same day, because an
+> update published for an SDK Expo Go no longer runs is not a degraded experience, it is
+> a blank screen and an "AppLoader task encountered an unexpected error".
+>
+> Check what Expo Go reports under its Profile tab before publishing after any gap. The
+> update server answers an Expo Go asking for an SDK we did not publish with `204 No
+> Content`, which from the terminal looks like nothing at all went wrong.
 
 ## Run it
 

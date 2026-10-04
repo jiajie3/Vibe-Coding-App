@@ -103,7 +103,7 @@ installs, and `npx eas` fails with the unhelpful "could not determine executable
 to run".
 
 **`publish:demo` pins eas-cli to 16.12.0, and that pin is the only reason this
-works.** Expo Go matches an update by runtime version `exposdk:54.0.0`; eas-cli
+works.** Expo Go matches an update by runtime version `exposdk:57.0.0`; eas-cli
 22 overwrites `app.json` on every publish with `runtimeVersion: { policy:
 "appVersion" }`, resolving to `1.0.0`, which Expo Go never matches. Neither
 deleting the field nor setting it explicitly survives — 22 rewrites it either
@@ -114,7 +114,7 @@ dashboard link; the update server simply answers Expo Go with `204 No Content`
 and the app never appears. Check what was actually served:
 
 ```bash
-npx eas-cli@16.12.0 update:list --branch demo   # expect exposdk:54.0.0, not 1.0.0
+npx eas-cli@16.12.0 update:list --branch demo   # expect exposdk:57.0.0, not 1.0.0
 ```
 
 Do not run `eas update:configure` again. It is not idempotent: besides the
