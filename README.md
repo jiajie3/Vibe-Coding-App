@@ -149,3 +149,6 @@ behind each decision is written down rather than left implicit:
 Drain data comes from **OpenStreetMap** — around 40 real drains across Singapore —
 because PUB's own asset data is confidential. Genuine geometry for Pelton Canal,
 Bukit Timah 1st Diversion Canal, Sungei Ulu Pandan and others.
+
+One of them, **Yishun Trial Drain**, came in as a surveyed shapefile rather than
+from OpenStreetMap — see [yishun/](yishun/). It is the first drain on the list.

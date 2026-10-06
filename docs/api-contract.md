@@ -451,6 +451,17 @@ This is a **data-source substitution, not a compromise**. OSM ways are GeoJSON `
 WGS84 — structurally identical to what the real asset register will supply. Swapping in production
 geometry later changes an ingestion adapter, nothing else.
 
+One drain in the register demonstrates exactly that. `Yishun Trial Drain` was surveyed and supplied
+as an ESRI shapefile in SVY21, and [`tools/shapefile_to_job.py`](../tools/shapefile_to_job.py)
+reprojects it and files it as one more job:
+
+```
+python tools/shapefile_to_job.py yishun/alignment.shp --name "Yishun Trial Drain" --queue
+```
+
+Nothing downstream was told about shapefiles. The ingestion adapter is the whole of the change,
+which is the claim above, tested.
+
 Two caveats:
 - OSM geometry is ODbL-licensed. Fine for development and internal demos; carries an attribution
   requirement if ever shown publicly. It must not ship as the production asset register.

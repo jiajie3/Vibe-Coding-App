@@ -1,5 +1,258 @@
 [
   {
+    "id": "d0ec6e46-be7f-4ca8-bd61-9615e7eeffbe",
+    "reference": "INS-2026-004041",
+    "status": "available",
+    "version": 1,
+    "priority": "normal",
+    "due_at": "2026-10-09T01:00:00.000+00:00",
+    "assigned_inspector_id": null,
+    "asset": {
+      "id": "DRN-80041",
+      "name": "Yishun Trial Drain",
+      "type": "open_concrete_drain",
+      "length_m": 523.7,
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            103.843698,
+            1.4205658
+          ],
+          [
+            103.8437001,
+            1.420548
+          ],
+          [
+            103.8437074,
+            1.4203673
+          ],
+          [
+            103.8437093,
+            1.4203217
+          ],
+          [
+            103.8437107,
+            1.4201701
+          ],
+          [
+            103.8437025,
+            1.4200211
+          ],
+          [
+            103.8436853,
+            1.4198726
+          ],
+          [
+            103.843658,
+            1.4197202
+          ],
+          [
+            103.8436215,
+            1.4195729
+          ],
+          [
+            103.8435772,
+            1.4194317
+          ],
+          [
+            103.8435231,
+            1.4192897
+          ],
+          [
+            103.8434602,
+            1.4191517
+          ],
+          [
+            103.8433885,
+            1.4190166
+          ],
+          [
+            103.8433118,
+            1.4188927
+          ],
+          [
+            103.8432088,
+            1.4187445
+          ],
+          [
+            103.8432059,
+            1.4187403
+          ],
+          [
+            103.8430951,
+            1.418598
+          ],
+          [
+            103.8430939,
+            1.4185963
+          ],
+          [
+            103.8429749,
+            1.4184608
+          ],
+          [
+            103.8429744,
+            1.4184602
+          ],
+          [
+            103.8428495,
+            1.4183301
+          ],
+          [
+            103.8428479,
+            1.4183284
+          ],
+          [
+            103.8427157,
+            1.418206
+          ],
+          [
+            103.8425781,
+            1.4180898
+          ],
+          [
+            103.842574,
+            1.4180863
+          ],
+          [
+            103.8424302,
+            1.417978
+          ],
+          [
+            103.8422807,
+            1.4178777
+          ],
+          [
+            103.8422789,
+            1.4178764
+          ],
+          [
+            103.8421764,
+            1.4178179
+          ],
+          [
+            103.8420684,
+            1.4177686
+          ],
+          [
+            103.841957,
+            1.4177303
+          ],
+          [
+            103.8418425,
+            1.4177028
+          ],
+          [
+            103.8417243,
+            1.4176864
+          ],
+          [
+            103.8416071,
+            1.4176814
+          ],
+          [
+            103.8414896,
+            1.4176875
+          ],
+          [
+            103.8413716,
+            1.4177053
+          ],
+          [
+            103.8412598,
+            1.4177334
+          ],
+          [
+            103.8411478,
+            1.4177732
+          ],
+          [
+            103.8409835,
+            1.4178465
+          ],
+          [
+            103.8408567,
+            1.4179032
+          ]
+        ]
+      },
+      "segment_boundaries_m": [
+        0.0,
+        10.0,
+        20.0,
+        30.0,
+        40.0,
+        50.0,
+        60.0,
+        70.0,
+        80.0,
+        90.0,
+        100.0,
+        110.0,
+        120.0,
+        130.0,
+        140.0,
+        150.0,
+        160.0,
+        170.0,
+        180.0,
+        190.0,
+        200.0,
+        210.0,
+        220.0,
+        230.0,
+        240.0,
+        250.0,
+        260.0,
+        270.0,
+        280.0,
+        290.0,
+        300.0,
+        310.0,
+        320.0,
+        330.0,
+        340.0,
+        350.0,
+        360.0,
+        370.0,
+        380.0,
+        390.0,
+        400.0,
+        410.0,
+        420.0,
+        430.0,
+        440.0,
+        450.0,
+        460.0,
+        470.0,
+        480.0,
+        490.0,
+        500.0,
+        510.0,
+        520.0,
+        523.7
+      ],
+      "access_notes": "Surveyed alignment supplied as a shapefile. Confirm access on site.",
+      "hazards": []
+    },
+    "inspection_rules": {
+      "segment_length_m": 10,
+      "corridor_tolerance_m": 20,
+      "max_accuracy_m": 25,
+      "min_coverage_pct": 90,
+      "max_speed_mps": 3.0,
+      "allow_override": true,
+      "require_photo_on_override": true
+    },
+    "checklist_template": {
+      "id": "tpl_open_drain",
+      "version": 7
+    },
+    "rejection_reason": null,
+    "updated_at": "2026-10-06T12:00:00.000+00:00"
+  },
+  {
     "id": "e0b5c709-3d5b-46a4-ac26-a46470fd9533",
     "reference": "INS-2026-004001",
     "status": "in_progress",
@@ -262,7 +515,7 @@
         850,
         855.7
       ],
-      "access_notes": "Roadside access only \u2014 park on the verge, hazard lights on.",
+      "access_notes": "Roadside access only — park on the verge, hazard lights on.",
       "hazards": []
     },
     "inspection_rules": {
@@ -841,7 +1094,7 @@
     "assigned_inspector_id": "cf5df2db-b8d0-4c7f-b6d9-46aaf6700856",
     "asset": {
       "id": "DRN-80005",
-      "name": "Siglap Linear Park Drain \u2014 Segment 01",
+      "name": "Siglap Linear Park Drain — Segment 01",
       "type": "open_concrete_drain",
       "length_m": 617.0,
       "geometry": {
@@ -1062,7 +1315,7 @@
     "assigned_inspector_id": null,
     "asset": {
       "id": "DRN-80006",
-      "name": "Siglap Linear Park Drain \u2014 Segment 02",
+      "name": "Siglap Linear Park Drain — Segment 02",
       "type": "open_concrete_drain",
       "length_m": 601.9,
       "geometry": {
@@ -1277,7 +1530,7 @@
     "assigned_inspector_id": null,
     "asset": {
       "id": "DRN-80007",
-      "name": "Siglap Linear Park Drain \u2014 Segment 03",
+      "name": "Siglap Linear Park Drain — Segment 03",
       "type": "open_concrete_drain",
       "length_m": 322.8,
       "geometry": {
@@ -1510,7 +1763,7 @@
     "assigned_inspector_id": null,
     "asset": {
       "id": "DRN-80009",
-      "name": "Sungei Ketapang \u2014 Segment 01",
+      "name": "Sungei Ketapang — Segment 01",
       "type": "canal",
       "length_m": 621.0,
       "geometry": {
@@ -1740,7 +1993,7 @@
         620,
         621.0
       ],
-      "access_notes": "Roadside access only \u2014 park on the verge, hazard lights on.",
+      "access_notes": "Roadside access only — park on the verge, hazard lights on.",
       "hazards": [
         "confined_space",
         "deep_water"
@@ -1772,7 +2025,7 @@
     "assigned_inspector_id": null,
     "asset": {
       "id": "DRN-80010",
-      "name": "Sungei Ketapang \u2014 Segment 02",
+      "name": "Sungei Ketapang — Segment 02",
       "type": "canal",
       "length_m": 620.7,
       "geometry": {
@@ -2009,7 +2262,7 @@
     "assigned_inspector_id": null,
     "asset": {
       "id": "DRN-80011",
-      "name": "Sungei Ketapang \u2014 Segment 03",
+      "name": "Sungei Ketapang — Segment 03",
       "type": "canal",
       "length_m": 711.0,
       "geometry": {
@@ -2240,7 +2493,7 @@
         710,
         711.0
       ],
-      "access_notes": "Roadside access only \u2014 park on the verge, hazard lights on.",
+      "access_notes": "Roadside access only — park on the verge, hazard lights on.",
       "hazards": [
         "deep_water",
         "steep_batter"
@@ -2364,7 +2617,7 @@
         280,
         287.2
       ],
-      "access_notes": "Roadside access only \u2014 park on the verge, hazard lights on.",
+      "access_notes": "Roadside access only — park on the verge, hazard lights on.",
       "hazards": []
     },
     "inspection_rules": {
@@ -2592,7 +2845,7 @@
     "assigned_inspector_id": "8b871a95-a2e3-4fc8-9942-6b313d742456",
     "asset": {
       "id": "DRN-80014",
-      "name": "Sungei Kadut \u2014 Segment 01",
+      "name": "Sungei Kadut — Segment 01",
       "type": "canal",
       "length_m": 607.5,
       "geometry": {
@@ -2807,7 +3060,7 @@
     "assigned_inspector_id": "3d87cb5c-3f68-4ae7-b2e2-a6f807dd82b6",
     "asset": {
       "id": "DRN-80015",
-      "name": "Sungei Kadut \u2014 Segment 02",
+      "name": "Sungei Kadut — Segment 02",
       "type": "canal",
       "length_m": 612.0,
       "geometry": {
@@ -3017,7 +3270,7 @@
     "assigned_inspector_id": "ef2ea4f1-d98e-4c88-82c4-f7f1d4dc4c1c",
     "asset": {
       "id": "DRN-80016",
-      "name": "Sungei Kadut \u2014 Segment 03",
+      "name": "Sungei Kadut — Segment 03",
       "type": "canal",
       "length_m": 604.6,
       "geometry": {
@@ -3224,7 +3477,7 @@
     "assigned_inspector_id": "4dc76514-e3bb-448f-b75a-96c78c946235",
     "asset": {
       "id": "DRN-80017",
-      "name": "Sungei Kadut \u2014 Segment 04",
+      "name": "Sungei Kadut — Segment 04",
       "type": "canal",
       "length_m": 414.4,
       "geometry": {
@@ -3353,7 +3606,7 @@
         410,
         414.4
       ],
-      "access_notes": "Roadside access only \u2014 park on the verge, hazard lights on.",
+      "access_notes": "Roadside access only — park on the verge, hazard lights on.",
       "hazards": []
     },
     "inspection_rules": {
@@ -3965,7 +4218,7 @@
         530,
         539.1
       ],
-      "access_notes": "Roadside access only \u2014 park on the verge, hazard lights on.",
+      "access_notes": "Roadside access only — park on the verge, hazard lights on.",
       "hazards": [
         "deep_water",
         "steep_batter"
@@ -4102,7 +4355,7 @@
     "assigned_inspector_id": null,
     "asset": {
       "id": "DRN-80022",
-      "name": "Bukit Timah Canal \u2014 Segment 01",
+      "name": "Bukit Timah Canal — Segment 01",
       "type": "canal",
       "length_m": 613.0,
       "geometry": {
@@ -4283,7 +4536,7 @@
         610,
         613.0
       ],
-      "access_notes": "Roadside access only \u2014 park on the verge, hazard lights on.",
+      "access_notes": "Roadside access only — park on the verge, hazard lights on.",
       "hazards": [
         "vegetation_overgrowth",
         "wildlife"
@@ -4315,7 +4568,7 @@
     "assigned_inspector_id": "06b45c7e-b91a-419e-89d4-a0d48c73fcd2",
     "asset": {
       "id": "DRN-80023",
-      "name": "Bukit Timah Canal \u2014 Segment 02",
+      "name": "Bukit Timah Canal — Segment 02",
       "type": "canal",
       "length_m": 600.1,
       "geometry": {
@@ -4526,7 +4779,7 @@
     "assigned_inspector_id": "8d7266ab-a779-49e0-b2b0-21190293554d",
     "asset": {
       "id": "DRN-80024",
-      "name": "Bukit Timah Canal \u2014 Segment 03",
+      "name": "Bukit Timah Canal — Segment 03",
       "type": "canal",
       "length_m": 177.4,
       "geometry": {
@@ -4591,7 +4844,7 @@
         170,
         177.4
       ],
-      "access_notes": "Roadside access only \u2014 park on the verge, hazard lights on.",
+      "access_notes": "Roadside access only — park on the verge, hazard lights on.",
       "hazards": [
         "deep_water",
         "steep_batter"
@@ -4623,7 +4876,7 @@
     "assigned_inspector_id": null,
     "asset": {
       "id": "DRN-80025",
-      "name": "Alexandra Canal \u2014 Segment 01",
+      "name": "Alexandra Canal — Segment 01",
       "type": "canal",
       "length_m": 603.9,
       "geometry": {
@@ -4835,7 +5088,7 @@
     "assigned_inspector_id": "cff1902f-b188-4500-9add-8f358e931966",
     "asset": {
       "id": "DRN-80026",
-      "name": "Alexandra Canal \u2014 Segment 02",
+      "name": "Alexandra Canal — Segment 02",
       "type": "canal",
       "length_m": 616.1,
       "geometry": {
@@ -5045,7 +5298,7 @@
     "assigned_inspector_id": null,
     "asset": {
       "id": "DRN-80027",
-      "name": "Alexandra Canal \u2014 Segment 03",
+      "name": "Alexandra Canal — Segment 03",
       "type": "canal",
       "length_m": 209.3,
       "geometry": {
@@ -5146,7 +5399,7 @@
     "assigned_inspector_id": null,
     "asset": {
       "id": "DRN-80028",
-      "name": "Siglap Canal \u2014 Segment 01",
+      "name": "Siglap Canal — Segment 01",
       "type": "canal",
       "length_m": 603.7,
       "geometry": {
@@ -5334,7 +5587,7 @@
         600,
         603.7
       ],
-      "access_notes": "Roadside access only \u2014 park on the verge, hazard lights on.",
+      "access_notes": "Roadside access only — park on the verge, hazard lights on.",
       "hazards": [
         "slippery_surface"
       ]
@@ -5365,7 +5618,7 @@
     "assigned_inspector_id": null,
     "asset": {
       "id": "DRN-80029",
-      "name": "Siglap Canal \u2014 Segment 02",
+      "name": "Siglap Canal — Segment 02",
       "type": "canal",
       "length_m": 312.1,
       "geometry": {
@@ -5500,7 +5753,7 @@
     "assigned_inspector_id": "d4f34310-a6dc-45f7-bd61-0ebea9bbc545",
     "asset": {
       "id": "DRN-80030",
-      "name": "Sungei Api Api \u2014 Segment 01",
+      "name": "Sungei Api Api — Segment 01",
       "type": "canal",
       "length_m": 623.6,
       "geometry": {
@@ -5813,7 +6066,7 @@
     "assigned_inspector_id": null,
     "asset": {
       "id": "DRN-80031",
-      "name": "Sungei Api Api \u2014 Segment 02",
+      "name": "Sungei Api Api — Segment 02",
       "type": "canal",
       "length_m": 311.2,
       "geometry": {
@@ -7199,7 +7452,7 @@
         230,
         234.5
       ],
-      "access_notes": "Roadside access only \u2014 park on the verge, hazard lights on.",
+      "access_notes": "Roadside access only — park on the verge, hazard lights on.",
       "hazards": []
     },
     "inspection_rules": {
